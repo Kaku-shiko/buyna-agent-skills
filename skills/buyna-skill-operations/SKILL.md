@@ -21,7 +21,7 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
 - Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
 - Require a new Codex task after installation or update so discovery refreshes.
-- For a private repository, confirm the teammate has repository access and authenticated Git credentials.
+- The current repository is public and requires no invitation for installation. Require authenticated Git credentials only for write operations.
 
 ## Contribution Rules
 

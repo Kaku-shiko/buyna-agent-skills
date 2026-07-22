@@ -9,7 +9,7 @@ Use $skill-installer to install all Skills under skills/ from the private
 GitHub repository Kaku-shiko/buyna-agent-skills.
 ```
 
-The teammate must already have access to the private repository. Never paste a GitHub token into a prompt or repository file.
+The repository is public, so installation does not require an invitation or GitHub token. Never paste a GitHub token into a prompt or repository file.
 
 ## Install from a cloned repository
 

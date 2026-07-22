@@ -207,5 +207,5 @@ Pass the confirmed language, pricing-display decision, design system, and page g
 - [Anthropic Skills](https://github.com/anthropics/skills)：Skill结构、渐进加载和示例写法参考。
 - [GitHub Community Health Files](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file)：README、贡献、安全和模板约定。
 
-OpenAI已将旧 `openai/skills` 仓库标记为弃用，并建议新的 Codex分发使用 Plugin。当前仓库先使用 GitHub私有 Skill安装方式；当团队需要统一插件安装、命令或 MCP依赖时，再升级为 skill-only plugin。
+OpenAI已将旧 `openai/skills` 仓库标记为弃用，并建议新的 Codex分发使用 Plugin。当前仓库先使用 GitHub公开 Skill安装方式；当团队需要统一插件安装、命令或 MCP依赖时，再升级为 skill-only plugin。
 
