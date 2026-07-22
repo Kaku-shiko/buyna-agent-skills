@@ -17,6 +17,7 @@ buyna-agent-skills/
 ├── docs/             给团队成员阅读的操作文档
 ├── scripts/          安装和校验仓库的自动化脚本
 ├── skills/           Codex可以安装和调用的 Skill
+├── planned-skills/   尚未确定定位的 Skill占位区
 ├── README.md         GitHub项目首页和快速入口
 ├── CONTRIBUTING.md   贡献与修改流程
 ├── SECURITY.md       安全和 Secret处理规则
@@ -76,6 +77,20 @@ skills/<skill-name>/<skill-name>/SKILL.md
 ```
 
 同名嵌套会导致重复发现、更新混乱或错误调用。
+
+### `planned-skills/`
+
+存放已经决定未来要做、但尚未确认职责和规则的 Skill空目录。
+
+当前预留：
+
+```text
+planned-skills/
+├── buyna-erp/
+└── buyna-crm/
+```
+
+此目录不会被安装脚本处理，也不会被 Codex发现。占位目录不得提前放置空白或 TODO版 `SKILL.md`；只有定位、触发条件、输入输出和边界确认后，才使用 Skill初始化器在 `skills/` 中正式创建。
 
 ## 3. Skill业务分类
 
@@ -217,4 +232,3 @@ Codex通常不需要把 assets内容全部读入上下文。
 - 不把 Secret写进任何目录。
 - 不让路由 Skill复制所有子 Skill内容。
 - 不创建同名嵌套 Skill目录。
-

@@ -12,8 +12,16 @@ Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-nam
 | `docs/` | 团队操作、写作和目录说明 | 否 |
 | `scripts/` | 安装与校验脚本 | 否 |
 | `skills/` | 可独立安装和调用的 Skill | 是 |
+| `planned-skills/` | 尚未定义内容的未来 Skill占位目录 | 否 |
 
 `skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
+
+当前预留：
+
+- `planned-skills/buyna-erp/`
+- `planned-skills/buyna-crm/`
+
+预留目录没有 `SKILL.md`，因此不会被 Codex安装或调用。
 
 ## Skill 组成
 
