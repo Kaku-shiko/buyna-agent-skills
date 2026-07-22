@@ -19,13 +19,17 @@
 
 ## 3. 系统结构
 
+详细目录职责和 Skill内部文件说明见 [文件夹分类与说明](FOLDER_GUIDE.md)。
+
 ```text
 buyna-agent-skills/
 ├── README.md
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 ├── docs/
-│   └── OPERATIONS_MANUAL.md
+│   ├── OPERATIONS_MANUAL.md
+│   ├── WRITING_GUIDE.md
+│   └── FOLDER_GUIDE.md
 ├── scripts/
 │   ├── install.ps1
 │   └── validate.ps1
