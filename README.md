@@ -2,15 +2,37 @@
 
 Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
+完整的安装、调用、更新、开发、审核、发布和新成员培训流程，请阅读 [团队操作手册](docs/OPERATIONS_MANUAL.md)。不了解目录用途时先看 [文件夹分类与说明](docs/FOLDER_GUIDE.md)。编写或审查 Skill时使用 [Skill编写规范](docs/WRITING_GUIDE.md)。提交修改前请阅读 [贡献规范](CONTRIBUTING.md) 和 [安全规则](SECURITY.md)。
+
+## 仓库目录
+
+| 目录 | 用途 | 是否安装到 Codex |
+| --- | --- | --- |
+| `.github/` | Issue、PR、CODEOWNERS和 Actions | 否 |
+| `docs/` | 团队操作、写作和目录说明 | 否 |
+| `scripts/` | 安装与校验脚本 | 否 |
+| `skills/` | 可独立安装和调用的 Skill | 是 |
+| `planned-skills/` | 尚未定义内容的未来 Skill占位目录 | 否 |
+
+`skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
+
+当前预留：
+
+- `planned-skills/buyna-erp/`
+- `planned-skills/buyna-crm/`
+
+预留目录没有 `SKILL.md`，因此不会被 Codex安装或调用。
+
 ## Skill 组成
 
 ### 网站开发主流程
 
-1. `buyna-website-builder`：总入口，按确认顺序调用其他 Skill。
-2. `buyna-customer-intake`：收集网站类型、公司信息、主语言、价格和素材。
-3. `buyna-website-design`：确认前端框架、设计系统、UI/UX、动画和参考网站。
-4. `buyna-page-structure`：确认桌面端、手机端、页面内容和隐私政策。
-5. `buyna-frontend-builder`：连接真实 API，开发公开页面和 Admin 前端。
+1. `buyna-skill-operations`：团队安装、调用、更新、贡献和发布助手。
+2. `buyna-website-builder`：总入口，按确认顺序调用其他 Skill。
+3. `buyna-customer-intake`：收集网站类型、公司信息、主语言、价格和素材。
+4. `buyna-website-design`：确认前端框架、设计系统、UI/UX、动画和参考网站。
+5. `buyna-page-structure`：确认桌面端、手机端、页面内容和隐私政策。
+6. `buyna-frontend-builder`：连接真实 API，开发公开页面和 Admin 前端。
 
 ### GlobePay 支付分支
 
@@ -26,6 +48,7 @@ Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-nam
 
 ```text
 请使用 $skill-installer，从 GitHub 仓库 Kaku-shiko/buyna-agent-skills 安装以下 Skill：
+skills/buyna-skill-operations
 skills/buyna-website-builder
 skills/buyna-customer-intake
 skills/buyna-website-design

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna Skill Operations"
+  short_description: "Guide team installation, use, review, and releases"
+  default_prompt: "Use $buyna-skill-operations to guide this team member through installing, invoking, updating, or contributing to the Buyna.ai skill repository."
