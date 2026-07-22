@@ -15,7 +15,7 @@
 | Developer | Write | 建分支、修改 Skill、提交 PR |
 | User | Read | 下载、安装和调用 Skill |
 
-建议使用 Private Organization 仓库，通过 Team 分配权限。不要共享一个 GitHub账号。
+当前仓库为 Public：任何人都可以读取和克隆；只有被授权成员可以直接推送。外部贡献者使用 Fork和 Pull Request。不要共享 GitHub账号。
 
 ## 3. 系统结构
 
@@ -66,11 +66,11 @@ flowchart TD
 ### 方法 A：让 Codex 安装
 
 ```text
-请使用 $skill-installer，从 GitHub 私有仓库
+请使用 $skill-installer，从 GitHub 公开仓库
 Kaku-shiko/buyna-agent-skills 安装 skills/ 下的全部 Skill。
 ```
 
-私有仓库要求当前电脑已登录有权限的 GitHub账号。
+公开仓库安装不需要邀请或 GitHub Token。
 
 ### 方法 B：克隆后安装
 
@@ -214,12 +214,12 @@ Issue必须包含：
 - 新建 Codex 任务。
 - 使用 `$skill-name` 显式调用。
 
-### 私有仓库无法安装
+### GitHub仓库无法下载
 
-- 检查同事是否被邀请。
-- 检查邀请是否已接受。
-- 检查当前电脑 GitHub登录账号。
-- 使用 `gh auth status` 验证授权。
+- 检查仓库地址是否为 `https://github.com/Kaku-shiko/buyna-agent-skills`。
+- 检查网络、Git安装和代理设置。
+- 确认克隆命令使用 `.git` 地址。
+- 只有提交修改时才需要登录有写入权限的 GitHub账号。
 
 ### 更新后行为没变化
 
@@ -230,9 +230,7 @@ Issue必须包含：
 
 ## 14. 新成员入职清单
 
-- 接受 GitHub仓库邀请
 - 安装 Git 和 GitHub CLI
-- 完成 `gh auth login`
 - 克隆仓库
 - 安装全部 Skill
 - 新建 Codex任务
@@ -240,3 +238,4 @@ Issue必须包含：
 - 成功调用 `$buyna-website-builder`
 - 阅读安全规则
 - 了解 Issue和 Pull Request流程
+- 需要贡献代码时再完成 `gh auth login`

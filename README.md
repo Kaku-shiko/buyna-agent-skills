@@ -2,6 +2,10 @@
 
 Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
+公开仓库：[https://github.com/Kaku-shiko/buyna-agent-skills](https://github.com/Kaku-shiko/buyna-agent-skills)
+
+Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
+
 完整的安装、调用、更新、开发、审核、发布和新成员培训流程，请阅读 [团队操作手册](docs/OPERATIONS_MANUAL.md)。不了解目录用途时先看 [文件夹分类与说明](docs/FOLDER_GUIDE.md)。编写或审查 Skill时使用 [Skill编写规范](docs/WRITING_GUIDE.md)。提交修改前请阅读 [贡献规范](CONTRIBUTING.md) 和 [安全规则](SECURITY.md)。
 
 ## 仓库目录
@@ -61,7 +65,7 @@ skills/buyai-globepay-status-sync
 skills/buyai-globepay-recurring
 ```
 
-如果仓库是私有仓库，同事需要先让 Git 能访问该仓库，或者在环境中配置 `GH_TOKEN` / `GITHUB_TOKEN`。不要把 Token 写入仓库、Skill 或聊天内容。
+当前仓库是 Public。任何人都可以查看、克隆和安装，不需要 GitHub邀请或 Token；向仓库提交修改仍需要授权，或通过 Fork和 Pull Request贡献。
 
 安装后重新打开 Codex 任务，再输入：
 
@@ -116,9 +120,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Scope Project -P
 
 ## 发布流程
 
-1. 在 GitHub 建立仓库，例如 `buyna-agent-skills`。
-2. 将本目录内容提交到默认分支 `main`。
-3. 设置仓库为 Private，并邀请团队成员。
-4. 确认安装说明使用 `Kaku-shiko/buyna-agent-skills`。
-5. 团队成员通过 `$skill-installer` 安装。
-6. 后续更新使用 Pull Request 审查，合并后通知成员重新安装或执行更新脚本。
+1. 公开来源固定为 `https://github.com/Kaku-shiko/buyna-agent-skills`。
+2. 默认分支使用 `main`，并保留 GitHub Actions校验。
+3. 团队成员通过 `$skill-installer` 或克隆仓库安装。
+4. 外部贡献者使用 Fork和 Pull Request；授权成员使用短期分支和 Pull Request。
+5. 合并后通知成员重新安装或执行更新脚本。
