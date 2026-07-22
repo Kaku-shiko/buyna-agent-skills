@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Customer Intake"
+  short_description: "Collect website customer information step by step"
+  default_prompt: "Use $buyna-customer-intake to collect the customer website type, company information, and available materials one step at a time."

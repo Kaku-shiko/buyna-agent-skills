@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Website Builder"
+  short_description: "Guide the website project one approved step at a time"
+  default_prompt: "Use $buyna-website-builder to start Skill 1 and collect the customer's basic website information one section at a time."

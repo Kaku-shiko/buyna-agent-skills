@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Frontend Builder"
+  short_description: "Build clear responsive website frontends"
+  default_prompt: "Use `$buyna-frontend-builder to build or repair the frontend using the approved Buyna.ai project framework."

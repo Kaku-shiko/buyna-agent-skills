@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Website Design"
+  short_description: "Choose the frontend direction and create a design board"
+  default_prompt: "Use $buyna-website-design to recommend the frontend framework and motion approach, research design references or templates, confirm the UI/UX system, and create one complete website design-system board."

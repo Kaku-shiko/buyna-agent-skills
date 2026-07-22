@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyai GlobePay Payment"
+  short_description: "GlobePay Japan payment integration for Buyai"
+  default_prompt: "Use this skill to implement GlobePay Japan checkout, payment status verification, and webhook handling."

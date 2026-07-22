@@ -1,0 +1,32 @@
+---
+name: buyai-globepay-status-sync
+description: "Implement or repair GlobePay status sync: notify URL, return URL, server query, paid writer, refund sync, paid_at repair, seller records, and refresh buttons."
+---
+
+# Buyai GlobePay Status Sync
+
+Use after a provider order exists. Owns notify/webhook, return query fallback, paid/refunded transitions, idempotent writers, seller visibility, and refresh/repair logic.
+
+## Gold
+
+Never mark paid from redirect, opened payment page, or provider order creation. Mark paid only after verified notify/query returns provider success, such as `result_code=PAY_SUCCESS`. Refunded orders remain auditable.
+
+## First Move
+
+Read `references/status-sync-rules.md`. Inspect orders, payments, paid customers/bookings, provider ids, return URL, notify URL, webhook, refresh button, and dashboard queries.
+
+## Required Flow
+
+Notify and return query call one idempotent writer. It finds local order by provider id, sets paid/refunded status, stores raw data, creates paid record once, updates stock/capacity once, and logs write failures.
+
+`paid_at` uses provider/local payment time when available, not refresh time. Expiration must not override verified success.
+
+Seller Orders may have one page-level silent refresh button. It checks unfinished orders and paid orders that may have been refunded. Do not add per-row refresh buttons.
+
+## Combine With
+
+Use `buyai-globepay-checkout` for provider order creation, `buyai-globepay-config` for signing/query failures, and product/booking skills for records, stock, capacity, CSV, and email.
+
+## Validate
+
+Check `pending/expired/failed + PAY_SUCCESS -> paid`, `paid + refund success -> refunded`, idempotency, real paid time, seller visibility, CSV, dashboard totals, and no deletion of paid/refunded records.
