@@ -11,8 +11,9 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
 
 1. For installation, access, invocation, or updates, read [references/team-usage.md](references/team-usage.md).
 2. For creating, editing, reviewing, or releasing a Skill, read [references/github-workflow.md](references/github-workflow.md).
-3. Inspect the real repository and current branch before changing files.
-4. Never claim a Skill is installed merely because its documentation is visible on GitHub or Notion.
+3. For writing or reviewing Skill content, read [references/writing-standard.md](references/writing-standard.md).
+4. Inspect the real repository and current branch before changing files.
+5. Never claim a Skill is installed merely because its documentation is visible on GitHub or Notion.
 
 ## Installation Rules
 
@@ -34,4 +35,3 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
 ## Done
 
 Report the installed or changed Skill names, destination, validation result, branch or Pull Request, and any remaining access or restart step.
-

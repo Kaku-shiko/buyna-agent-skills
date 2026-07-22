@@ -2,7 +2,7 @@
 
 Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
-完整的安装、调用、更新、开发、审核、发布和新成员培训流程，请阅读 [团队操作手册](docs/OPERATIONS_MANUAL.md)。提交修改前请阅读 [贡献规范](CONTRIBUTING.md) 和 [安全规则](SECURITY.md)。
+完整的安装、调用、更新、开发、审核、发布和新成员培训流程，请阅读 [团队操作手册](docs/OPERATIONS_MANUAL.md)。编写或审查 Skill时使用 [Skill编写规范](docs/WRITING_GUIDE.md)。提交修改前请阅读 [贡献规范](CONTRIBUTING.md) 和 [安全规则](SECURITY.md)。
 
 ## Skill 组成
 

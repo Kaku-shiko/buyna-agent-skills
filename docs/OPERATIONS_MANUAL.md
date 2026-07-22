@@ -114,7 +114,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Force
 1. 创建 Issue，记录触发场景、输入、输出和边界。
 2. 从最新 `main` 建立分支。
 3. 使用官方 Skill初始化器创建新 Skill。
-4. 保持 `SKILL.md` 精简，将细节放入 `references/`。
+4. 按 [Skill编写规范](WRITING_GUIDE.md) 保持 `SKILL.md` 精简，将细节放入 `references/`。
 5. 运行本地校验。
 6. 检查差异和敏感信息。
 7. 推送分支并建立 Pull Request。
@@ -236,4 +236,3 @@ Issue必须包含：
 - 成功调用 `$buyna-website-builder`
 - 阅读安全规则
 - 了解 Issue和 Pull Request流程
-
