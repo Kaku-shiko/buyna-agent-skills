@@ -1,0 +1,37 @@
+---
+name: buyna-skill-operations
+description: "Guide Buyna.ai team members through GitHub-based Skill installation, invocation, updates, contribution, validation, review, and release. Use when a teammate cannot call a Skill, needs to install or update this repository, wants to create or change a Skill, or needs help following the repository Issue and Pull Request workflow."
+---
+
+# Buyna Skill Operations
+
+Operate the Buyna.ai Skill repository without mixing project implementation work into repository administration.
+
+## Route the Request
+
+1. For installation, access, invocation, or updates, read [references/team-usage.md](references/team-usage.md).
+2. For creating, editing, reviewing, or releasing a Skill, read [references/github-workflow.md](references/github-workflow.md).
+3. Inspect the real repository and current branch before changing files.
+4. Never claim a Skill is installed merely because its documentation is visible on GitHub or Notion.
+
+## Installation Rules
+
+- Prefer `$skill-installer` with repository `Kaku-shiko/buyna-agent-skills`.
+- Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
+- Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
+- Require a new Codex task after installation or update so discovery refreshes.
+- For a private repository, confirm the teammate has repository access and authenticated Git credentials.
+
+## Contribution Rules
+
+- Create or update one clearly scoped Skill per change when practical.
+- Keep only `name` and `description` in SKILL.md frontmatter.
+- Put detailed rules in directly linked `references/` files.
+- Never commit credentials, customer secrets, production URLs containing tokens, or payment keys.
+- Run `scripts/validate.ps1` and the official Skill validator before approval.
+- Use a branch, Pull Request, review, and merge; do not edit `main` directly.
+
+## Done
+
+Report the installed or changed Skill names, destination, validation result, branch or Pull Request, and any remaining access or restart step.
+

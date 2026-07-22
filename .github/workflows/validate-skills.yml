@@ -1,0 +1,27 @@
+name: Validate Skills
+
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - "scripts/validate.ps1"
+      - ".github/workflows/validate-skills.yml"
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "scripts/validate.ps1"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate repository Skills
+        shell: pwsh
+        run: ./scripts/validate.ps1
+
