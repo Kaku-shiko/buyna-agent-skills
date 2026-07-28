@@ -29,6 +29,15 @@ Get-ChildItem -Directory -LiteralPath $sourceRoot | ForEach-Object {
         throw "Skill already exists: $destination. Use -Force to update installed Skills."
     }
 
+    if ((Test-Path -LiteralPath $destination) -and $Force) {
+        $resolvedRoot = [IO.Path]::GetFullPath($destinationRoot).TrimEnd('\') + '\'
+        $resolvedDestination = [IO.Path]::GetFullPath($destination)
+        if (-not $resolvedDestination.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to replace a Skill outside the installation root: $resolvedDestination"
+        }
+        Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
+    }
+
     Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
     Write-Host "Installed: $skillName"
 }
@@ -36,4 +45,3 @@ Get-ChildItem -Directory -LiteralPath $sourceRoot | ForEach-Object {
 Write-Host ""
 Write-Host "Installation complete: $destinationRoot"
 Write-Host 'Restart Codex or open a new task, then invoke $buyna-website-builder.'
-
