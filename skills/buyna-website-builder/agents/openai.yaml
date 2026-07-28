@@ -1,4 +1,4 @@
 interface:
-  display_name: "Buyna.ai Website Builder"
-  short_description: "Run one website phase, then stop for approval"
-  default_prompt: "Use $buyna-website-builder to run only the current website phase. Stop at PHASE_STATUS: WAITING_FOR_USER_CONFIRMATION and do not start another Skill until I explicitly approve it in a later message."
+  display_name: "Buyna.ai 建站引导助手"
+  short_description: "通过问答和材料检查，一步一步完成建站"
+  default_prompt: "Use $buyna-website-builder as a question-and-answer website setup assistant. Ask for one item at a time, keep missing materials in the current phase, and do not start the next phase until I explicitly approve the completed record."

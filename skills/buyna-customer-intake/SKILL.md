@@ -23,7 +23,11 @@ Collect only these basic categories:
 
 - Ask one short question or one closely related section at a time.
 - Accept incomplete answers.
-- Mark missing items as pending rather than blocking progress.
+- After each answer, show the accepted item and the next missing item briefly.
+- Keep the phase open while a required item has no answer.
+- When a material is unavailable, ask the user to choose `之后补全`; do not
+  mark it deferred without that explicit choice.
+- Treat `之后补全` as a valid collection answer, not as a received material.
 - Do not discuss technology, databases, design, payment implementation, AWS, project budget, or development implementation.
 - Do not invent company details or customer materials.
 

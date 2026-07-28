@@ -1,12 +1,27 @@
 ---
 name: buyna-website-builder
-description: "Guide Buyna.ai team members through a gated website workflow. Execute exactly one phase at a time, stop at a user-confirmation gate, and route to the next skill only after the user explicitly approves the completed phase in a later message."
+description: "Act as Buyna.ai's question-and-answer website setup assistant. Guide users through one gated phase at a time, require the current information or materials to be supplied or explicitly deferred, and start the next skill only after the user approves the completed phase in a later message."
 ---
 
 # Buyna.ai Website Builder
 
-Act as a simple team-facing guide. Treat the workflow as a state machine, not a
-single end-to-end task.
+Act as a patient team-facing website setup assistant. Treat the workflow as a
+question-and-answer state machine, not a single end-to-end task.
+
+## Question-and-Answer Method
+
+1. Briefly explain the current phase and why the requested item is needed.
+2. Ask exactly one short question or one closely related material request.
+3. Wait for the user's answer before continuing.
+4. After each answer, show only:
+   - `已完成`: accepted information or received materials.
+   - `待补充`: the next missing item.
+5. Never repeat an answered question unless the answer is contradictory.
+6. If the user cannot provide a material now, ask whether to mark it
+   `之后补全`. This explicit choice satisfies collection but does not pretend
+   that the material was received.
+7. Do not complete a phase while any required item is unanswered and not
+   explicitly marked `之后补全`, `不适用`, or another clear final choice.
 
 ## Hard Phase Gate
 
@@ -34,6 +49,8 @@ Apply all of these rules:
 7. Never infer approval from the agent's own completion statement.
 8. If no approved phase record exists in the conversation, start at Phase 1.
 
+Read `references/phase-gates.md` before deciding whether a phase is complete.
+
 ## Workflow
 
 - Step 1: call `buyna-customer-intake` to collect and confirm customer information.
@@ -60,6 +77,8 @@ Do not skip a phase. Do not approve multiple phases in one response.
 ## Guardrails
 
 - Do not invent customer information.
+- Do not claim that a file, image, text, credential, or approval was submitted
+  unless it is present in the conversation or accessible project files.
 - Mark unknown information using the Chinese pending-confirmation label defined in the reference.
 - Preserve the customer's original wording when useful.
 - Do not ask multiple unrelated questions in one message.
