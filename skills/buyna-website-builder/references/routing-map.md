@@ -2,6 +2,9 @@
 
 Use the smallest set of skills needed for the current phase.
 
+The routing list is a menu, not an execution queue. Select only the skill for
+the currently approved phase. Never load or call the next item in anticipation.
+
 1. Customer information collection: `buyna-customer-intake`.
 2. Website design confirmation: `buyna-website-design`.
 3. Foundation and architecture: `buyna-project-framework`.
@@ -16,4 +19,6 @@ Use the smallest set of skills needed for the current phase.
 12. Verification: `buyna-testing-quality`.
 13. AWS release: `buyna-aws-release`, which may use `aws-project-deployer` for live AWS operations.
 
-Do not call every skill for every request. Finish and verify one phase before starting the next.
+Do not call every skill for every request. Finish one phase, emit
+`PHASE_STATUS: WAITING_FOR_USER_CONFIRMATION`, and stop. Route forward only
+after explicit approval in a later user message.
