@@ -20,7 +20,7 @@ Allow unavailable materials only when the user explicitly chooses
 
 Require:
 
-- frontend framework decision;
+- frontend preference or design-compatible framework recommendation;
 - visual direction, colors, typography, and UI/UX feeling;
 - motion-library decision;
 - at least one reference website/template, or explicit `无参考`;
@@ -44,7 +44,8 @@ Present one desktop/mobile structure record for approval.
 
 Require an inspected or approved frontend, backend, database, storage,
 environment, repository, build/start, migration, test, and release decision.
-Do not force a framework.
+Resolve the final technical architecture here. Do not force a framework or
+silently override the approved design direction.
 
 ## Phase 5: Business Branch
 

@@ -1,6 +1,6 @@
 # Buyna.ai Agent Skills
 
-Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
+Buyna.ai 团队网站开发 Skill 仓库。当前包含 22 个可安装 Skill。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
 公开仓库：[https://github.com/Kaku-shiko/buyna-agent-skills](https://github.com/Kaku-shiko/buyna-agent-skills)
 
@@ -34,18 +34,10 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 1. `buyna-skill-operations`：团队安装、调用、更新、贡献和发布助手。
 2. `buyna-website-builder`：总入口，按确认顺序调用其他 Skill。
 3. `buyna-customer-intake`：收集网站类型、公司信息、主语言、价格和素材。
-4. `buyna-website-design`：确认前端框架、设计系统、UI/UX、动画和参考网站。
+4. `buyna-website-design`：确认前端偏好、设计系统、UI/UX、动画和参考网站。
 5. `buyna-page-structure`：确认桌面端、手机端、页面内容和隐私政策。
 6. `buyna-project-framework`：确认前端、后端、数据库、存储、环境和项目结构。
 7. `buyna-frontend-builder`：连接真实 API，开发公开页面和 Admin 前端。
-
-### GlobePay 支付分支
-
-1. `buyai-globepay-payment`：支付总路由。
-2. `buyai-globepay-config`：日本接口地址、环境变量、签名和币种。
-3. `buyai-globepay-checkout`：单次卡支付、二维码、H5 和跳转支付。
-4. `buyai-globepay-status-sync`：notify、return、查询、支付及退款状态同步。
-5. `buyai-globepay-recurring`：WorldPay Recurring、3DS、CIT 和 MIT 订阅。
 
 ### 商家后台与 AWS 分支
 
@@ -59,6 +51,14 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 8. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
 9. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
 10. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
+
+### GlobePay 支付分支
+
+1. `buyai-globepay-payment`：支付总路由。
+2. `buyai-globepay-config`：日本接口地址、环境变量、签名和币种。
+3. `buyai-globepay-checkout`：单次卡支付、二维码、H5 和跳转支付。
+4. `buyai-globepay-status-sync`：notify、return、查询、支付及退款状态同步。
+5. `buyai-globepay-recurring`：WorldPay Recurring、3DS、CIT 和 MIT 订阅。
 
 ## 标准调用顺序
 
@@ -92,19 +92,19 @@ skills/buyna-customer-intake
 skills/buyna-website-design
 skills/buyna-page-structure
 skills/buyna-project-framework
-skills/buyna-frontend-builder
+skills/buyai-merchant-builder
+skills/buyna-aws-data-layer
+skills/buyna-s3-storage
+skills/buyai-product-merchant-backend
+skills/buyai-booking-service-backend
+skills/buyai-checkout-address-ux
 skills/buyai-globepay-payment
 skills/buyai-globepay-config
 skills/buyai-globepay-checkout
 skills/buyai-globepay-status-sync
 skills/buyai-globepay-recurring
-skills/buyai-merchant-builder
-skills/buyai-product-merchant-backend
-skills/buyai-booking-service-backend
-skills/buyai-checkout-address-ux
+skills/buyna-frontend-builder
 skills/buyai-storefront-layout-ux
-skills/buyna-aws-data-layer
-skills/buyna-s3-storage
 skills/buyna-testing-quality
 skills/buyna-aws-release
 skills/aws-project-deployer

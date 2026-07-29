@@ -61,18 +61,22 @@ flowchart TD
     DB --> Q{product or booking}
     Q --> MP[product merchant backend]
     Q --> MB[booking service backend]
-    MP --> UX[checkout, payment, frontend]
+    MP --> UX[checkout and customer forms]
     MB --> UX
-    UX --> T[testing quality]
-    F --> T
+    UX --> Y{payment required}
+    Y -->|yes| G[buyai-globepay-payment]
+    Y -->|no| F
+    G --> F
+    F --> T[testing quality]
     T --> R[AWS release]
     R --> A[aws-project-deployer]
-    B --> G[buyai-globepay-payment]
     G --> GC[config]
     G --> GO[checkout]
     G --> GS[status-sync]
     G --> GR[recurring]
 ```
+
+流程图表示调用顺序，不表示一次性执行。每个节点完成后都要保存结果并等待用户明确确认；不适用的节点必须记录为 `不适用`，不能静默跳过。
 
 ## 5. 第一次安装
 

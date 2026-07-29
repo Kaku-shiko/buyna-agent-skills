@@ -54,7 +54,7 @@ Read `references/phase-gates.md` before deciding whether a phase is complete.
 ## Workflow
 
 - Step 1: call `buyna-customer-intake` to collect and confirm customer information.
-- Step 2: after Step 1 approval, call `buyna-website-design` to confirm the framework, design, references, and motion direction.
+- Step 2: after Step 1 approval, call `buyna-website-design` to confirm the frontend preference, design system, references, and motion direction.
 - Step 3: after Step 2 approval, call `buyna-page-structure` to confirm pages, content sections, template changes, and privacy-policy placement.
 - Step 4: after Step 3 approval, call `buyna-project-framework` and confirm the technical foundation.
 - Step 5: classify the project as static, product, booking/service, or mixed; call `buyai-merchant-builder` only for merchant projects.
