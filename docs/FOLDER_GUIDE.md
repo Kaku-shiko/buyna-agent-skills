@@ -94,7 +94,7 @@ planned-skills/
 
 ## 3. Skill业务分类
 
-虽然 `skills/` 物理结构保持扁平，但逻辑上分为四组。
+虽然 `skills/` 物理结构保持扁平，但逻辑上分为五组。
 
 ### A. 团队治理与总入口
 
@@ -119,9 +119,24 @@ planned-skills/
 | --- | --- |
 | `buyna-frontend-builder` | 根据已确认需求和设计连接真实 API，开发公开页面和 Admin前端 |
 
-后续商家 Admin、商品后端和服务后端应作为独立 Skill加入，而不是塞入此 Skill。
+商家 Admin、商品后端和服务后端由下一组独立 Skill负责，不塞入前端 Skill。
 
-### D. GlobePay支付
+### D. 商家后台与 AWS
+
+| Skill | 定位 |
+| --- | --- |
+| `buyai-merchant-builder` | 商家后台总协调器和商品/服务分支选择 |
+| `buyai-product-merchant-backend` | 登录、商品、SKU、库存、订单、客户和 CSV |
+| `buyai-booking-service-backend` | 登录、服务、档期、容量、预约和记录 |
+| `buyai-checkout-address-ux` | 购买人、地址、邮编、表单保存和后台同步 |
+| `buyai-storefront-layout-ux` | 商城结构、商家入口、分类、页脚和移动端 |
+| `buyna-aws-data-layer` | 框架无关的 AWS 数据库、迁移和商家隔离 |
+| `buyna-s3-storage` | S3 图片与文件上传、授权、替换和删除 |
+| `buyna-testing-quality` | 后台、API、权限、数据、支付和移动端测试 |
+| `buyna-aws-release` | AWS 发布准备、迁移、验证和回滚 |
+| `aws-project-deployer` | AWS 身份检查、架构、资源操作和部署验证 |
+
+### E. GlobePay支付
 
 | Skill | 定位 |
 | --- | --- |

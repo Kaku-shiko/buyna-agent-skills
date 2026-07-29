@@ -46,6 +46,19 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 4. `buyai-globepay-status-sync`：notify、return、查询、支付及退款状态同步。
 5. `buyai-globepay-recurring`：WorldPay Recurring、3DS、CIT 和 MIT 订阅。
 
+### 商家后台与 AWS 分支
+
+1. `buyai-merchant-builder`：商家后台总协调与商品/服务分支选择。
+2. `buyai-product-merchant-backend`：商家登录、商品、SKU、库存、订单和客户。
+3. `buyai-booking-service-backend`：服务、预约、容量、记录和商家后台。
+4. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
+5. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
+6. `buyna-aws-data-layer`：不绑定框架的 AWS 数据库与迁移规则。
+7. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
+8. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
+9. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
+10. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
+
 ## 推荐安装方式：让 Codex 从 GitHub 安装
 
 在 Codex 中输入：
@@ -63,6 +76,16 @@ skills/buyai-globepay-config
 skills/buyai-globepay-checkout
 skills/buyai-globepay-status-sync
 skills/buyai-globepay-recurring
+skills/buyai-merchant-builder
+skills/buyai-product-merchant-backend
+skills/buyai-booking-service-backend
+skills/buyai-checkout-address-ux
+skills/buyai-storefront-layout-ux
+skills/buyna-aws-data-layer
+skills/buyna-s3-storage
+skills/buyna-testing-quality
+skills/buyna-aws-release
+skills/aws-project-deployer
 ```
 
 当前仓库是 Public。任何人都可以查看、克隆和安装，不需要 GitHub邀请或 Token；向仓库提交修改仍需要授权，或通过 Fork和 Pull Request贡献。
