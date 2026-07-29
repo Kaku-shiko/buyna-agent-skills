@@ -53,14 +53,18 @@ flowchart TD
     B[buyna-website-builder] --> C[buyna-customer-intake]
     C --> D[buyna-website-design]
     D --> P[buyna-page-structure]
-    P --> F[buyna-frontend-builder]
-    P --> M[buyai-merchant-builder]
-    M --> MP[product merchant backend]
-    M --> MB[booking service backend]
-    M --> DB[AWS data layer]
-    M --> S3[S3 storage]
-    M --> UX[checkout and storefront UX]
-    M --> T[testing quality]
+    P --> K[buyna-project-framework]
+    K --> X{static or merchant}
+    X -->|static| F[buyna-frontend-builder]
+    X -->|merchant| M[buyai-merchant-builder]
+    M --> DB[AWS data layer and S3]
+    DB --> Q{product or booking}
+    Q --> MP[product merchant backend]
+    Q --> MB[booking service backend]
+    MP --> UX[checkout, payment, frontend]
+    MB --> UX
+    UX --> T[testing quality]
+    F --> T
     T --> R[AWS release]
     R --> A[aws-project-deployer]
     B --> G[buyai-globepay-payment]

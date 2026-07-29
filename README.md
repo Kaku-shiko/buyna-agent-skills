@@ -36,7 +36,8 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 3. `buyna-customer-intake`：收集网站类型、公司信息、主语言、价格和素材。
 4. `buyna-website-design`：确认前端框架、设计系统、UI/UX、动画和参考网站。
 5. `buyna-page-structure`：确认桌面端、手机端、页面内容和隐私政策。
-6. `buyna-frontend-builder`：连接真实 API，开发公开页面和 Admin 前端。
+6. `buyna-project-framework`：确认前端、后端、数据库、存储、环境和项目结构。
+7. `buyna-frontend-builder`：连接真实 API，开发公开页面和 Admin 前端。
 
 ### GlobePay 支付分支
 
@@ -59,6 +60,26 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 9. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
 10. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
 
+## 标准调用顺序
+
+安装顺序不影响 Codex 行为。项目执行必须遵循以下逻辑顺序，并在每个阶段等待明确确认：
+
+```text
+1 客户需求
+→ 2 网站设计
+→ 3 页面结构
+→ 4 技术框架
+→ 5 静态/商品/服务/混合分支
+→ 6 AWS数据库与S3基础
+→ 7 商品或服务后台
+→ 8 客户表单与支付
+→ 9 前端和API联动
+→ 10 测试
+→ 11 AWS发布
+```
+
+静态企业网站可以跳过商家、数据库、S3、结账和支付步骤；商品与服务分支不能同时自动执行，混合项目也要逐个完成并确认。
+
 ## 推荐安装方式：让 Codex 从 GitHub 安装
 
 在 Codex 中输入：
@@ -70,6 +91,7 @@ skills/buyna-website-builder
 skills/buyna-customer-intake
 skills/buyna-website-design
 skills/buyna-page-structure
+skills/buyna-project-framework
 skills/buyna-frontend-builder
 skills/buyai-globepay-payment
 skills/buyai-globepay-config

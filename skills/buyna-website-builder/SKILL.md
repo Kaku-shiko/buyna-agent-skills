@@ -56,9 +56,14 @@ Read `references/phase-gates.md` before deciding whether a phase is complete.
 - Step 1: call `buyna-customer-intake` to collect and confirm customer information.
 - Step 2: after Step 1 approval, call `buyna-website-design` to confirm the framework, design, references, and motion direction.
 - Step 3: after Step 2 approval, call `buyna-page-structure` to confirm pages, content sections, template changes, and privacy-policy placement.
-- Step 4: after Step 3 approval, route implementation through the relevant merchant, frontend, storage, data, payment, and design skills.
-- Step 5: after implementation, call `buyna-testing-quality` before delivery or deployment.
-- Step 6: after testing approval, call `buyna-aws-release` to prepare and verify AWS deployment.
+- Step 4: after Step 3 approval, call `buyna-project-framework` and confirm the technical foundation.
+- Step 5: classify the project as static, product, booking/service, or mixed; call `buyai-merchant-builder` only for merchant projects.
+- Step 6: establish the required data and file foundations with `buyna-aws-data-layer` and/or `buyna-s3-storage`.
+- Step 7: implement one selected domain backend with `buyai-product-merchant-backend` or `buyai-booking-service-backend`.
+- Step 8: when commerce requires it, complete buyer forms and payment through `buyai-checkout-address-ux` and `buyai-globepay-payment`.
+- Step 9: connect the public/admin frontend to approved APIs through `buyna-frontend-builder`; use `buyai-storefront-layout-ux` for storefront UX.
+- Step 10: call `buyna-testing-quality` before delivery or deployment.
+- Step 11: after testing approval, call `buyna-aws-release`, which may route approved live AWS work to `aws-project-deployer`.
 
 Ask one question at a time. Wait for the answer before asking the next question. Use plain Chinese.
 
