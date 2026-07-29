@@ -40,9 +40,47 @@ Require:
 
 Present one desktop/mobile structure record for approval.
 
-## Later Phases
+## Phase 4: Project Framework
 
-Implementation requires real project files or an approved template choice.
-Testing requires recorded checks. Release requires an approved target and
-verified configuration. Never treat a plan as an implemented or verified
-artifact.
+Require an inspected or approved frontend, backend, database, storage,
+environment, repository, build/start, migration, test, and release decision.
+Do not force a framework.
+
+## Phase 5: Business Branch
+
+Require one explicit choice: static/company, product, booking/service, or
+mixed. Use merchant routing only for product, booking/service, or mixed work.
+
+## Phase 6: Data And Storage
+
+Require approved schemas/migrations for structured data and approved S3
+ownership/upload rules for files. Mark either branch `不适用` when it is not
+needed.
+
+## Phase 7: Domain Backend
+
+Require real project implementation and verification for the selected product
+or booking/service domain. Complete mixed domains one at a time.
+
+## Phase 8: Commerce Input And Payment
+
+Require approved buyer/customer fields before payment. When payment applies,
+require a local pending record and server-side verified status flow. Mark this
+phase `不适用` for sites without commerce.
+
+## Phase 9: Frontend Integration
+
+Require real project files, approved API contracts, and loading, empty, error,
+permission, desktop, and mobile behavior. A visual mockup is not API
+integration.
+
+## Phase 10: Testing
+
+Require recorded checks and evidence. Do not promote planned or implemented
+work to verified status without running the applicable checks.
+
+## Phase 11: Release
+
+Require an approved target, migration plan, secrets plan, cost/risk preview,
+rollback path, and live verification evidence. Never treat a prepared plan as
+a deployed or production-verified result.

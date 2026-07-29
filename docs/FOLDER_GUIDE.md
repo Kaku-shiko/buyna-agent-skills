@@ -102,6 +102,7 @@ planned-skills/
 | --- | --- |
 | `buyna-skill-operations` | GitHub安装、更新、贡献、审核、发布和故障排查 |
 | `buyna-website-builder` | 网站项目总入口，控制步骤顺序并路由其他 Skill |
+| `buyna-project-framework` | 在开发前确认框架、环境、模块边界和命令 |
 
 ### B. 客户需求与设计规划
 
