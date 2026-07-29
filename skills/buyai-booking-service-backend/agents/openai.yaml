@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Booking Service Backend"
+  short_description: "Build AWS booking and service backends"
+  default_prompt: "Use $buyai-booking-service-backend to build or repair service, availability, capacity, payment, booking-record, and seller-backend workflows."

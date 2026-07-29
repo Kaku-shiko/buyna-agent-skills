@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai S3 Storage"
+  short_description: "Build safe S3 upload and file workflows"
+  default_prompt: "Use $buyna-s3-storage to build or repair S3 image and file storage for this website."

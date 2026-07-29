@@ -54,6 +54,15 @@ flowchart TD
     C --> D[buyna-website-design]
     D --> P[buyna-page-structure]
     P --> F[buyna-frontend-builder]
+    P --> M[buyai-merchant-builder]
+    M --> MP[product merchant backend]
+    M --> MB[booking service backend]
+    M --> DB[AWS data layer]
+    M --> S3[S3 storage]
+    M --> UX[checkout and storefront UX]
+    M --> T[testing quality]
+    T --> R[AWS release]
+    R --> A[aws-project-deployer]
     B --> G[buyai-globepay-payment]
     G --> GC[config]
     G --> GO[checkout]
@@ -100,6 +109,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 ```text
 请使用 $buyai-globepay-payment，先判断本次支付任务应该进入哪个子 Skill。
+```
+
+商家后台任务：
+
+```text
+请使用 $buyai-merchant-builder，先判断这是商品商城、服务预约还是混合商家后台，
+再调用数据库、S3、结账、支付、测试和 AWS 发布 Skill。
 ```
 
 不要跳过客户确认步骤，也不要把设计、页面结构和业务后端一次性混在同一个 Skill 中。

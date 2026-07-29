@@ -5,7 +5,7 @@
 Ask Codex:
 
 ```text
-Use $skill-installer to install all Skills under skills/ from the private
+Use $skill-installer to install all Skills under skills/ from the public
 GitHub repository Kaku-shiko/buyna-agent-skills.
 ```
 
@@ -41,6 +41,10 @@ Call a specific step only when earlier approved outputs already exist:
 - `$buyna-frontend-builder`
 
 Use `$buyai-globepay-payment` as the GlobePay entrypoint.
+
+Use `$buyai-merchant-builder` as the merchant/seller backend entrypoint. It
+routes product, booking, database, S3, checkout, storefront, testing, payment,
+and AWS release work without loading every rule at once.
 
 ## Diagnose missing Skills
 

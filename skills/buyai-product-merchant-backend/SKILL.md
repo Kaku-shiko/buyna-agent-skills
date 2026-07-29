@@ -1,0 +1,38 @@
+---
+name: buyai-product-merchant-backend
+description: "Build or repair Buyna.ai product ecommerce on the current backend: login, products, SKU, images, stock, sorting, checkout, orders, paid customers, and CSV."
+---
+
+# Buyai Product Merchant Backend
+
+Use for product ecommerce: jewelry, apparel, goods, SKU catalogs, and shippable products. Owns products, inventory, categories, variants, images, orders, and paid customers. Does not own payment, booking capacity, or styling.
+
+## First Move
+
+Read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, image limit.
+
+## Combine Skills
+
+Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.
+
+## Gold
+
+Product data is source of truth. Backend changes to name, price, category, status, images, stock, variants, featured flag, and sort order update public pages, checkout, and seller preview.
+
+Checkout requires buyer/shipping form and local `pending_payment` before GlobePay. No disconnected payment buttons.
+
+## MVP
+
+Seller backend: login, session, product CRUD/archive, images/main image, categories, stock/variants, drag sorting, orders, paid customers, CSV, email, payment settings, GlobePay portal, optional platform shortcut.
+
+Public site: backend list, category tabs, detail, checkout, payment methods, verified success, shared footer settings.
+
+Images default max is 5 unless changed. If variants exist, detail shows options/gallery; checkout stores variant snapshot and uses SKU price/stock.
+
+## Orders
+
+Statuses: `pending_payment`, `paid`, `refunded`, `failed`, `expired`, `cancelled`. Orders/Paid Customers need filters, search, month, URL params, reset, pagination, CSV, and timezone. Expire unpaid older than 24h; never delete paid/refunded records. Use one silent page refresh button.
+
+## Validate
+
+Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sync, checkout storage, verified paid once, refund sync, CSV, cleanup, mobile backend.
