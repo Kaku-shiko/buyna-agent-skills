@@ -102,7 +102,6 @@ planned-skills/
 | --- | --- |
 | `buyna-skill-operations` | GitHub安装、更新、贡献、审核、发布和故障排查 |
 | `buyna-website-builder` | 网站项目总入口，控制步骤顺序并路由其他 Skill |
-| `buyna-project-framework` | 在开发前确认框架、环境、模块边界和命令 |
 
 ### B. 客户需求与设计规划
 
@@ -111,6 +110,7 @@ planned-skills/
 | `buyna-customer-intake` | 收集客户基本资料 | 客户需求记录 |
 | `buyna-website-design` | 确认框架、字体、颜色、UI/UX、动画和参考 | 设计确认记录 |
 | `buyna-page-structure` | 确认页面、内容、手机端和政策页面 | 页面结构记录 |
+| `buyna-project-framework` | 确认完整技术架构、环境、模块边界和命令 | 技术框架记录 |
 
 这一组不负责实现支付、数据库或生产部署。
 
