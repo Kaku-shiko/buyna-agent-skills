@@ -20,7 +20,7 @@ Allow unavailable materials only when the user explicitly chooses
 
 Require:
 
-- frontend preference or design-compatible framework recommendation;
+- one approved frontend development framework and its version/rationale;
 - visual direction, colors, typography, and UI/UX feeling;
 - motion-library decision;
 - at least one reference website/template, or explicit `无参考`;
@@ -66,16 +66,19 @@ payment work.
 
 ## Phase 5: Project Framework
 
-Require an inspected or approved frontend, backend, database, storage,
-environment, build/start, migration, test, and release decision based on the
-approved Phase 4 interface. Do not force a framework or silently override the
-approved design direction.
+Preserve the frontend framework approved in Phase 2 and used in Phase 4.
+Require inspected or approved backend, database, storage, environment,
+build/start, migration, test, and release decisions. Deliver the required
+project structure, configuration, environment example, and runnable commands
+in real project files. Do not reselect or migrate the frontend framework here.
+A backend-stack recommendation alone does not complete this phase.
 
 ## Phase 6: Data And Storage
 
 Require approved schemas/migrations for structured data and approved S3
-ownership/upload rules for files. Mark either branch `不适用` when it is not
-needed.
+ownership/upload rules for files. Deliver executable migrations/schema and/or
+storage integration code, plus verification evidence. Mark either branch
+`NOT_APPLICABLE` when it is not needed.
 
 ## Phase 7: Domain Backend
 
@@ -83,28 +86,35 @@ Require real project implementation and verification for the selected product
 or booking/service domain. Before any backend implementation, recheck the
 approved Phase 4 frontend code completion record and its API contract. If
 either is missing, stop and return to Phase 4. Complete mixed domains one at a
-time.
+time. Deliver backend source, APIs, authorization/ownership code, migrations
+used by the domain, and applicable automated tests.
 
 ## Phase 8: Commerce Input And Payment
 
 Require approved buyer/customer fields before payment. When payment applies,
 require a local pending record and server-side verified status flow. Mark this
-phase `不适用` for sites without commerce.
+phase `NOT_APPLICABLE` for sites without commerce. Deliver buyer-form code,
+server-side payment code, persistence changes, and applicable tests; provider
+documentation or configuration text alone is insufficient.
 
 ## Phase 9: Frontend Integration
 
 Require real project files, approved API contracts, and loading, empty, error,
 permission, desktop, and mobile behavior. Replace Phase 4 mock data and verify
 that merchant actions persist through the real backend. A visual mockup is not
-API integration.
+API integration. Deliver the changed frontend integration files and
+verification of public/admin synchronization.
 
 ## Phase 10: Testing
 
-Require recorded checks and evidence. Do not promote planned or implemented
-work to verified status without running the applicable checks.
+Require new or updated automated test files when applicable, plus recorded
+commands and evidence. Do not promote planned or implemented work to verified
+status without running the applicable checks. Manual checks supplement rather
+than replace applicable test code.
 
 ## Phase 11: Release
 
 Require an approved target, migration plan, secrets plan, cost/risk preview,
-rollback path, and live verification evidence. Never treat a prepared plan as
-a deployed or production-verified result.
+rollback path, and live verification evidence. Deliver required deployment,
+infrastructure, or environment configuration files without secrets. Never
+treat a prepared plan as a deployed or production-verified result.

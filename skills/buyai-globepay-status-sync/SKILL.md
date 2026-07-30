@@ -30,3 +30,7 @@ Use `buyai-globepay-checkout` for provider order creation, `buyai-globepay-confi
 ## Validate
 
 Check `pending/expired/failed + PAY_SUCCESS -> paid`, `paid + refund success -> refunded`, idempotency, real paid time, seller visibility, CSV, dashboard totals, and no deletion of paid/refunded records.
+
+Deliver notify/query/status-writer source, persistence changes, and applicable
+idempotency/status tests in the real project. Report changed paths and
+verification results; flow documentation alone is not complete.

@@ -1,12 +1,13 @@
 ---
 name: buyna-project-framework
-description: "Inspect or establish the shared Buyna.ai website development framework, module boundaries, environments, and runtime commands. Use only after the public frontend and merchant Dashboard runnable source code, API contract, build/type checks, and user approval are recorded."
+description: "Establish the post-frontend Buyna.ai technical foundation, backend/data/storage boundaries, environments, and runtime commands. Use only after the approved frontend framework has produced runnable public and merchant Dashboard code with API contracts and passing checks."
 ---
 
 # Buyna.ai Project Framework
 
-Define the project foundation from the approved interface and API contract
-without building business features or forcing a framework.
+Define the post-frontend technical foundation from the approved interface and
+API contract without building business features or changing the approved
+frontend framework.
 
 ## First Move
 
@@ -29,11 +30,19 @@ After the gate passes, inspect the current project, runtime versions, build comm
 ## Rules
 
 - Preserve a working stack unless migration is approved.
-- Use the framework selected in the approved design or project record.
+- Preserve the frontend framework selected in Phase 2 and implemented in Phase
+  4; do not reselect it here.
 - Do not require Django, Lovable, Supabase, or another framework by default.
 - Keep browser, server, database, storage, and payment responsibilities separate.
 - Keep structured business data in the approved AWS database and files in S3 when AWS is selected.
 - Produce a short framework decision for user approval before implementation.
+
+## Code Delivery
+
+Save the approved project structure and required configuration, environment
+example, and command scripts in the real project. Run the applicable
+build/start command. Report changed file paths and results; a framework decision
+written only in chat is not complete.
 
 ## Handoff
 

@@ -39,3 +39,10 @@ Support full payment, deposit, or inquiry. Verify payment by backend notify/quer
 ## Validate
 
 Check build, UTF-8, login, service CRUD sync, capacity editor, form storage, reserve/release, verified paid/deposit once, paid booking visibility, CSV, email, and mobile backend.
+
+## Code Delivery
+
+Deliver backend source, routes/APIs, migrations, authorization/ownership and
+capacity logic, and applicable automated tests in the real project. Report
+changed paths and verification results. A backend specification or generated
+prompt alone is not complete.

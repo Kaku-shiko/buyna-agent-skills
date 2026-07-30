@@ -25,3 +25,7 @@ Do not call a payment live from a build result. Do not call a page usable withou
 ## Output
 
 List passed checks, failed checks, evidence, risks, and the smallest next fix.
+
+Create or update automated test files for applicable behavior and report their
+paths. Run the tests and record results. When a check can only be manual,
+record why; a checklist without executed evidence is not delivery.

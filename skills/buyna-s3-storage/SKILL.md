@@ -26,3 +26,8 @@ Own files and images; keep business records in the database.
 ## Done
 
 Verify upload, display, replacement, deletion policy, metadata consistency, and mobile image behavior.
+
+Deliver the server-side storage code, configuration without secrets, cleanup
+logic, and applicable tests in the real project. Report changed paths and
+verification results; storage rules written only as documentation are not
+complete.

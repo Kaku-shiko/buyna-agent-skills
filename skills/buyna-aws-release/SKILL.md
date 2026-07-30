@@ -27,3 +27,8 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 ## Output
 
 Report the release version, environment, verified URLs, migration result, health result, rollback location, and unresolved risks.
+
+Deliver required deployment, infrastructure, or environment configuration
+changes as real project files without secrets and report their paths. Run the
+approved deployment/verification commands. A release plan without executed
+delivery evidence is not a completed release.

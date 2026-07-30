@@ -14,6 +14,12 @@ Own structured business data and its safe evolution without forcing a backend fr
 3. Prepare reversible migrations and a data-preservation plan.
 4. Validate on development or staging before production.
 
+## Code Delivery
+
+Deliver schema/ORM/query-layer files, reversible migrations, and applicable
+tests in the real project. Report changed paths and migration/test results.
+Do not complete this Skill with a schema description alone.
+
 ## Rules
 
 - Keep production databases private.

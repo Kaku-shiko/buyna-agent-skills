@@ -17,7 +17,8 @@ Read `references/checkout-endpoints.md`. Confirm selected method, merchant enabl
 
 ## Method Rules
 
-Hosted card/bank card must use GlobePay-hosted card input. Never collect card number, expiry, or CVV in Buyai/Lovable UI.
+Hosted card/bank card must use GlobePay-hosted card input. Never collect card
+number, expiry, or CVV in the Buyna.ai frontend.
 
 WeChat/Alipay QR must create a provider order first, then show QR or redirect to signed pay page. Channel values are case-sensitive: `Wechat`, `Alipay`, `Alipay+`.
 
@@ -30,3 +31,7 @@ Use `buyai-globepay-config` for signing and URL issues. Use `buyai-globepay-stat
 ## Validate
 
 Check payment button uses validated form state, creates local pending record first, calls server-only adapter, returns `redirect` or `show_qr`, preserves form on provider error, and never shows fake waiting page instead of actual GlobePay next action.
+
+Deliver checkout source, server adapter, pending-record persistence, and
+applicable tests in the real project. Report changed paths and verification
+results; endpoint notes alone are not complete.

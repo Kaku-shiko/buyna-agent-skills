@@ -43,3 +43,10 @@ Statuses: `pending_payment`, `paid`, `refunded`, `failed`, `expired`, `cancelled
 ## Validate
 
 Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sync, checkout storage, verified paid once, refund sync, CSV, cleanup, mobile backend.
+
+## Code Delivery
+
+Deliver backend source, routes/APIs, migrations, authorization/ownership
+checks, and applicable automated tests in the real project. Report changed
+paths and verification results. A backend specification or generated prompt
+alone is not complete.

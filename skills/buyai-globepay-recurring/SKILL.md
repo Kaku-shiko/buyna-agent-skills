@@ -29,8 +29,14 @@ Create recurring preorder. Redirect customer to provider `pay_url` for hosted 3D
 
 ## Combine With
 
-Use `buyai-globepay-config` for host/signing/secrets, `buyai-globepay-status-sync` for paid records, and `buyai-lovable-project-builder` for implementation prompts.
+Use `buyai-globepay-config` for host/signing/secrets and
+`buyai-globepay-status-sync` for paid records.
 
 ## Validate
 
 Check `expire` such as `30m`, no leading `=` in notify URL, hosted 3DS, `ACTIVE` agreement, server MIT charge, pending/failed/error UI, and clear missing-3DS message.
+
+Deliver recurring preorder/agreement/charge source, scheduler configuration
+without secrets, persistence changes, and applicable tests in the real project.
+Report changed paths and verification results; provider instructions alone are
+not complete.

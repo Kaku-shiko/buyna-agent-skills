@@ -28,3 +28,9 @@ For Japan shipping, accept `1234567` and `123-4567`, normalize to seven digits, 
 ## Validate
 
 Check mobile usability, project-required fields, email nullability only when explicitly allowed, persistence after errors, postal fallback, server revalidation, seller address display, CSV, and email prefill.
+
+## Code Delivery
+
+Deliver the changed form components, validation, server handlers, persistence
+mapping, and applicable tests in the real project. Report changed paths and
+verification results. Field lists or UI descriptions alone are not complete.

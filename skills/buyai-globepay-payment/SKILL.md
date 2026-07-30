@@ -5,7 +5,7 @@ description: Route Buyai GlobePay Japan work to smaller payment skills. Use when
 
 # Buyai GlobePay Payment
 
-Use this as the GlobePay router. Do not implement detailed endpoint logic here; select the right payment subskill and combine it with product, booking, checkout, or Lovable skills.
+Use this as the GlobePay router. Do not implement detailed endpoint logic here; select the right payment subskill and combine it with product, booking, or checkout skills.
 
 ## Gold
 
@@ -20,8 +20,12 @@ GlobePay Japan host must be `https://pay.globepay.co.jp/api/v1.0`. Do not use `.
 
 ## Combine With
 
-Use `buyai-product-merchant-backend` for product/SKU orders, `buyai-booking-service-backend` for reservations/capacity, `buyai-checkout-address-ux` for buyer form persistence, and `buyai-lovable-project-builder` when writing Lovable prompts.
+Use `buyai-product-merchant-backend` for product/SKU orders, `buyai-booking-service-backend` for reservations/capacity, and `buyai-checkout-address-ux` for buyer form persistence.
 
 ## Validate
 
 Confirm server-only secrets, correct base URL, correct endpoint family, local pending order/booking before provider call, verified return/notify before paid, paid/refund records in seller backend, and no partner-code change hiding old records.
+
+The selected subskill must deliver real server-side source/configuration changes
+without secrets and applicable tests. Report changed paths and verification
+results; a payment plan or provider instructions alone are not complete.

@@ -1,6 +1,6 @@
 ---
 name: buyna-frontend-builder
-description: "Build or repair Buyna.ai public and merchant-admin frontends using the approved project framework. Use in prototype mode before backend implementation for complete desktop/mobile interfaces with explicit mock data and API contracts, or in integration mode after backend implementation for real API connectivity."
+description: "Build or repair Buyna.ai public and merchant-admin frontends using the approved project framework. Use in frontend code mode before backend implementation for complete runnable desktop/mobile interfaces with explicit mock data and API contracts, or in integration mode after backend implementation for real API connectivity."
 ---
 
 # Buyna.ai Frontend Builder
@@ -31,7 +31,7 @@ For product or service layouts, keep visual presentation in frontend components 
 ## Boundaries
 
 - Do not place database, AWS, or payment secrets in frontend code.
-- In prototype mode, label mock data and simulated actions clearly. Do not claim
+- In frontend code mode, label mock data and simulated actions clearly. Do not claim
   they persist or connect to a backend.
 - A design image, wireframe, screenshot, or specification without runnable
   project source code cannot complete Phase 4.
@@ -43,3 +43,7 @@ For product or service layouts, keep visual presentation in frontend components 
 ## Done
 
 Require build/type checks, keyboard/touch usability, no horizontal overflow, readable errors, and verified API behavior.
+
+Report changed project-relative paths, routes, commands, and verification
+results. Code shown only in chat, screenshots, or design artifacts do not count
+as frontend delivery.
