@@ -55,9 +55,10 @@ flowchart TD
     D --> P[buyna-page-structure]
     P --> K[buyna-project-framework]
     K --> X{static or merchant}
-    X -->|static| F[buyna-frontend-builder]
+    X -->|static| FPS[public frontend prototype]
     X -->|merchant| M[buyai-merchant-builder]
-    M --> DB[AWS data layer and S3]
+    M --> FPM[public and merchant Dashboard prototype]
+    FPM --> DB[AWS data layer and S3]
     DB --> Q{product or booking}
     Q --> MP[product merchant backend]
     Q --> MB[booking service backend]
@@ -65,6 +66,7 @@ flowchart TD
     MB --> UX
     UX --> Y{payment required}
     Y -->|yes| G[buyai-globepay-payment]
+    FPS --> F[frontend API integration]
     Y -->|no| F
     G --> F
     F --> T[testing quality]

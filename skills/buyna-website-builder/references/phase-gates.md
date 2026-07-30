@@ -52,35 +52,45 @@ silently override the approved design direction.
 Require one explicit choice: static/company, product, booking/service, or
 mixed. Use merchant routing only for product, booking/service, or mixed work.
 
-## Phase 6: Data And Storage
+## Phase 6: Frontend And Merchant Dashboard Prototype
+
+Require complete, reviewable public pages for every site and merchant Dashboard
+management interfaces for merchant projects, on desktop and mobile. Include
+approved navigation, page layouts, forms, tables, actions,
+loading/empty/error/permission states, and interactions.
+Use clearly marked mock data and record the required API contract. Do not claim
+that mock actions persist or connect to production.
+
+## Phase 7: Data And Storage
 
 Require approved schemas/migrations for structured data and approved S3
 ownership/upload rules for files. Mark either branch `不适用` when it is not
 needed.
 
-## Phase 7: Domain Backend
+## Phase 8: Domain Backend
 
 Require real project implementation and verification for the selected product
 or booking/service domain. Complete mixed domains one at a time.
 
-## Phase 8: Commerce Input And Payment
+## Phase 9: Commerce Input And Payment
 
 Require approved buyer/customer fields before payment. When payment applies,
 require a local pending record and server-side verified status flow. Mark this
 phase `不适用` for sites without commerce.
 
-## Phase 9: Frontend Integration
+## Phase 10: Frontend Integration
 
 Require real project files, approved API contracts, and loading, empty, error,
-permission, desktop, and mobile behavior. A visual mockup is not API
-integration.
+permission, desktop, and mobile behavior. Replace Phase 6 mock data and verify
+that merchant actions persist through the real backend. A visual mockup is not
+API integration.
 
-## Phase 10: Testing
+## Phase 11: Testing
 
 Require recorded checks and evidence. Do not promote planned or implemented
 work to verified status without running the applicable checks.
 
-## Phase 11: Release
+## Phase 12: Release
 
 Require an approved target, migration plan, secrets plan, cost/risk preview,
 rollback path, and live verification evidence. Never treat a prepared plan as
