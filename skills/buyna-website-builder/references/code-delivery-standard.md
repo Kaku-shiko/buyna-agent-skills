@@ -40,3 +40,8 @@ for Git work. File paths and verification results are the default evidence.
 - Do not place backend rules in UI components.
 - Do not redesign approved UI while implementing backend logic.
 - Route any required contract or UI change back for focused approval.
+
+After Dashboard UI approval, enter data-interaction development immediately:
+server/API foundation, identity/authorization, database and storage, domain
+services, then mock-adapter replacement. Treat these as separately approved
+delivery slices, not as a return to UI design.

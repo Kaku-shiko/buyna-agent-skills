@@ -38,9 +38,13 @@ Express these requirements only in the API contract.
 
 1. Read the approved Phase 4 interface and API contract.
 2. Inspect the implemented backend endpoints and ownership rules.
-3. Replace mock repositories and handlers with the approved real APIs without redesigning the confirmed interface.
+3. Replace mock repositories and handlers with the approved real APIs one page
+   or closely related interaction slice at a time without redesigning the
+   confirmed interface.
 4. Verify loading, empty, success, validation, permission, failure, refresh, and persistence behavior.
 5. Confirm that merchant changes appear in the public frontend where required.
+6. Report any remaining mock or unconnected behavior; do not call the
+   Dashboard data interaction complete while such behavior remains.
 
 For product or service layouts, keep visual presentation in frontend components while reading backend-managed names, categories, prices, images, stock or availability, visibility, featured flags, and sort order from the approved API. Define loading, empty, unavailable, and error layouts before calling the integration complete.
 

@@ -40,6 +40,10 @@ If the record is missing or incomplete, stop and route only to
 `buyna-frontend-builder` Phase 4. Do not design or create schemas, databases,
 storage rules, backend endpoints, payment logic, or business services.
 
+After the gate passes, read
+`references/dashboard-data-interaction.md` and begin data-interaction
+development. Do not stop at another design-only or architecture-only output.
+
 ## Dashboard Separation
 
 - Dashboard UI belongs to `buyna-website-design`,
@@ -51,6 +55,20 @@ storage rules, backend endpoints, payment logic, or business services.
   change navigation, layouts, fields, or interaction patterns.
 - When backend requirements conflict with the approved UI, stop and return a
   focused change request to the frontend phase for user approval.
+
+## Data Interaction Order
+
+Route the approved Dashboard through this order:
+
+1. executable server/API foundation;
+2. merchant identity and authorization;
+3. AWS database migrations and S3 integration when needed;
+4. domain APIs and business services;
+5. replacement of mock adapters with real APIs;
+6. persistence, refresh, public-site synchronization, and error verification.
+
+Complete and verify one Dashboard page or closely related interaction slice at
+a time. Do not connect all pages in one uncontrolled step.
 
 ## Skill Routing
 

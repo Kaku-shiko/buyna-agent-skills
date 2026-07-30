@@ -5,9 +5,9 @@ description: "Establish the post-frontend Buyna.ai technical foundation, backend
 
 # Buyna.ai Project Framework
 
-Define the post-frontend technical foundation from the approved interface and
-API contract without building business features or changing the approved
-frontend framework.
+Begin post-UI data-interaction development from the approved interface and API
+contract without building domain features or changing the approved frontend
+framework.
 
 ## First Move
 
@@ -43,6 +43,10 @@ Save the approved project structure and required configuration, environment
 example, and command scripts in the real project. Run the applicable
 build/start command. Report changed file paths and results; a framework decision
 written only in chat is not complete.
+
+Deliver an executable server/API boundary, not only folders or documentation.
+The next data and domain Skills must be able to add migrations, services, and
+endpoints without replacing this foundation.
 
 ## Handoff
 

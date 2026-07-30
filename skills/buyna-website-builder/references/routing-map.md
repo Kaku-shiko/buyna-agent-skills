@@ -15,13 +15,13 @@ This is the canonical execution order, not a list to run in one turn:
    Dashboard with desktop/mobile interactions, explicit mock data, a written
    API contract, and passed frontend build/type checks. Do not implement real
    Dashboard business logic in this step.
-5. Post-frontend technical foundation: only after the frontend code completion
-   record is approved, call `buyna-project-framework` to preserve the frontend
-   stack and deliver backend/data/storage/environment configuration.
-6. Data and storage foundations, only when required:
+5. Dashboard data-interaction foundation: immediately after the Dashboard UI
+   code record is approved, call `buyna-project-framework` to preserve the
+   frontend stack and deliver an executable server/API foundation.
+6. Data and storage interaction, only when required:
    - structured data: `buyna-aws-data-layer`;
    - files/images: `buyna-s3-storage`.
-7. Domain backend:
+7. Domain API and business interaction:
    - product: `buyai-product-merchant-backend`;
    - booking/service: `buyai-booking-service-backend`;
    - mixed: complete each domain separately.
@@ -30,8 +30,8 @@ This is the canonical execution order, not a list to run in one turn:
 8. Commerce input and payment, only when required:
    - buyer/customer forms: `buyai-checkout-address-ux`;
    - payment: `buyai-globepay-payment` and only the subskill it selects.
-9. Frontend/API integration: call `buyna-frontend-builder` in integration
-    mode to replace mock data with approved APIs; add
+9. Complete frontend/API data interaction: call `buyna-frontend-builder` in
+    integration mode to replace mock adapters with verified APIs; add
     `buyai-storefront-layout-ux` for storefront usability.
 10. Verification: `buyna-testing-quality`.
 11. AWS release: `buyna-aws-release`; it may call `aws-project-deployer` only

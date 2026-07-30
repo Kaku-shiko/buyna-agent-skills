@@ -68,19 +68,21 @@ For a product merchant, require an approved six-page Dashboard UI record before
 coding: 仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置. Apply the approved
 website design system and define desktop/mobile navigation.
 
-Phases 5-8 remain locked until this frontend code completion record is
+Phases 5-9 remain locked until this frontend code completion record is
 approved. If it is absent or incomplete, return to Phase 4 and do not start
 framework establishment, data/storage implementation, domain backend, or
 payment work.
 
-## Phase 5: Project Framework
+## Phase 5: Dashboard Data Interaction Foundation
 
 Preserve the frontend framework approved in Phase 2 and used in Phase 4.
 Require inspected or approved backend, database, storage, environment,
 build/start, migration, test, and release decisions. Deliver the required
 project structure, configuration, environment example, and runnable commands
 in real project files. Do not reselect or migrate the frontend framework here.
-A backend-stack recommendation alone does not complete this phase.
+A backend-stack recommendation alone does not complete this phase. Establish an
+executable server/API boundary so the next data, storage, and domain slices can
+implement the approved contract.
 
 ## Phase 6: Data And Storage
 
@@ -117,6 +119,10 @@ permission, desktop, and mobile behavior. Replace Phase 4 mock data and verify
 that merchant actions persist through the real backend. A visual mockup is not
 API integration. Deliver the changed frontend integration files and
 verification of public/admin synchronization.
+
+This phase completes the Dashboard data-interaction sequence. Replace mock
+adapters one verified page or interaction slice at a time; do not leave
+disconnected demo actions while claiming completion.
 
 ## Phase 10: Testing
 
