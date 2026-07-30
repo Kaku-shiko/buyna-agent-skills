@@ -40,9 +40,8 @@ If the record is missing or incomplete, stop and route only to
 `buyna-frontend-builder` Phase 4. Do not design or create schemas, databases,
 storage rules, backend endpoints, payment logic, or business services.
 
-After the gate passes, read
-`references/dashboard-data-interaction.md` and begin data-interaction
-development. Do not stop at another design-only or architecture-only output.
+After the gate passes, route to `buyai-dashboard-data-interaction`. Do not stop
+at another design-only or architecture-only output.
 
 ## Dashboard Separation
 
@@ -58,7 +57,8 @@ development. Do not stop at another design-only or architecture-only output.
 
 ## Data Interaction Order
 
-Route the approved Dashboard through this order:
+Use `buyai-dashboard-data-interaction` to route the approved Dashboard through
+this order:
 
 1. executable server/API foundation;
 2. merchant identity and authorization;

@@ -1,0 +1,40 @@
+# Dashboard Data Interaction
+
+Start only after the Dashboard UI source, mock interactions, API contract,
+frontend checks, and user approval are complete.
+
+## Development Sequence
+
+1. Lock approved routes, fields, actions, states, and the API contract.
+2. Establish the executable server/API boundary and environment configuration.
+3. Implement merchant login, session, authorization, and ownership.
+4. Implement AWS database schemas and reversible migrations.
+5. Implement S3 when the approved UI contains image/file actions.
+6. Implement real APIs and business rules for the current Dashboard slice.
+7. Replace its mock adapter without redesigning the page.
+8. Verify loading, empty, validation, success, error, permission, refresh, and
+   persistence behavior.
+9. Verify approved merchant changes on the public website when required.
+
+## Required Boundaries
+
+- Keep business rules and credentials on the server.
+- Use the approved AWS database for structured data and S3 for files.
+- Do not introduce Supabase, Lovable, platform administration, merchant
+  switching, or multi-merchant behavior.
+- Do not replace mock adapters until endpoints and error behavior pass.
+- Do not silently change approved Dashboard UI.
+- Do not mark payment paid from the browser or redirect alone.
+
+## Delivery Record
+
+For each completed slice, report:
+
+- frontend adapter files changed;
+- backend endpoint/service files changed;
+- schema/migration or S3 files changed;
+- tests and commands run;
+- persistence and refresh evidence;
+- remaining mock or unconnected behavior.
+
+Stop for approval before starting the next slice.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dashboard Data Interaction"
+  short_description: "Connect approved Dashboard UI to real AWS data and APIs."
+  default_prompt: "Use $buyai-dashboard-data-interaction to connect the approved Dashboard UI to verified real backend data."

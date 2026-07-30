@@ -75,6 +75,9 @@ payment work.
 
 ## Phase 5: Dashboard Data Interaction Foundation
 
+Call `buyai-dashboard-data-interaction` as the coordinator for Phases 5-9. It
+must route only the current approved delivery slice and stop for approval.
+
 Preserve the frontend framework approved in Phase 2 and used in Phase 4.
 Require inspected or approved backend, database, storage, environment,
 build/start, migration, test, and release decisions. Deliver the required
