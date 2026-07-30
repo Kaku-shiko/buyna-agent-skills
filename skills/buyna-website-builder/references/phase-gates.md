@@ -40,18 +40,29 @@ Require:
 
 Present one desktop/mobile structure record for approval.
 
-## Phase 4: Frontend And Merchant Dashboard Prototype
+## Phase 4: Frontend And Merchant Dashboard Code
 
-Require complete, reviewable public pages for every site and merchant Dashboard
-management interfaces for merchant projects, on desktop and mobile. Include
-approved navigation, page layouts, forms, tables, actions,
-loading/empty/error/permission states, and interactions.
-Use clearly marked mock data and record the required API contract. Do not claim
+Require complete, reviewable, runnable frontend source code for every approved
+public page and, for merchant projects, the merchant Dashboard management
+interfaces. Include actual routes/components, desktop and mobile layouts,
+approved navigation, forms, tables, actions, loading/empty/error/permission
+states, and interactions. Use clearly marked mock data and record the required
+API contract. Run the applicable frontend build and type checks. Do not claim
 that mock actions persist or connect to production.
+
+A design-system image, wireframe, static screenshot, written specification, or
+unbuilt code fragment does not complete this phase. Record the implemented
+project paths, verification commands/results, API contract location, and user
+approval as the frontend code completion record.
 
 For a merchant site, require one explicit scope choice: product,
 booking/service, or mixed. Use `buyai-merchant-builder` only for this routing
 decision before building the corresponding Dashboard.
+
+Phases 5-8 remain locked until this frontend code completion record is
+approved. If it is absent or incomplete, return to Phase 4 and do not start
+framework establishment, data/storage implementation, domain backend, or
+payment work.
 
 ## Phase 5: Project Framework
 
@@ -69,7 +80,10 @@ needed.
 ## Phase 7: Domain Backend
 
 Require real project implementation and verification for the selected product
-or booking/service domain. Complete mixed domains one at a time.
+or booking/service domain. Before any backend implementation, recheck the
+approved Phase 4 frontend code completion record and its API contract. If
+either is missing, stop and return to Phase 4. Complete mixed domains one at a
+time.
 
 ## Phase 8: Commerce Input And Payment
 

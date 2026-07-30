@@ -28,6 +28,18 @@ Read `references/buyai-commerce-blueprint.md` when starting, migrating, or repai
 
 Inspect the real repository and deployed environment. Confirm product, booking, or mixed; frontend/admin languages; currency; AWS region; backend runtime; database engine; S3 buckets; deployment target; and existing data. Do not assume Lovable or Supabase.
 
+## Backend Entry Gate
+
+Before routing to database, storage, product, booking/service, payment, or other
+backend implementation, require the approved Phase 4 frontend code completion
+record. Inspect the actual public frontend and merchant Dashboard source,
+implemented desktop/mobile routes and states, clearly marked mock actions,
+written API contract, passed frontend build/type checks, and user approval.
+
+If the record is missing or incomplete, stop and route only to
+`buyna-frontend-builder` Phase 4. Do not design or create schemas, databases,
+storage rules, backend endpoints, payment logic, or business services.
+
 ## Skill Routing
 
 Use `buyai-product-merchant-backend` for products, SKU, images, stock, categories, orders, and paid customers.

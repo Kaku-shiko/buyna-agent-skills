@@ -1,6 +1,6 @@
 ---
 name: buyna-project-framework
-description: "Inspect or establish the shared Buyna.ai website development framework, module boundaries, environments, and runtime commands. Use after the public frontend and merchant Dashboard prototype are approved and before backend implementation."
+description: "Inspect or establish the shared Buyna.ai website development framework, module boundaries, environments, and runtime commands. Use only after the public frontend and merchant Dashboard runnable source code, API contract, build/type checks, and user approval are recorded."
 ---
 
 # Buyna.ai Project Framework
@@ -10,7 +10,12 @@ without building business features or forcing a framework.
 
 ## First Move
 
-Inspect the current project, runtime versions, build commands, database configuration, deployment files, and existing data. Read `references/approved-stack.md` only when the project has no approved stack.
+Verify the approved Phase 4 frontend code completion record first. If runnable
+public/Dashboard source code, the API contract, passed frontend build/type
+checks, or user approval is missing, stop and return to
+`buyna-frontend-builder` Phase 4 without establishing backend infrastructure.
+
+After the gate passes, inspect the current project, runtime versions, build commands, database configuration, deployment files, and existing data. Read `references/approved-stack.md` only when the project has no approved stack.
 
 ## Establish
 

@@ -9,7 +9,14 @@ Use for reservation sites: tours, lessons, salons, consulting, courses, travel, 
 
 ## First Move
 
-Read `references/booking-service-rules.md`. Confirm languages, currency, location/timezone, booking type, package rules, capacity model, and payment mode.
+Read the approved Phase 4 frontend code completion record and API contract.
+Inspect the actual public service frontend and merchant Dashboard source and
+confirm that the applicable frontend build/type checks passed. If the record,
+source code, API contract, verification, or user approval is missing, stop and
+return to `buyna-frontend-builder` Phase 4. Do not create database models,
+migrations, storage rules, APIs, or backend business logic.
+
+After the gate passes, read `references/booking-service-rules.md`. Confirm languages, currency, location/timezone, booking type, package rules, capacity model, and payment mode.
 
 ## Combine Skills
 

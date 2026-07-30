@@ -8,14 +8,15 @@ description: "Build or repair Buyna.ai public and merchant-admin frontends using
 Build the approved public frontend and merchant Dashboard in one of two explicit
 modes. Never mix the completion claims of the two modes.
 
-## Prototype Mode: Phase 4
+## Frontend Code Mode: Phase 4
 
 1. Read the approved customer record, the complete output from `buyna-website-design`, and the approved page/content plan from `buyna-page-structure`.
 2. Inspect existing routes/components and preserve approved project patterns.
-3. Complete the public pages and merchant Dashboard navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope.
+3. Implement the public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope.
 4. Implement all approved desktop and mobile interactions with clearly marked mock data.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.
-6. Verify desktop and real mobile widths. Report the interface as a prototype, not as persisted or backend-connected.
+6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
+7. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
 
 ## Integration Mode: Phase 9
 
@@ -32,6 +33,8 @@ For product or service layouts, keep visual presentation in frontend components 
 - Do not place database, AWS, or payment secrets in frontend code.
 - In prototype mode, label mock data and simulated actions clearly. Do not claim
   they persist or connect to a backend.
+- A design image, wireframe, screenshot, or specification without runnable
+  project source code cannot complete Phase 4.
 - In integration mode, remove mock business data and disconnected demo actions.
 - Treat the written font names and HEX values as the source of truth; the generated style-board image is a visual confirmation aid.
 - Use `buyai-storefront-layout-ux` for storefront-specific structure and `impeccable` when visual design quality is in scope.

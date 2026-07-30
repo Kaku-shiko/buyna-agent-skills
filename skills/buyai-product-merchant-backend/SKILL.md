@@ -9,7 +9,14 @@ Use for product ecommerce: jewelry, apparel, goods, SKU catalogs, and shippable 
 
 ## First Move
 
-Read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, image limit.
+Read the approved Phase 4 frontend code completion record and API contract.
+Inspect the actual public product frontend and merchant Dashboard source and
+confirm that the applicable frontend build/type checks passed. If the record,
+source code, API contract, verification, or user approval is missing, stop and
+return to `buyna-frontend-builder` Phase 4. Do not create database models,
+migrations, storage rules, APIs, or backend business logic.
+
+After the gate passes, read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, image limit.
 
 ## Combine Skills
 

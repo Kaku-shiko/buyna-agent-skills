@@ -54,9 +54,9 @@ flowchart TD
     C --> D[buyna-website-design]
     D --> P[buyna-page-structure]
     P --> X{static or merchant}
-    X -->|static| FPS[public frontend prototype]
+    X -->|static| FPS[completed public frontend code]
     X -->|merchant| M[buyai-merchant-builder]
-    M --> FPM[public and merchant Dashboard prototype]
+    M --> FPM[completed public and merchant Dashboard code]
     FPS --> K[buyna-project-framework]
     FPM --> K
     K --> DB[AWS data layer and S3]

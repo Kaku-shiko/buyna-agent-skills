@@ -77,14 +77,28 @@ Read `references/phase-gates.md` before deciding whether a phase is complete.
 - Step 1: call `buyna-customer-intake` to collect and confirm customer information.
 - Step 2: after Step 1 approval, call `buyna-website-design` to confirm the frontend preference, design system, references, and motion direction.
 - Step 3: after Step 2 approval, call `buyna-page-structure` to confirm pages, content sections, template changes, and privacy-policy placement.
-- Step 4: after Step 3 approval, call `buyna-frontend-builder` in prototype mode. For merchant projects, use `buyai-merchant-builder` only to confirm product, booking/service, or mixed scope, then complete the merchant Dashboard management interface and approved public pages for desktop and mobile. Use clearly marked mock data and define the required API contract; do not claim persistence or backend connectivity. Static sites build only the public frontend.
-- Step 5: after the Step 4 interface is approved, call `buyna-project-framework` to confirm the technical foundation required by that interface.
+- Step 4: after Step 3 approval, call `buyna-frontend-builder` in prototype mode. For merchant projects, use `buyai-merchant-builder` only to confirm product, booking/service, or mixed scope, then implement the merchant Dashboard management interface and approved public pages as runnable frontend source code for desktop and mobile. Use clearly marked mock data, define the required API contract, and pass the applicable build/type checks; do not claim persistence or backend connectivity. A design image, wireframe, or written specification alone does not complete this step. Static sites build only the public frontend.
+- Step 5: only after the Step 4 frontend code completion record is approved, call `buyna-project-framework` to confirm the technical foundation required by that interface.
 - Step 6: establish the required data and file foundations with `buyna-aws-data-layer` and/or `buyna-s3-storage`.
 - Step 7: implement one selected domain backend with `buyai-product-merchant-backend` or `buyai-booking-service-backend`.
 - Step 8: when commerce requires it, complete buyer forms and payment through `buyai-checkout-address-ux` and `buyai-globepay-payment`.
 - Step 9: call `buyna-frontend-builder` in integration mode to replace mock data and connect the approved public/admin interfaces to real APIs; use `buyai-storefront-layout-ux` for storefront UX.
 - Step 10: call `buyna-testing-quality` before delivery or deployment.
 - Step 11: after testing approval, call `buyna-aws-release`, which may route approved live AWS work to `aws-project-deployer`.
+
+## Backend Entry Gate
+
+Do not enter Steps 5-8 unless the approved Step 4 record proves that:
+
+- the public frontend and required merchant Dashboard routes/components exist as runnable project source code;
+- approved desktop and mobile pages, states, interactions, and mock actions are implemented;
+- mock data is clearly marked and the later API contract is recorded;
+- the applicable frontend build and type checks pass; and
+- the user approved the frontend code result.
+
+If any item is missing, stay in Step 4 and route only to
+`buyna-frontend-builder`. Do not create schemas, databases, storage rules,
+backend endpoints, payment logic, or domain business logic.
 
 Ask one question at a time. Wait for the answer before asking the next question. Use plain Chinese.
 

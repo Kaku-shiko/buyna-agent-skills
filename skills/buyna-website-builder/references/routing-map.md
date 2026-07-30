@@ -7,13 +7,14 @@ This is the canonical execution order, not a list to run in one turn:
 1. Customer information: `buyna-customer-intake`.
 2. Design direction: `buyna-website-design`.
 3. Desktop/mobile pages and content: `buyna-page-structure`.
-4. Frontend and merchant Dashboard prototype: call `buyna-frontend-builder`
-   in prototype mode. Complete the approved public pages for every site. For a
+4. Frontend and merchant Dashboard code: call `buyna-frontend-builder`
+   in frontend code mode. Implement the approved public pages as runnable
+   project source code for every site. For a
    merchant site, use `buyai-merchant-builder` only to confirm product,
    booking/service, or mixed scope, then complete the corresponding merchant
-   Dashboard with desktop/mobile interactions, explicit mock data, and a
-   written API contract.
-5. Technical foundation: after the interface is approved, call
+   Dashboard with desktop/mobile interactions, explicit mock data, a written
+   API contract, and passed frontend build/type checks.
+5. Technical foundation: only after the frontend code completion record is approved, call
    `buyna-project-framework` to confirm the stack required by it.
 6. Data and storage foundations, only when required:
    - structured data: `buyna-aws-data-layer`;

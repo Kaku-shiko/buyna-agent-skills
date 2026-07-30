@@ -68,7 +68,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 1 客户需求
 → 2 网站设计
 → 3 页面结构
-→ 4 完善公开前端与商家Dashboard原型
+→ 4 完成公开前端与商家Dashboard代码
 → 5 技术框架
 → 6 AWS数据库与S3基础
 → 7 商品或服务后台
