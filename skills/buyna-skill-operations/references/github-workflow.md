@@ -30,6 +30,10 @@ Keep `SKILL.md` concise. Put trigger conditions in the frontmatter description a
 - Instructions use imperative language.
 - Referenced files exist and are one level below SKILL.md.
 - No Supabase, Lovable, Django, Refine, AWS, or payment choice is forced unless the Skill owns that decision.
+- The Skill executes only the requested step and does not recommend or add
+  unrequested functionality.
+- Coordinator Skills stop at approval gates and treat capability lists as
+  routing information, not authorization to execute every capability.
 - No credential or production secret is present.
 - Installation and invocation were tested in a clean destination.
 

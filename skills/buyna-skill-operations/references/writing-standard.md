@@ -39,6 +39,22 @@ Keep the core workflow in `SKILL.md`; place detailed schemas, rules, and variant
 
 Give one Skill one responsibility. Route to other Skills instead of copying their rules. Pass only approved outputs needed by the next Skill. Keep customer-specific names, prices, domains, and environment values in project records.
 
+## Mandatory scope control
+
+Every workflow or coordinator Skill must explicitly require:
+
+- execute only the user's current requested step;
+- do not add or recommend unrequested functionality;
+- use the minimum Skill and tool set needed for that step;
+- stop after the requested step is validated and reported;
+- require a later explicit instruction before continuing;
+- allow an exception only for an immediate security, data-loss, payment, or
+  execution blocker, and report only the minimum required warning.
+
+Capability lists describe what a Skill can do. They are not permission to
+execute every listed capability. Do not turn remaining possibilities into
+suggestions at the end of a response.
+
 ## Test before review
 
 Test realistic should-trigger and should-not-trigger prompts, a normal workflow, and a missing-input or failure case. Validate installation in a clean destination and confirm the Skill is discoverable in a new Codex task.

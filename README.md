@@ -158,6 +158,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Scope Project -P
 - 每个 Skill 必须保留根目录 `SKILL.md`。
 - `agents/openai.yaml` 用于 Codex 中的显示名称和默认提示。
 - 详细规则放在 `references/`，避免让 `SKILL.md` 过长。
+- AI只执行用户当前明确要求的步骤，不主动添加、推荐或列出提示之外的功能。
+- 当前步骤验证并报告后必须停止；只有用户后续明确要求才可以继续。
+- 只有即时安全、数据丢失、支付或执行阻塞可以触发最小必要提醒。
 - 不提交密码、AWS密钥、数据库凭据、GlobePay `credential_code` 或其他 Secret。
 - 不在 Skill 中硬编码客户名称、真实价格、域名或生产环境凭据。
 - GlobePay凭据必须保存在服务端；支付成功只能由验证后的 notify/query 确认。
