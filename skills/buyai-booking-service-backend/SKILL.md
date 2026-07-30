@@ -1,6 +1,6 @@
 ---
 name: buyai-booking-service-backend
-description: "Build or repair Buyna.ai booking and service backends: services, availability, capacity, forms, deposits, GlobePay checkout, paid bookings, CSV, login, and seller admin."
+description: "Build or repair a single-merchant Buyna.ai booking and service backend: services, availability, capacity, forms, deposits, GlobePay checkout, paid bookings, CSV, login, and merchant admin."
 ---
 
 # Buyai Booking Service Backend
@@ -21,7 +21,7 @@ This skill does not own SKU inventory or GlobePay endpoints. It owns availabilit
 
 ## Required MVP
 
-Seller backend: login, session, dashboard, service CRUD/archive, images, price/currency, duration/package, availability/capacity, records, paid bookings/customers, CSV, manual email, payment settings, GlobePay portal, optional platform shortcut, mobile layout.
+Single-merchant backend: one merchant administrator, login, session, dashboard, service CRUD/archive, images, price/currency, duration/package, availability/capacity, records, paid bookings/customers, CSV, manual email, payment settings, GlobePay portal, and mobile layout. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
 
 Public site: service list/detail, booking form, date/time or preferred dates, participants, contact fields, notes, payment methods, verified confirmation, and shared footer.
 

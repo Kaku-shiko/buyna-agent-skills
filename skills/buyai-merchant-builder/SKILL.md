@@ -1,6 +1,6 @@
 ---
 name: buyai-merchant-builder
-description: Coordinate or repair Buyna.ai merchant and seller backends on the current AWS-owned stack when product, booking, payment, checkout, storefront, database, storage, and deployment work overlap.
+description: Coordinate or repair a single Buyna.ai merchant backend on the current AWS-owned stack when product, booking, payment, checkout, storefront, database, storage, and deployment work overlap.
 ---
 
 # Buyai Merchant Builder
@@ -44,6 +44,11 @@ Use `aws-project-deployer` for AWS identity checks, architecture, RDS/Aurora, S3
 
 ## Gold
 
+Build one backend for one merchant and one primary merchant administrator. Do not
+create a platform administrator, multi-merchant console, merchant switcher, or
+merchant-account management API unless the user explicitly changes the product
+scope in a later request.
+
 Every Buyai merchant MVP collects buyer/customer data before payment, creates local pending order/booking before provider payment, calls GlobePay server-side, marks paid only after verified notify/query, creates paid records once, and shows seller records with filters, CSV, and email.
 
 Use canonical `seller_id` as permanent owner. Never use admin account, email, or GlobePay partner code. Changing GlobePay credentials must not hide old products/orders.
@@ -52,4 +57,4 @@ Use the configured AWS database as the business-data source of truth and S3 for 
 
 ## Validate
 
-Check build/type, migrations, UTF-8, login/session, seller isolation, buyer form, pending payment, verified paid sync, orders/paid customers, CSV, manual email, S3 upload, backups, no hard-coded secrets, no mojibake, and mobile backend. Verify deployed behavior before calling the system live.
+Check build/type, migrations, UTF-8, merchant login/session, merchant ownership scoping, buyer form, pending payment, verified paid sync, orders/paid customers, CSV, manual email, S3 upload, backups, no hard-coded secrets, no mojibake, and mobile backend. Verify deployed behavior before calling the system live.

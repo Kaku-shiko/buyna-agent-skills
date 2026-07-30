@@ -1,6 +1,6 @@
 ---
 name: buyai-product-merchant-backend
-description: "Build or repair Buyna.ai product ecommerce on the current backend: login, products, SKU, images, stock, sorting, checkout, orders, paid customers, and CSV."
+description: "Build or repair a single-merchant Buyna.ai product ecommerce backend: merchant login, products, SKU, images, stock, sorting, checkout, orders, paid customers, and CSV."
 ---
 
 # Buyai Product Merchant Backend
@@ -23,7 +23,7 @@ Checkout requires buyer/shipping form and local `pending_payment` before GlobePa
 
 ## MVP
 
-Seller backend: login, session, product CRUD/archive, images/main image, categories, stock/variants, drag sorting, orders, paid customers, CSV, email, payment settings, GlobePay portal, optional platform shortcut.
+Single-merchant backend: one merchant administrator, login, session, product CRUD/archive, images/main image, categories, stock/variants, drag sorting, orders, paid customers, CSV, email, payment settings, and GlobePay portal. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
 
 Public site: backend list, category tabs, detail, checkout, payment methods, verified success, shared footer settings.
 

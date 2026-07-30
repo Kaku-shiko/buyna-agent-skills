@@ -135,7 +135,7 @@ Keep `partner_code`, `credential_code`, signing material, tokens, and raw card d
 
 - Build/type check and migrations pass.
 - Files are UTF-8 with no mojibake.
-- Seller login/session and cross-seller isolation work.
+- Merchant login/session works and every record is scoped to the authenticated merchant.
 - Product/service edits propagate to public pages and checkout/booking.
 - Stock or capacity uses one calculation and prevents overselling/overbooking.
 - S3 uploads, ownership, replacement, and display work.

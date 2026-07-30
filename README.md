@@ -42,12 +42,12 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 ### 商家后台与 AWS 分支
 
 1. `buyai-merchant-builder`：商家后台总协调与商品/服务分支选择。
-2. `buyai-product-merchant-backend`：商家登录、商品、SKU、库存、订单和客户。
-3. `buyai-booking-service-backend`：服务、预约、容量、记录和商家后台。
-4. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
-5. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
-6. `buyna-aws-data-layer`：不绑定框架的 AWS 数据库与迁移规则。
-7. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
+2. `buyna-aws-data-layer`：不绑定框架的 AWS 数据库与迁移规则。
+3. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
+4. `buyai-product-merchant-backend`：单一商家登录、商品、SKU、库存、订单和客户。
+5. `buyai-booking-service-backend`：单一商家的服务、预约、容量、记录和后台。
+6. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
+7. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
 8. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
 9. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
 10. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
