@@ -60,10 +60,10 @@ For Phases 4-11, also read and apply
 - Step 1: call `buyna-customer-intake` and deliver the approved customer-information record.
 - Step 2: call `buyna-website-design` and deliver the approved frontend development framework, design system, references, and motion direction.
 - Step 3: call `buyna-page-structure` and deliver the approved desktop/mobile pages, sections, content, and policy placement.
-- Step 4: call `buyna-frontend-builder` in frontend code mode. Deliver runnable public and merchant Dashboard frontend source code, desktop/mobile behavior, clearly marked mock data, the API contract, and passing frontend checks.
+- Step 4: call `buyna-frontend-builder` in frontend code mode. Deliver runnable public and merchant Dashboard UI source code, desktop/mobile behavior, clearly marked mock data, the API contract, and passing frontend checks. Do not implement real Dashboard business logic.
 - Step 5: call `buyna-project-framework` for the post-frontend technical foundation. Preserve the approved frontend framework and deliver backend, database, storage, environment, and command configuration files or scripts.
 - Step 6: call `buyna-aws-data-layer` and/or `buyna-s3-storage`. Deliver migrations/schema code and/or storage integration code with local or staging verification.
-- Step 7: call one selected domain backend Skill. Deliver real product or booking/service backend code, APIs, ownership rules, and automated checks.
+- Step 7: call one selected domain backend Skill. Deliver real product or booking/service business logic, APIs, ownership rules, and automated checks behind the approved Dashboard contract without redesigning its UI.
 - Step 8: when commerce applies, call `buyai-checkout-address-ux` and `buyai-globepay-payment`. Deliver buyer-form and server-side payment code with safe pending and verified-status behavior. Record `NOT_APPLICABLE` when commerce does not apply.
 - Step 9: call `buyna-frontend-builder` in integration mode. Deliver real API integration code that removes mock business actions and proves frontend/backend synchronization.
 - Step 10: call `buyna-testing-quality`. Deliver or update automated test files and run the required checks. Manual evidence may supplement tests but cannot replace applicable test code.

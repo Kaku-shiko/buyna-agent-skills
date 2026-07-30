@@ -30,3 +30,13 @@ in chat is not a code delivery.
 
 Do not require a Git commit or push as evidence unless the user explicitly asks
 for Git work. File paths and verification results are the default evidence.
+
+## Dashboard Boundary
+
+- UI delivery contains frontend components, routes, styles, responsive
+  behavior, visible states, mock adapters, and an API contract.
+- Logic delivery contains server authentication/authorization, persistence,
+  APIs, domain rules, storage, orders, inventory/capacity, and payment state.
+- Do not place backend rules in UI components.
+- Do not redesign approved UI while implementing backend logic.
+- Route any required contract or UI change back for focused approval.

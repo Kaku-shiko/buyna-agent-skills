@@ -50,6 +50,11 @@ states, and interactions. Use clearly marked mock data and record the required
 API contract. Run the applicable frontend build and type checks. Do not claim
 that mock actions persist or connect to production.
 
+This phase owns Dashboard UI code only. Do not implement real authentication,
+authorization, persistence, database, storage, inventory/capacity, order,
+payment, or other backend business rules. Represent those needs in the API
+contract and mock adapter.
+
 A design-system image, wireframe, static screenshot, written specification, or
 unbuilt code fragment does not complete this phase. Record the implemented
 project paths, verification commands/results, API contract location, and user
@@ -88,6 +93,10 @@ approved Phase 4 frontend code completion record and its API contract. If
 either is missing, stop and return to Phase 4. Complete mixed domains one at a
 time. Deliver backend source, APIs, authorization/ownership code, migrations
 used by the domain, and applicable automated tests.
+
+Implement behavior behind the approved API contract without silently changing
+the Dashboard UI. If the contract or interface must change, stop and return a
+focused change request to Phase 4 for user approval.
 
 ## Phase 8: Commerce Input And Payment
 

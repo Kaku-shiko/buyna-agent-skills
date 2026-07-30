@@ -40,6 +40,18 @@ If the record is missing or incomplete, stop and route only to
 `buyna-frontend-builder` Phase 4. Do not design or create schemas, databases,
 storage rules, backend endpoints, payment logic, or business services.
 
+## Dashboard Separation
+
+- Dashboard UI belongs to `buyna-website-design`,
+  `buyna-page-structure`, and `buyna-frontend-builder` Phase 4.
+- Dashboard business logic belongs to the selected data, storage, product,
+  booking/service, checkout, and payment Skills after UI approval.
+- Treat the approved UI and API contract as the boundary between them.
+- Backend Skills may supply data and action behavior but must not silently
+  change navigation, layouts, fields, or interaction patterns.
+- When backend requirements conflict with the approved UI, stop and return a
+  focused change request to the frontend phase for user approval.
+
 ## Skill Routing
 
 Use `buyai-product-merchant-backend` for products, SKU, images, stock, categories, orders, and paid customers.

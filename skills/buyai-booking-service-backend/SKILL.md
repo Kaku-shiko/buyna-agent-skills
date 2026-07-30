@@ -18,6 +18,15 @@ migrations, storage rules, APIs, or backend business logic.
 
 After the gate passes, read `references/booking-service-rules.md`. Confirm languages, currency, location/timezone, booking type, package rules, capacity model, and payment mode.
 
+## Dashboard Contract Boundary
+
+Implement authentication, authorization, persistence, services, availability,
+capacity, bookings, and payment-related state behind the approved Dashboard
+API contract. Do not redesign Dashboard navigation, layouts, forms, visible
+fields, or interactions. If backend correctness requires an interface change,
+stop and return a focused change request to `buyna-frontend-builder` for user
+approval.
+
 ## Combine Skills
 
 Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.

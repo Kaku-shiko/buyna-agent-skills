@@ -13,7 +13,8 @@ This is the canonical execution order, not a list to run in one turn:
    merchant site, use `buyai-merchant-builder` only to confirm product,
    booking/service, or mixed scope, then complete the corresponding merchant
    Dashboard with desktop/mobile interactions, explicit mock data, a written
-   API contract, and passed frontend build/type checks.
+   API contract, and passed frontend build/type checks. Do not implement real
+   Dashboard business logic in this step.
 5. Post-frontend technical foundation: only after the frontend code completion
    record is approved, call `buyna-project-framework` to preserve the frontend
    stack and deliver backend/data/storage/environment configuration.
@@ -24,6 +25,8 @@ This is the canonical execution order, not a list to run in one turn:
    - product: `buyai-product-merchant-backend`;
    - booking/service: `buyai-booking-service-backend`;
    - mixed: complete each domain separately.
+   Implement logic behind the approved Dashboard contract without redesigning
+   its UI.
 8. Commerce input and payment, only when required:
    - buyer/customer forms: `buyai-checkout-address-ux`;
    - payment: `buyai-globepay-payment` and only the subskill it selects.

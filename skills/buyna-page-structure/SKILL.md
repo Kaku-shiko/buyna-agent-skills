@@ -16,6 +16,9 @@ Turn the approved customer information and design direction into a confirmed web
 5. Define the shared header and footer, then list every page and its ordered content sections.
 6. Read `references/mobile-structure-checklist.md` and define the mobile order, navigation, primary action, touch interactions, and content reductions for each page.
 7. Define required page states and functional pages: loading, empty, validation, success, error, permission when applicable, and 404.
+   For merchant projects, separately list Dashboard navigation, screens,
+   visible fields, actions, and states as UI requirements. Record data and API
+   needs as contracts only; do not design their backend implementation here.
 8. Add the privacy-policy requirement using `references/privacy-policy-checklist.md` and identify any conditional commerce, booking, account, cookie, or legal pages.
 9. Record missing copy, images, translations, links, SEO metadata, legal details, and other customer materials as `待补充`.
 10. Present one concise desktop/mobile page-structure table for customer approval, then stop.
@@ -32,6 +35,9 @@ Turn the approved customer information and design direction into a confirmed web
 - Do not invent missing customer content; mark it `待补充`.
 - Do not provide legal conclusions or claim compliance. Request jurisdiction and business details before drafting policy text, and require qualified review where appropriate.
 - Do not begin frontend development, backend design, database selection, or deployment.
+- Keep Dashboard UI structure separate from business logic. An action such as
+  “save product” belongs in the UI plan, while authorization, persistence,
+  stock updates, and payment effects belong to later backend phases.
 
 ## Completion
 

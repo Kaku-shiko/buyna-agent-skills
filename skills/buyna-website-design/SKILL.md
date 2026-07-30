@@ -13,6 +13,8 @@ Turn confirmed customer information into an approved website design direction. D
 2. Read `references/design-method.md` and `references/motion-and-skill-routing.md`. Recommend one frontend framework, one primary motion approach, and the frontend skills needed for the project, with short reasons.
 3. Research current external inspiration and template sources using `references/reference-sources.md`. Give 3–5 relevant links, explain what to study in each, and note whether the item is inspiration or a reusable template.
 4. Confirm the UI/UX feeling, page structure, typography, color tokens, component style, responsive approach, and one distinctive design signature.
+   For merchant projects, apply the same visual system to the Dashboard UI
+   without defining database, permission, order, inventory, or payment logic.
 5. Produce the written design record defined in `references/design-fields.md` and ask for approval.
 6. After written approval, read `references/design-system-board.md` and use `imagegen` to create one landscape design-system board image.
 7. Show the written record and image together. Ask for approval or one focused revision, then stop.
@@ -30,6 +32,8 @@ Turn confirmed customer information into an approved website design direction. D
 - Respect `prefers-reduced-motion`; motion must support comprehension or brand character.
 - Treat written font names, tokens, and HEX values as the source of truth if generated image text is imperfect.
 - Do not select databases, implement backend logic, deploy the site, or begin frontend coding.
+- Treat Dashboard UI design and Dashboard business logic as separate
+  deliverables. This Skill owns appearance and interaction direction only.
 
 ## Completion
 

@@ -18,6 +18,18 @@ modes. Never mix the completion claims of the two modes.
 6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
 7. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
 
+## Dashboard UI Boundary
+
+Phase 4 owns Dashboard presentation only: layout, navigation, components,
+tables, forms, visible actions, responsive behavior, accessibility, and
+loading/empty/success/error/permission UI states. Simulate actions through a
+mock repository or adapter boundary.
+
+Do not implement authentication services, authorization decisions, database
+models, persistence, inventory/capacity mutations, order state machines,
+payment verification, S3 ownership, or production APIs in Dashboard UI mode.
+Express these requirements only in the API contract.
+
 ## Integration Mode: Phase 9
 
 1. Read the approved Phase 4 interface and API contract.
@@ -36,6 +48,8 @@ For product or service layouts, keep visual presentation in frontend components 
 - A design image, wireframe, screenshot, or specification without runnable
   project source code cannot complete Phase 4.
 - In integration mode, remove mock business data and disconnected demo actions.
+- In integration mode, connect the approved UI through adapters; do not move
+  backend business rules into components or silently redesign the Dashboard.
 - Treat the written font names and HEX values as the source of truth; the generated style-board image is a visual confirmation aid.
 - Use `buyai-storefront-layout-ux` for storefront-specific structure and `impeccable` when visual design quality is in scope.
 - Send missing API or business-rule work back to `buyna-website-builder`, which selects the applicable project or merchant backend skill.
