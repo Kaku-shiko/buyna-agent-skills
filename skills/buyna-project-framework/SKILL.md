@@ -1,6 +1,6 @@
 ---
 name: buyna-project-framework
-description: "Inspect or establish the shared Buyna.ai website development framework, repository structure, module boundaries, environments, and commands. Use after design and page-structure approval and before broad frontend or backend implementation."
+description: "Inspect or establish the shared Buyna.ai website development framework, module boundaries, environments, and runtime commands. Use after design and page-structure approval and before broad frontend or backend implementation."
 ---
 
 # Buyna.ai Project Framework
@@ -9,7 +9,7 @@ Define the project foundation without building business features or forcing a fr
 
 ## First Move
 
-Inspect the real repository, runtime versions, build commands, database configuration, deployment files, and existing data. Read `references/approved-stack.md` only when the project has no approved stack.
+Inspect the current project, runtime versions, build commands, database configuration, deployment files, and existing data. Read `references/approved-stack.md` only when the project has no approved stack.
 
 ## Establish
 
@@ -26,7 +26,6 @@ Inspect the real repository, runtime versions, build commands, database configur
 - Use the framework selected in the approved design or project record.
 - Do not require Django, Lovable, Supabase, or another framework by default.
 - Keep browser, server, database, storage, and payment responsibilities separate.
-- Use Git as the code source of truth.
 - Keep structured business data in the approved AWS database and files in S3 when AWS is selected.
 - Produce a short framework decision for user approval before implementation.
 

@@ -43,7 +43,7 @@ Present one desktop/mobile structure record for approval.
 ## Phase 4: Project Framework
 
 Require an inspected or approved frontend, backend, database, storage,
-environment, repository, build/start, migration, test, and release decision.
+environment, build/start, migration, test, and release decision.
 Resolve the final technical architecture here. Do not force a framework or
 silently override the approved design direction.
 
