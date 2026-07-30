@@ -1,4 +1,4 @@
 interface:
   display_name: "Buyna.ai Project Framework"
-  short_description: "Confirm the shared project framework before implementation"
+  short_description: "Confirm the framework after interface approval"
   default_prompt: "Use $buyna-project-framework to inspect and confirm the frontend, backend, data, storage, environment, and runtime framework without forcing Django or another stack."

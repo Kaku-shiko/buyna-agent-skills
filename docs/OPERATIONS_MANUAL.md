@@ -53,12 +53,13 @@ flowchart TD
     B[buyna-website-builder] --> C[buyna-customer-intake]
     C --> D[buyna-website-design]
     D --> P[buyna-page-structure]
-    P --> K[buyna-project-framework]
-    K --> X{static or merchant}
+    P --> X{static or merchant}
     X -->|static| FPS[public frontend prototype]
     X -->|merchant| M[buyai-merchant-builder]
     M --> FPM[public and merchant Dashboard prototype]
-    FPM --> DB[AWS data layer and S3]
+    FPS --> K[buyna-project-framework]
+    FPM --> K
+    K --> DB[AWS data layer and S3]
     DB --> Q{product or booking}
     Q --> MP[product merchant backend]
     Q --> MB[booking service backend]

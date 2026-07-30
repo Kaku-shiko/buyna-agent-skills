@@ -8,7 +8,7 @@ description: "Build or repair Buyna.ai public and merchant-admin frontends using
 Build the approved public frontend and merchant Dashboard in one of two explicit
 modes. Never mix the completion claims of the two modes.
 
-## Prototype Mode: Phase 6
+## Prototype Mode: Phase 4
 
 1. Read the approved customer record, the complete output from `buyna-website-design`, and the approved page/content plan from `buyna-page-structure`.
 2. Inspect existing routes/components and preserve approved project patterns.
@@ -17,9 +17,9 @@ modes. Never mix the completion claims of the two modes.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.
 6. Verify desktop and real mobile widths. Report the interface as a prototype, not as persisted or backend-connected.
 
-## Integration Mode: Phase 10
+## Integration Mode: Phase 9
 
-1. Read the approved Phase 6 interface and API contract.
+1. Read the approved Phase 4 interface and API contract.
 2. Inspect the implemented backend endpoints and ownership rules.
 3. Replace mock repositories and handlers with the approved real APIs without redesigning the confirmed interface.
 4. Verify loading, empty, success, validation, permission, failure, refresh, and persistence behavior.

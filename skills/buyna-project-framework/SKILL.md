@@ -1,11 +1,12 @@
 ---
 name: buyna-project-framework
-description: "Inspect or establish the shared Buyna.ai website development framework, module boundaries, environments, and runtime commands. Use after design and page-structure approval and before broad frontend or backend implementation."
+description: "Inspect or establish the shared Buyna.ai website development framework, module boundaries, environments, and runtime commands. Use after the public frontend and merchant Dashboard prototype are approved and before backend implementation."
 ---
 
 # Buyna.ai Project Framework
 
-Define the project foundation without building business features or forcing a framework.
+Define the project foundation from the approved interface and API contract
+without building business features or forcing a framework.
 
 ## First Move
 
