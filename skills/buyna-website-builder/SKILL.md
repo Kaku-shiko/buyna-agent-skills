@@ -60,7 +60,7 @@ For Phases 4-11, also read and apply
 - Step 1: call `buyna-customer-intake` and deliver the approved customer-information record.
 - Step 2: call `buyna-website-design` and deliver the approved frontend development framework, design system, references, and motion direction.
 - Step 3: call `buyna-page-structure` and deliver the approved desktop/mobile pages, sections, content, and policy placement.
-- Step 4: call `buyna-frontend-builder` in frontend code mode. Deliver runnable public and merchant Dashboard UI source code, desktop/mobile behavior, clearly marked mock data, the API contract, and passing frontend checks. Do not implement real Dashboard business logic.
+- Step 4: call `buyna-frontend-builder` in frontend code mode. After the public frontend design and structure are approved, confirm the merchant Dashboard navigation and page composition, then deliver runnable public and Dashboard UI source code, desktop/mobile behavior, clearly marked mock data, the API contract, and passing frontend checks. For a product merchant, require 仪表盘, 商品管理, 分类管理, 订单, 付费客户, and 支付设置. Do not implement real Dashboard business logic.
 - Step 5: call `buyna-project-framework` for the post-frontend technical foundation. Preserve the approved frontend framework and deliver backend, database, storage, environment, and command configuration files or scripts.
 - Step 6: call `buyna-aws-data-layer` and/or `buyna-s3-storage`. Deliver migrations/schema code and/or storage integration code with local or staging verification.
 - Step 7: call one selected domain backend Skill. Deliver real product or booking/service business logic, APIs, ownership rules, and automated checks behind the approved Dashboard contract without redesigning its UI.

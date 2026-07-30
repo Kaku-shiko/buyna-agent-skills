@@ -19,6 +19,8 @@ Turn the approved customer information and design direction into a confirmed web
    For merchant projects, separately list Dashboard navigation, screens,
    visible fields, actions, and states as UI requirements. Record data and API
    needs as contracts only; do not design their backend implementation here.
+   For the product branch, use this six-page composition:
+   仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置.
 8. Add the privacy-policy requirement using `references/privacy-policy-checklist.md` and identify any conditional commerce, booking, account, cookie, or legal pages.
 9. Record missing copy, images, translations, links, SEO metadata, legal details, and other customer materials as `待补充`.
 10. Present one concise desktop/mobile page-structure table for customer approval, then stop.
@@ -50,3 +52,4 @@ Skill 3 is complete only when the customer approves:
 5. Loading, empty, success, error, and 404 requirements where applicable.
 6. Template keep/remove/add/replace decisions when applicable.
 7. Privacy-policy placement, conditional policy pages, and the list of information still required.
+8. Merchant Dashboard page composition and mobile navigation when applicable.

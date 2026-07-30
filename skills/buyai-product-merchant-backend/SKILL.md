@@ -26,6 +26,10 @@ redesign Dashboard navigation, layouts, forms, visible fields, or interactions.
 If backend correctness requires an interface change, stop and return a focused
 change request to `buyna-frontend-builder` for user approval.
 
+Require the approved product Dashboard UI to contain exactly these default
+top-level pages: 仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置. Treat these
+as frontend routes; this Skill implements their server-side behavior only.
+
 ## Combine Skills
 
 Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.

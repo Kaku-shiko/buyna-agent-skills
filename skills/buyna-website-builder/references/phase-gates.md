@@ -64,6 +64,10 @@ For a merchant site, require one explicit scope choice: product,
 booking/service, or mixed. Use `buyai-merchant-builder` only for this routing
 decision before building the corresponding Dashboard.
 
+For a product merchant, require an approved six-page Dashboard UI record before
+coding: 仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置. Apply the approved
+website design system and define desktop/mobile navigation.
+
 Phases 5-8 remain locked until this frontend code completion record is
 approved. If it is absent or incomplete, return to Phase 4 and do not start
 framework establishment, data/storage implementation, domain backend, or
