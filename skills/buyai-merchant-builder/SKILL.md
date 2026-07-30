@@ -7,6 +7,21 @@ description: Coordinate or repair Buyna.ai merchant and seller backends on the c
 
 Use as the high-level coordinator for "merchant backend", "seller backend", or a broad Buyna.ai merchant build. Route detailed work to narrower skills; do not duplicate their rules.
 
+## Strict Scope Control
+
+- Execute only the merchant function explicitly requested by the user.
+- Route only to the minimum narrower Skill required for that function.
+- Do not add adjacent modules, optional fields, dashboards, reports,
+  integrations, or future improvements unless the user requested them.
+- Do not recommend extra merchant features after completing the requested
+  function.
+- Do not start payment, booking, product, storage, frontend, or deployment work
+  merely because it appears in this Skill's capability list.
+- Mention an unrequested issue only when it is an immediate security,
+  data-loss, payment, or execution blocker; describe only the minimum required
+  fix or decision.
+- Stop after validating and reporting the requested function.
+
 ## First Move
 
 Read `references/buyai-commerce-blueprint.md` when starting, migrating, or repairing a broad backend.

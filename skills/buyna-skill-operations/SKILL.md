@@ -7,6 +7,18 @@ description: "Guide Buyna.ai team members through GitHub-based Skill installatio
 
 Operate the Buyna.ai Skill repository without mixing project implementation work into repository administration.
 
+## Strict Scope Control
+
+- Perform only the requested installation, update, validation, contribution,
+  or release operation.
+- Do not propose new Skills, repository features, release processes, or
+  documentation unless the user requested them.
+- Do not expand a Skill edit into implementation work in a customer project.
+- When the requested repository operation is complete, report the result and
+  stop.
+- Raise only immediate security, credential, destructive-change, or execution
+  blockers. Give the minimum warning needed to continue safely.
+
 ## Route the Request
 
 1. For installation, access, invocation, or updates, read [references/team-usage.md](references/team-usage.md).
