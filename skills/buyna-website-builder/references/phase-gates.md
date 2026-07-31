@@ -142,9 +142,18 @@ commands and evidence. Do not promote planned or implemented work to verified
 status without running the applicable checks. Manual checks supplement rather
 than replace applicable test code.
 
+Run the `buyna-testing-quality` pre-upload package gate. Require an executed
+size report, largest-file/directory list, source-versus-runtime package
+classification, verified exclusions, dependency restore command, build
+command, and a `PASS` result. A package containing dependencies, generated
+build/cache directories, local environment files, unexplained oversized
+assets, or unnecessary runtime content cannot complete this phase.
+
 ## Phase 11: Release
 
 Require an approved target, migration plan, secrets plan, cost/risk preview,
 rollback path, and live verification evidence. Deliver required deployment,
 infrastructure, or environment configuration files without secrets. Never
-treat a prepared plan as a deployed or production-verified result.
+treat a prepared plan as a deployed or production-verified result. Upload only
+the approved runtime artifact and block release when the Phase 10 pre-upload
+package gate is missing or failed.

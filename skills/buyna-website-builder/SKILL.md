@@ -66,8 +66,14 @@ For Phases 4-11, also read and apply
 - Step 7: continue `buyai-dashboard-data-interaction`; it routes one approved domain slice to the product or booking/service backend Skill.
 - Step 8: when commerce applies, call `buyai-checkout-address-ux` and `buyai-globepay-payment`. Deliver buyer-form and server-side payment code with safe pending and verified-status behavior. Record `NOT_APPLICABLE` when commerce does not apply.
 - Step 9: continue `buyai-dashboard-data-interaction`; it routes the current page to `buyna-frontend-builder` integration mode, replaces its mock adapter, and proves persistence, refresh, error handling, and public/frontend synchronization.
-- Step 10: call `buyna-testing-quality`. Deliver or update automated test files and run the required checks. Manual evidence may supplement tests but cannot replace applicable test code.
-- Step 11: call `buyna-aws-release`. Deliver deployment/IaC/configuration changes when required and provide live verification evidence. Do not claim production delivery from a plan.
+- Step 10: call `buyna-testing-quality`. Deliver or update automated test files,
+  run the required checks, and pass the pre-upload package gate with an
+  executed size report. Manual evidence may supplement tests but cannot
+  replace applicable test code.
+- Step 11: call `buyna-aws-release`. Upload only the approved runtime artifact.
+  Deliver deployment/IaC/configuration changes when required and provide live
+  verification evidence. Do not release when the pre-upload package gate is
+  missing or failed, and do not claim production delivery from a plan.
 
 ## Implementation Delivery Gate
 
