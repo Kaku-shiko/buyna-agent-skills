@@ -21,6 +21,12 @@ Notify and return query call one idempotent writer. It finds local order by prov
 
 `paid_at` uses provider/local payment time when available, not refresh time. Expiration must not override verified success.
 
+The mobile H5/JSAPI return route must restore the local order-result page,
+query status on the server, and show pending, paid, failed, or cancelled
+without trusting redirect parameters. A buyer closing the wallet or returning
+before notify arrives keeps the order pending and may trigger a bounded query
+or manual refresh.
+
 Seller Orders may have one page-level silent refresh button. It checks unfinished orders and paid orders that may have been refunded. Do not add per-row refresh buttons.
 
 ## Combine With
@@ -29,7 +35,10 @@ Use `buyai-globepay-checkout` for provider order creation, `buyai-globepay-confi
 
 ## Validate
 
-Check `pending/expired/failed + PAY_SUCCESS -> paid`, `paid + refund success -> refunded`, idempotency, real paid time, seller visibility, CSV, dashboard totals, and no deletion of paid/refunded records.
+Check mobile return, early return before notify, cancelled/closed wallet,
+`pending/expired/failed + PAY_SUCCESS -> paid`, `paid + refund success ->
+refunded`, idempotency, real paid time, seller visibility, CSV, dashboard
+totals, and no deletion of paid/refunded records.
 
 Deliver notify/query/status-writer source, persistence changes, and applicable
 idempotency/status tests in the real project. Report changed paths and
