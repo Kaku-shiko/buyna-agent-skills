@@ -110,6 +110,16 @@ Product checkout buyer form fields:
 Checkout form rules:
 
 - Product checkout must collect buyer and shipping information before payment.
+- Immediately before the final payment button, show one single-selection
+  control with exactly these choices in order: `微信`, `支付宝`, `银行卡`.
+- Require explicit selection and a valid buyer form before enabling payment.
+- Persist the selected method on the local `pending_payment` order.
+- Keep unconfigured GlobePay channels visible but disabled with a clear
+  explanation; never silently substitute another method.
+- Preserve the selected method after validation, network, or provider errors.
+- Map the selected method to the approved GlobePay channel server-side.
+- Bank card checkout must use GlobePay-hosted card entry; never collect card
+  number, expiry, or CVV in the Buyna.ai frontend.
 - Payment buttons must use the validated form state; do not leave payment buttons disconnected from the order form.
 - Create a local `pending_payment` order before calling GlobePay.
 - Store buyer fields, shipping fields, product snapshot, quantity, amount, currency, and payment method on the order.

@@ -17,6 +17,11 @@ Read `references/checkout-endpoints.md`. Confirm selected method, merchant enabl
 
 ## Method Rules
 
+Before the final payment button, require a three-choice selector in this order:
+`微信`, `支付宝`, `银行卡`. Map the stored selection to the approved GlobePay
+channel only on the server. Do not default to or switch payment methods without
+an explicit buyer selection.
+
 Hosted card/bank card must use GlobePay-hosted card input. Never collect card
 number, expiry, or CVV in the Buyna.ai frontend.
 
@@ -30,7 +35,12 @@ Use `buyai-globepay-config` for signing and URL issues. Use `buyai-globepay-stat
 
 ## Validate
 
-Check payment button uses validated form state, creates local pending record first, calls server-only adapter, returns `redirect` or `show_qr`, preserves form on provider error, and never shows fake waiting page instead of actual GlobePay next action.
+Check all three choices render before the payment button, unavailable channels
+are disabled, the selected method is stored on the pending order, the payment
+button uses validated form state, creates the local pending record first, calls
+the matching server-only adapter, returns `redirect` or `show_qr`, preserves
+form and selection on provider error, and never shows a fake waiting page
+instead of the actual GlobePay next action.
 
 Deliver checkout source, server adapter, pending-record persistence, and
 applicable tests in the real project. Report changed paths and verification
