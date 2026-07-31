@@ -7,6 +7,9 @@ frontend checks, and user approval are complete.
 
 1. Lock approved routes, fields, actions, states, and the API contract.
 2. Establish the executable server/API boundary and environment configuration.
+   In the same Phase 5 slice, deliver frontend types/contracts, an API
+   client/repository adapter boundary, endpoint configuration, and
+   loading/error wiring while retaining mock business data.
 3. Implement merchant login, session, authorization, and ownership.
 4. Implement AWS database schemas and reversible migrations.
 5. Implement S3 when the approved UI contains image/file actions.
@@ -36,5 +39,8 @@ For each completed slice, report:
 - tests and commands run;
 - persistence and refresh evidence;
 - remaining mock or unconnected behavior.
+
+Phase 5 cannot pass without changed frontend source paths and passing frontend
+build/type checks.
 
 Stop for approval before starting the next slice.

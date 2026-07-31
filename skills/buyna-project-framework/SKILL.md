@@ -48,6 +48,13 @@ Deliver an executable server/API boundary, not only folders or documentation.
 The next data and domain Skills must be able to add migrations, services, and
 endpoints without replacing this foundation.
 
+Also deliver frontend code for the approved interaction slice: typed API
+contracts, a request client or repository adapter boundary, endpoint
+configuration without secrets, and loading/error integration. Retain mock
+business data until the matching endpoint is verified. Run frontend build/type
+checks and report the changed frontend paths. Do not complete Phase 5 with
+backend-only code.
+
 ## Handoff
 
 Route merchant classification to `buyai-merchant-builder`, UI work to `buyna-frontend-builder`, structured data to `buyna-aws-data-layer`, files to `buyna-s3-storage`, domain work to the selected product or booking Skill, and final checks to `buyna-testing-quality`.

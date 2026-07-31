@@ -87,6 +87,14 @@ A backend-stack recommendation alone does not complete this phase. Establish an
 executable server/API boundary so the next data, storage, and domain slices can
 implement the approved contract.
 
+Phase 5 must also deliver real frontend source changes for the current
+Dashboard interaction slice: typed request/response contracts, an API client or
+repository adapter boundary, environment-safe endpoint configuration, and the
+approved loading/error wiring. Keep business data mocked until the matching
+real endpoint is verified. Run frontend build/type checks and report the
+changed frontend paths. Phase 5 fails when it delivers only backend,
+configuration, folders, or documentation.
+
 ## Phase 6: Data And Storage
 
 Require approved schemas/migrations for structured data and approved S3

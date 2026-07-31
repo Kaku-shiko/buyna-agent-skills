@@ -28,7 +28,9 @@ interaction slice.
 
 Route only the current approved slice:
 
-1. Use `buyna-project-framework` for the executable server/API foundation.
+1. Use `buyna-project-framework` for the executable server/API foundation and
+   require matching frontend contract, API-client/adapter, endpoint
+   configuration, and loading/error source changes.
 2. Use `buyna-aws-data-layer` and `buyna-s3-storage` for schema, migrations,
    ownership, and file interaction.
 3. Use `buyai-product-merchant-backend` or
@@ -70,3 +72,7 @@ For a product Dashboard, use this order:
 Report frontend adapter, backend endpoint/service, schema/migration or S3 files,
 tests run, persistence evidence, and remaining mock behavior. A schema, plan,
 or API description without saved code and verification is not complete.
+
+For Phase 5 specifically, `DELIVERED_FILES` must contain frontend source files
+and the frontend build/type checks must pass. Backend-only delivery cannot
+receive `PHASE_RESULT: PASS`.

@@ -18,7 +18,7 @@ This is the canonical execution order, not a list to run in one turn:
 5. Dashboard data-interaction foundation: immediately after the Dashboard UI
    code record is approved, call `buyai-dashboard-data-interaction`. It routes
    the current slice to `buyna-project-framework` for an executable server/API
-   foundation.
+   foundation plus required frontend contract/client/adapter/state code.
 6. Data and storage interaction, only when required:
    - structured data: `buyna-aws-data-layer`;
    - files/images: `buyna-s3-storage`.
