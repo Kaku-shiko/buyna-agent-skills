@@ -10,16 +10,26 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 ## Steps
 
 1. Inspect the real runtime, build/start commands, deployment files, database, S3, domain, and environment variables.
-2. Run `buyna-testing-quality`, including its pre-upload package gate, before
+2. Verify through `aws-project-deployer` that the deployment target is the
+   existing Buyna EC2 instance at `35.73.127.215`. Record its instance id,
+   region, running state, and current public IPv4 address. Stop on mismatch and
+   never create a replacement instance.
+3. Run `buyna-testing-quality`, including its pre-upload package gate, before
    release.
-3. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path.
-4. Use `aws-project-deployer` for live AWS inspection or deployment operations.
-5. Verify HTTPS, routes, API health, migrations, uploads, logs, and critical user journeys.
+4. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path. State `NEW_EC2_INSTANCES: 0`.
+5. Use `aws-project-deployer` for live AWS inspection or deployment operations on the verified existing instance.
+6. Verify HTTPS, routes, API health, migrations, uploads, logs, target instance identity, and critical user journeys.
 
 ## Rules
 
 - Never ask for secrets in chat or commit them to source.
 - Never create paid persistent AWS resources without confirmation.
+- Never create, clone, replace, or terminate an EC2 instance during a
+  Buyna website release. Use only the verified existing Buyna instance at
+  `35.73.127.215`.
+- Keep each website isolated by application directory, process name, port,
+  Nginx route, logs, and environment file. Do not overwrite another deployed
+  website on the shared instance.
 - Apply production migrations through the backend/deployment environment.
 - Keep production database access private.
 - Update payment callback URLs to the production domain.
@@ -31,7 +41,8 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 
 ## Output
 
-Report the release version, environment, uploaded artifact path and size,
+Report the release version, environment, verified EC2 instance id and public
+IPv4 address, `NEW_EC2_INSTANCES: 0`, uploaded artifact path and size,
 verified URLs, migration result, health result, rollback location, and
 unresolved risks.
 

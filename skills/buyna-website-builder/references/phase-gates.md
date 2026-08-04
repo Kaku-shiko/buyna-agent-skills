@@ -156,4 +156,7 @@ rollback path, and live verification evidence. Deliver required deployment,
 infrastructure, or environment configuration files without secrets. Never
 treat a prepared plan as a deployed or production-verified result. Upload only
 the approved runtime artifact and block release when the Phase 10 pre-upload
-package gate is missing or failed.
+package gate is missing or failed. For Buyna cloud deployment, require AWS API
+verification of the existing Buyna EC2 instance at `35.73.127.215`, record
+`NEW_EC2_INSTANCES: 0`, and stop rather than creating or replacing an instance
+when the fixed target cannot be verified.
