@@ -18,6 +18,8 @@ migrations, storage rules, APIs, or backend business logic.
 
 After the gate passes, read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, image limit.
 
+Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
+
 ## Dashboard Contract Boundary
 
 Implement authentication, authorization, persistence, products, stock, orders,
@@ -27,7 +29,7 @@ If backend correctness requires an interface change, stop and return a focused
 change request to `buyna-frontend-builder` for user approval.
 
 Require the approved product Dashboard UI to contain exactly these default
-top-level pages: 仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置. Treat these
+top-level pages: 仪表盘、商品管理、分类管理、订单、付费客户、支付设置. Treat these
 as frontend routes; this Skill implements their server-side behavior only.
 
 ## Combine Skills

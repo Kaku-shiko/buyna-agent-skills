@@ -1,102 +1,40 @@
 ---
 name: buyai-merchant-builder
-description: Coordinate or repair a single Buyna.ai merchant backend on the current AWS-owned stack when product, booking, payment, checkout, storefront, database, storage, and deployment work overlap.
+description: "Route a single Buyna.ai merchant request to the minimum product, booking, Dashboard integration, checkout, payment, database, S3, or AWS Skill. Use for merchant-backend scope classification and coordination without implementing every adjacent module."
 ---
 
 # Buyai Merchant Builder
 
-Use as the high-level coordinator for "merchant backend", "seller backend", or a broad Buyna.ai merchant build. Route detailed work to narrower skills; do not duplicate their rules.
+Act only as a narrow router for one merchant and one primary merchant administrator.
 
-## Strict Scope Control
+## Entry
 
-- Execute only the merchant function explicitly requested by the user.
-- Route only to the minimum narrower Skill required for that function.
-- Do not add adjacent modules, optional fields, dashboards, reports,
-  integrations, or future improvements unless the user requested them.
-- Do not recommend extra merchant features after completing the requested
-  function.
-- Do not start payment, booking, product, storage, frontend, or deployment work
-  merely because it appears in this Skill's capability list.
-- Mention an unrequested issue only when it is an immediate security,
-  data-loss, payment, or execution blocker; describe only the minimum required
-  fix or decision.
-- Stop after validating and reporting the requested function.
+1. Inspect the real repository and environment.
+2. Confirm product, booking/service, or mixed scope; languages; currency; runtime; and existing data.
+3. Before backend work, require the approved Phase 4 frontend/Dashboard code record and API contract. Otherwise route only to `buyna-frontend-builder`.
+4. Before persistence/storage, require the `buyna-aws-data-layer` Existing Resource Gate and approved `projects/<project_id>/resources.yaml` equivalent. Stop rather than create replacements.
+5. Route only the user's current function and stop after its validation.
 
-## First Move
+## Routing
 
-Read `references/buyai-commerce-blueprint.md` when starting, migrating, or repairing a broad backend.
+- Dashboard page-to-API work → `buyai-dashboard-data-interaction`
+- Products, SKU, stock, categories, orders, paid customers → `buyai-product-merchant-backend`
+- Services, availability, capacity, bookings, deposits → `buyai-booking-service-backend`
+- Buyer/customer forms → `buyai-checkout-address-ux`
+- GlobePay → `buyai-globepay-payment`
+- Structured data → `buyna-aws-data-layer`
+- Files/images → `buyna-s3-storage`
+- Storefront UI → `buyai-storefront-layout-ux`
+- AWS release → `buyna-aws-release`
 
-Inspect the real repository and deployed environment. Confirm product, booking, or mixed; frontend/admin languages; currency; AWS region; backend runtime; database engine; S3 buckets; deployment target; and existing data. Do not assume Lovable or Supabase.
+For mixed scope, complete one domain and one Dashboard slice at a time.
 
-## Backend Entry Gate
+## Boundaries
 
-Before routing to database, storage, product, booking/service, payment, or other
-backend implementation, require the approved Phase 4 frontend code completion
-record. Inspect the actual public frontend and merchant Dashboard source,
-implemented desktop/mobile routes and states, clearly marked mock actions,
-written API contract, passed frontend build/type checks, and user approval.
-
-If the record is missing or incomplete, stop and route only to
-`buyna-frontend-builder` Phase 4. Do not design or create schemas, databases,
-storage rules, backend endpoints, payment logic, or business services.
-
-After the gate passes, route to `buyai-dashboard-data-interaction`. Do not stop
-at another design-only or architecture-only output.
-
-## Dashboard Separation
-
-- Dashboard UI belongs to `buyna-website-design`,
-  `buyna-page-structure`, and `buyna-frontend-builder` Phase 4.
-- Dashboard business logic belongs to the selected data, storage, product,
-  booking/service, checkout, and payment Skills after UI approval.
-- Treat the approved UI and API contract as the boundary between them.
-- Backend Skills may supply data and action behavior but must not silently
-  change navigation, layouts, fields, or interaction patterns.
-- When backend requirements conflict with the approved UI, stop and return a
-  focused change request to the frontend phase for user approval.
-
-## Data Interaction Order
-
-Use `buyai-dashboard-data-interaction` to route the approved Dashboard through
-this order:
-
-1. executable server/API foundation;
-2. merchant identity and authorization;
-3. AWS database migrations and S3 integration when needed;
-4. domain APIs and business services;
-5. replacement of mock adapters with real APIs;
-6. persistence, refresh, public-site synchronization, and error verification.
-
-Complete and verify one Dashboard page or closely related interaction slice at
-a time. Do not connect all pages in one uncontrolled step.
-
-## Skill Routing
-
-Use `buyai-product-merchant-backend` for products, SKU, images, stock, categories, orders, and paid customers.
-
-Use `buyai-booking-service-backend` for services, availability, capacity, bookings, deposits, and paid bookings.
-
-Use `buyai-globepay-payment` for GlobePay setup, payment creation, notify/query, refunds, and subscriptions.
-
-Use `buyai-checkout-address-ux` for forms, address, phone/email, postal code, persistence, and mobile input.
-
-Use `buyai-storefront-layout-ux` plus `impeccable` for storefront UI, mobile, readability, and design polish.
-
-Use `aws-project-deployer` for AWS identity checks, architecture, RDS/Aurora, S3, secrets, deployment, domains, and live verification.
-
-## Gold
-
-Build one backend for one merchant and one primary merchant administrator. Do not
-create a platform administrator, multi-merchant console, merchant switcher, or
-merchant-account management API unless the user explicitly changes the product
-scope in a later request.
-
-Every Buyai merchant MVP collects buyer/customer data before payment, creates local pending order/booking before provider payment, calls GlobePay server-side, marks paid only after verified notify/query, creates paid records once, and shows seller records with filters, CSV, and email.
-
-Use canonical `seller_id` as permanent owner. Never use admin account, email, or GlobePay partner code. Changing GlobePay credentials must not hide old products/orders.
-
-Use the configured AWS database as the business-data source of truth and S3 for files/images. Keep database, AWS, session, email, and payment credentials server-side. Do not introduce Supabase or Lovable unless an inspected legacy project still depends on them and the user explicitly keeps that dependency.
-
-## Validate
-
-Check build/type, migrations, UTF-8, merchant login/session, merchant ownership scoping, buyer form, pending payment, verified paid sync, orders/paid customers, CSV, manual email, S3 upload, backups, no hard-coded secrets, no mojibake, and mobile backend. Verify deployed behavior before calling the system live.
+- Do not add optional modules, fields, reports, integrations, or future suggestions.
+- Do not duplicate narrower Skill rules or start them merely because they appear above.
+- Do not create a platform administrator, merchant switcher, or cross-merchant console.
+- Use `project_id + seller_id` ownership and the approved S3 project prefix.
+- Cross-project access must use an authenticated, audited server API and default to read-only.
+- Keep credentials server-side; do not introduce Supabase or Lovable unless an inspected retained legacy dependency explicitly requires them.
+- Mention only immediate security, data-loss, payment, or execution blockers.

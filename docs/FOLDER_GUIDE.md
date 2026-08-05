@@ -110,7 +110,7 @@ planned-skills/
 | `buyna-customer-intake` | 收集客户基本资料 | 客户需求记录 |
 | `buyna-website-design` | 确认框架、字体、颜色、UI/UX、动画和参考 | 设计确认记录 |
 | `buyna-page-structure` | 确认页面、内容、手机端和政策页面 | 页面结构记录 |
-| `buyna-project-framework` | 确认完整技术架构、环境、模块边界和命令 | 技术框架记录 |
+| `buyai-dashboard-data-interaction` | 逐页建立服务器/API并连接现有数据、S3、业务和前端 | 可验证的功能切片 |
 
 这一组不负责实现支付、数据库或生产部署。
 

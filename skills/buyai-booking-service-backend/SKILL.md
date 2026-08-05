@@ -18,6 +18,8 @@ migrations, storage rules, APIs, or backend business logic.
 
 After the gate passes, read `references/booking-service-rules.md`. Confirm languages, currency, location/timezone, booking type, package rules, capacity model, and payment mode.
 
+Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
+
 ## Dashboard Contract Boundary
 
 Implement authentication, authorization, persistence, services, availability,

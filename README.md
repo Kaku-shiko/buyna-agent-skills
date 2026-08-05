@@ -37,8 +37,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 4. `buyna-website-design`：确认前端偏好、设计系统、UI/UX、动画和参考网站。
 5. `buyna-page-structure`：确认桌面端、手机端、页面内容和隐私政策。
 6. `buyna-frontend-builder`：交付公开前端和商家 Dashboard UI，再连接真实 API。
-7. `buyai-dashboard-data-interaction`：Dashboard UI 审核后的数据交互总协调。
-8. `buyna-project-framework`：建立可运行的服务器/API、环境和项目基础。
+7. `buyai-dashboard-data-interaction`：逐页建立 API 基础并连接身份、数据库、S3、业务接口和前端。
 
 ### 商家后台与 AWS 分支
 
@@ -71,13 +70,10 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 → 2 网站设计
 → 3 页面结构
 → 4 完成公开前端与商家Dashboard代码
-→ 5 Dashboard数据交互协调与服务器/API基础
-→ 6 AWS数据库与S3基础
-→ 7 商品或服务后台
-→ 8 客户表单与支付
-→ 9 前端和真实API联动
-→ 10 测试
-→ 11 AWS发布
+→ 5 Dashboard功能联动（逐页完成API、数据、S3、业务和前端连接）
+→ 6 下单与支付（不适用可跳过）
+→ 7 测试与上传检查
+→ 8 AWS发布
 ```
 
 静态企业网站可以跳过商家、数据库、S3、结账和支付步骤；商品与服务分支不能同时自动执行，混合项目也要逐个完成并确认。
@@ -93,7 +89,6 @@ skills/buyna-website-builder
 skills/buyna-customer-intake
 skills/buyna-website-design
 skills/buyna-page-structure
-skills/buyna-project-framework
 skills/buyai-merchant-builder
 skills/buyai-dashboard-data-interaction
 skills/buyna-aws-data-layer

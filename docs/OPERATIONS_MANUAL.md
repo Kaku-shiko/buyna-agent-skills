@@ -57,10 +57,9 @@ flowchart TD
     X -->|static| FPS[completed public frontend code]
     X -->|merchant| M[buyai-merchant-builder]
     M --> FPM[completed public and merchant Dashboard code]
-    FPS --> K[buyna-project-framework]
     FPM --> DI[buyai-dashboard-data-interaction]
-    DI --> K
-    K --> DB[AWS data layer and S3]
+    FPS --> DI
+    DI --> DB[AWS data layer and S3]
     DB --> Q{product or booking}
     Q --> MP[product merchant backend]
     Q --> MB[booking service backend]

@@ -6,6 +6,9 @@ $failed = @()
 Get-ChildItem -Directory -LiteralPath $skillsRoot | ForEach-Object {
     $skillFile = Join-Path $_.FullName 'SKILL.md'
     if (-not (Test-Path -LiteralPath $skillFile)) {
+        if ((Get-ChildItem -LiteralPath $_.FullName -Recurse -File -Force).Count -eq 0) {
+            return
+        }
         $failed += "$($_.Name): missing SKILL.md"
         return
     }
@@ -28,4 +31,3 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host "All Skills passed repository validation."
-

@@ -9,7 +9,7 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 
 ## Steps
 
-1. Inspect the real runtime, build/start commands, deployment files, database, S3, domain, and environment variables.
+1. Read the approved `projects/<project_id>/resources.yaml`; run the `buyna-aws-data-layer` Existing Resource Gate and inspect the real runtime, build/start commands, deployment files, database, S3, domain, and environment variables.
 2. Verify through `aws-project-deployer` that the deployment target is the
    existing Buyna EC2 instance at `35.73.127.215`. Record its instance id,
    region, running state, and current public IPv4 address. Stop on mismatch and
@@ -23,6 +23,8 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 ## Rules
 
 - Never ask for secrets in chat or commit them to source.
+- Reuse only the database, bucket, region, project prefix, and connection sources recorded for this project. Stop if the record is missing or conflicts with AWS inspection.
+- Never create a database, RDS/Aurora resource, DynamoDB table, SQLite fallback, S3 bucket, or replacement storage resource during release.
 - Never create paid persistent AWS resources without confirmation.
 - Never create, clone, replace, or terminate an EC2 instance during a
   Buyna website release. Use only the verified existing Buyna instance at

@@ -17,12 +17,29 @@ if ($Scope -eq 'User') {
 
 New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
 
+$obsoleteSkills = @('buyna-project-framework')
+foreach ($obsoleteSkill in $obsoleteSkills) {
+    $obsoletePath = Join-Path $destinationRoot $obsoleteSkill
+    if (Test-Path -LiteralPath $obsoletePath) {
+        $resolvedRoot = [IO.Path]::GetFullPath($destinationRoot).TrimEnd('\') + '\'
+        $resolvedObsolete = [IO.Path]::GetFullPath($obsoletePath)
+        if (-not $resolvedObsolete.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to remove an obsolete Skill outside the installation root: $resolvedObsolete"
+        }
+        Remove-Item -LiteralPath $resolvedObsolete -Recurse -Force
+        Write-Host "Removed obsolete Skill: $obsoleteSkill"
+    }
+}
+
 Get-ChildItem -Directory -LiteralPath $sourceRoot | ForEach-Object {
     $skillName = $_.Name
     $source = $_.FullName
     $destination = Join-Path $destinationRoot $skillName
 
     if (-not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) {
+        if ((Get-ChildItem -LiteralPath $source -Recurse -File -Force).Count -eq 0) {
+            return
+        }
         throw "Invalid Skill: $skillName is missing SKILL.md"
     }
     if ((Test-Path -LiteralPath $destination) -and -not $Force) {

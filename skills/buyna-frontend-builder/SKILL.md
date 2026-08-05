@@ -1,6 +1,6 @@
 ---
 name: buyna-frontend-builder
-description: "Build or repair Buyna.ai public and merchant-admin frontends using the approved project framework. Use in frontend code mode before backend implementation for complete runnable desktop/mobile interfaces with explicit mock data and API contracts, or in integration mode after backend implementation for real API connectivity."
+description: "Build or repair Buyna.ai public and merchant-admin frontends using the approved project framework. Use in Phase 4 UI mode for runnable desktop/mobile interfaces with mock adapters and API contracts, or within Phase 5 integration slices for real API connectivity."
 ---
 
 # Buyna.ai Frontend Builder
@@ -34,7 +34,7 @@ models, persistence, inventory/capacity mutations, order state machines,
 payment verification, S3 ownership, or production APIs in Dashboard UI mode.
 Express these requirements only in the API contract.
 
-## Integration Mode: Phase 9
+## Integration Mode: Phase 5 Slice
 
 1. Read the approved Phase 4 interface and API contract.
 2. Inspect the implemented backend endpoints and ownership rules.
