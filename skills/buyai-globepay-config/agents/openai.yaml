@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyai GlobePay Config"
+  short_description: "Configure GlobePay signing and credentials"
+  default_prompt: "Use $buyai-globepay-config to configure and validate GlobePay credentials, signing, and endpoints."

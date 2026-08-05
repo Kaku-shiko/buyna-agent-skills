@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyai GlobePay Recurring"
+  short_description: "Build secure recurring subscription billing"
+  default_prompt: "Use $buyai-globepay-recurring to implement secure GlobePay recurring subscription billing."
