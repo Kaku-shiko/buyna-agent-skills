@@ -41,17 +41,18 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 ### 商家后台与 AWS 分支
 
-1. `buyai-merchant-builder`：商家后台总协调与商品/服务分支选择。
-2. `buyai-dashboard-data-interaction`：逐页连接 Dashboard、API、数据库和 S3。
-3. `buyna-aws-data-layer`：不绑定框架的 AWS 数据库与迁移规则。
-4. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
-5. `buyai-product-merchant-backend`：单一商家登录、商品、SKU、库存、订单和客户。
-6. `buyai-booking-service-backend`：单一商家的服务、预约、容量、记录和后台。
-7. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
-8. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
-9. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
-10. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
-11. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
+1. `buyna-merchant-onboarding`：在已验证的多商家后端中安全接入一个新商家。
+2. `buyai-merchant-builder`：商家后台总协调与商品/服务分支选择。
+3. `buyai-dashboard-data-interaction`：逐页连接 Dashboard、API、数据库和 S3。
+4. `buyna-aws-data-layer`：不绑定框架的 AWS 数据库与迁移规则。
+5. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
+6. `buyai-product-merchant-backend`：单一商家登录、商品、SKU、库存、订单和客户。
+7. `buyai-booking-service-backend`：单一商家的服务、预约、容量、记录和后台。
+8. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
+9. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
+10. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
+11. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
+12. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
 
 ### GlobePay 支付分支
 
@@ -90,6 +91,7 @@ skills/buyna-customer-intake
 skills/buyna-website-design
 skills/buyna-page-structure
 skills/buyai-merchant-builder
+skills/buyna-merchant-onboarding
 skills/buyai-dashboard-data-interaction
 skills/buyna-aws-data-layer
 skills/buyna-s3-storage

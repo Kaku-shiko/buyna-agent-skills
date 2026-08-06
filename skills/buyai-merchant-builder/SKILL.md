@@ -1,6 +1,6 @@
 ---
 name: buyai-merchant-builder
-description: "Route a single Buyna.ai merchant request to the minimum product, booking, Dashboard integration, checkout, payment, database, S3, or AWS Skill. Use for merchant-backend scope classification and coordination without implementing every adjacent module."
+description: "Route a single Buyna.ai merchant request to the minimum onboarding, product, booking, Dashboard integration, checkout, payment, database, S3, or AWS Skill. Use for new-merchant registration, merchant-backend scope classification, and coordination without implementing every adjacent module."
 ---
 
 # Buyai Merchant Builder
@@ -11,11 +11,14 @@ Act only as a narrow router for one merchant and one primary merchant administra
 
 1. Inspect the real repository and environment.
 2. Confirm product, booking/service, or mixed scope; languages; currency; runtime; and existing data.
-3. Before backend work, require the approved Phase 4 frontend/Dashboard code record and API contract. Otherwise route only to `buyna-frontend-builder`.
-4. Before persistence/storage, require the `buyna-aws-data-layer` Existing Resource Gate and approved `projects/<project_id>/resources.yaml` equivalent. Stop rather than create replacements.
-5. Route only the user's current function and stop after its validation.
+3. For adding one merchant to an already verified multi-tenant backend, route directly to `buyna-merchant-onboarding`; do not require a new frontend before its intake and preflight steps.
+4. Before other backend work, require the approved Phase 4 frontend/Dashboard code record and API contract. Otherwise route only to `buyna-frontend-builder`.
+5. Before persistence/storage, require the `buyna-aws-data-layer` Existing Resource Gate and approved `projects/<project_id>/resources.yaml` equivalent. Stop rather than create replacements.
+6. Route only the user's current function and stop after its validation.
 
 ## Routing
+
+- New merchant registration on existing resources → `buyna-merchant-onboarding`
 
 - Dashboard page-to-API work → `buyai-dashboard-data-interaction`
 - Products, SKU, stock, categories, orders, paid customers → `buyai-product-merchant-backend`

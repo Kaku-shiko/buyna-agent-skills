@@ -126,6 +126,7 @@ planned-skills/
 
 | Skill | 定位 |
 | --- | --- |
+| `buyna-merchant-onboarding` | 在现有多商家后端中分阶段注册、验证并启用一个新商家 |
 | `buyai-merchant-builder` | 单一商家后台总协调器和商品/服务分支选择 |
 | `buyna-aws-data-layer` | 框架无关的 AWS 数据库、迁移和商家隔离 |
 | `buyna-s3-storage` | S3 图片与文件上传、授权、替换和删除 |
