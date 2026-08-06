@@ -47,9 +47,11 @@ Public site: service list/detail, booking form, date/time or preferred dates, pa
 
 Support full payment, deposit, or inquiry. Verify payment by backend notify/query only. Statuses include `pending_payment`, `confirmed`, `paid`, `deposit_paid`, `failed`, `expired`, `cancelled`, `completed`, `refunded`. Pages need filters, reset, pagination, URL params, timezone, and CSV.
 
+Create the booking with the complete safe customer submission snapshot defined by `buyai-checkout-address-ux`. Return every saved entry from the seller-authorized booking-detail API and display it in the approved Dashboard detail, including custom and legacy questions. Lists may remain summaries. Never return another project/seller's answers or payment/security secrets.
+
 ## Validate
 
-Check build, UTF-8, login, service CRUD sync, capacity editor, form storage, reserve/release, verified paid/deposit once, paid booking visibility, CSV, email, and mobile backend.
+Check build, UTF-8, login, service CRUD sync, capacity editor, complete customer snapshot storage and booking-detail rendering, reserve/release, verified paid/deposit once, paid booking visibility, CSV, email, and mobile backend.
 
 ## Code Delivery
 

@@ -28,6 +28,8 @@ For the current page only:
 
 Recommended product order: 仪表盘、商品管理、分类管理、订单、付费客户、支付设置.
 
+For the 订单/预约 slice, require the approved detail UI and API contract to render the complete safe customer submission snapshot returned by the backend. Do not silently omit custom, unknown, or legacy fields; keep list rows concise and show the full snapshot in the authorized detail view.
+
 ## Boundaries
 
 - Do not preload or implement later pages.

@@ -54,9 +54,11 @@ Images default max is 5 unless changed. If variants exist, detail shows options/
 
 Statuses: `pending_payment`, `paid`, `refunded`, `failed`, `expired`, `cancelled`. Orders/Paid Customers need filters, search, month, URL params, reset, pagination, CSV, and timezone. Expire unpaid older than 24h; never delete paid/refunded records. Use one silent page refresh button.
 
+Create the pending order with the complete safe customer submission snapshot defined by `buyai-checkout-address-ux`. Return every saved entry from the seller-authorized order-detail API and display it in the approved Dashboard order detail, including custom and legacy fields. Order lists may remain summaries. Never return another project/seller's answers or payment/security secrets.
+
 ## Validate
 
-Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sync, checkout storage, verified paid once, refund sync, CSV, cleanup, mobile backend.
+Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sync, complete customer snapshot storage and order-detail rendering, verified paid once, refund sync, CSV, cleanup, mobile backend.
 
 ## Code Delivery
 

@@ -126,6 +126,7 @@ Checkout form rules:
 - Preserve form state after validation errors, payment creation errors, and GlobePay rejection.
 - Show inline validation errors, not raw schema/JSON errors.
 - Seller order detail, Paid Customers page, CSV export, and manual email action must show the buyer form and shipping information.
+- Store every completed customer-visible checkout field as an immutable submission snapshot with key, submitted label, value, type, order, schema version, and locale. Preserve custom/removed fields and combined-form raw text. The seller-authorized order-detail API and UI must show every safe snapshot entry; never include card data, CVV, credentials, tokens, provider secrets, or hidden technical fields.
 
 `payments`:
 

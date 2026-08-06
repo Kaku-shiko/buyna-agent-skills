@@ -42,6 +42,8 @@ different channel.
 
 Product orders store structured fields: name, email, phone, postal code, prefecture, city, town, address lines, country, notes, quantity, payment method, and item snapshot. Single-field quick forms must keep raw text visible to seller.
 
+At order/booking creation, send and persist an immutable submission snapshot of every customer-visible field the customer actually completed, including approved custom fields and the original raw text when a combined field is used. Preserve field key, display label, value, display order, form/schema version, and locale so later form changes do not hide old answers. Never include passwords, session/auth tokens, card number, expiry, CVV, or provider secrets.
+
 For Japan shipping, accept `1234567` and `123-4567`, normalize to seven digits, and auto-fill prefecture/city/town through a server endpoint. Do not overwrite edited fields. Lookup failure must not block checkout.
 
 ## Validate
@@ -49,7 +51,7 @@ For Japan shipping, accept `1234567` and `123-4567`, normalize to seven digits, 
 Check mobile usability, project-required fields, payment-method selection,
 disabled-button behavior, selection persistence after errors, email nullability
 only when explicitly allowed, postal fallback, server revalidation, seller
-address display, CSV, and email prefill.
+order-detail display of every saved customer answer, CSV, and email prefill.
 
 ## Code Delivery
 
