@@ -57,6 +57,10 @@ If lookup returns no result, multiple results, timeout, or error, allow manual e
 
 The checkout action must pass validated form data to the server before payment. Seller order detail, paid-customer detail, CSV export, and manual email prefill must show the same saved fields. If buyer email is optional, backend storage must allow null or a safe fallback and must not fail paid-customer creation.
 
+Persist an immutable `customer_submission_snapshot` (or equivalent normalized child records) when creating the local pending order/booking. Include every customer-visible field actually submitted: stable key, submitted label, value, field type, display order, form/schema version, and locale. Include approved custom questions and preserve the original raw value for combined/free-text forms. Do not reconstruct old submissions only from the current form definition.
+
+The authorized seller order/booking detail must render all snapshot entries in their submitted order without silently dropping unknown or later-removed fields. Lists may remain summaries, but detail, applicable CSV export, and manual-email context must expose all safe submitted customer information. Never store or display passwords, authentication/session tokens, full card data, CVV, provider secrets, or unapproved hidden technical fields.
+
 ## Validation Checklist
 
-Verify mobile layout, required-field errors, optional email behavior, field persistence after failed payment, postal lookup fallback, server-side validation before payment, order detail address display, CSV address export, and manual email body prefill.
+Verify mobile layout, required-field errors, optional email behavior, field persistence after failed payment, postal lookup fallback, server-side validation before payment, complete snapshot round-trip, order-detail rendering of custom and legacy fields, safe CSV export, and manual email body prefill.

@@ -34,3 +34,7 @@ Use `buyai-globepay-checkout` after config is valid. Use `buyai-globepay-status-
 ## Validate
 
 Check base URL, no client secrets, no duplicated API version, fresh signing, correct currency units, useful admin-facing `return_msg`, and error classification: 400 params, 401/403 auth/permission, 404 host/path/version, invalid partner code credential/account problem.
+
+Deliver real server-side configuration/adapter changes without secrets and
+applicable tests. Report changed paths and verification results; configuration
+instructions alone are not complete.

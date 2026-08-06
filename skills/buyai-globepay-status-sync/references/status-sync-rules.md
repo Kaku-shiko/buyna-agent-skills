@@ -25,6 +25,17 @@ Notify and return query must call one idempotent writer:
 7. Deduct stock or confirm capacity once.
 8. Store raw provider data for audit.
 
+Mobile H5/JSAPI return:
+
+- Return to an HTTPS local order-result route containing only a safe local
+  order reference.
+- Restore the pending order and selected payment method.
+- Query provider status through the server; never trust query-string status.
+- Show pending when notify/query has not confirmed success.
+- Allow a bounded automatic query and one user-triggered refresh.
+- Treat wallet close or payment cancellation as pending/failed according to
+  verified provider state, not as paid.
+
 Repair rules:
 
 - `pending_payment + PAY_SUCCESS -> paid`

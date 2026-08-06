@@ -1,4 +1,4 @@
 interface:
   display_name: "Buyna.ai 建站引导助手"
-  short_description: "通过问答和材料检查，一步一步完成建站"
-  default_prompt: "Use $buyna-website-builder as a question-and-answer website setup assistant. Ask for one item at a time, keep missing materials in the current phase, and do not start the next phase until I explicitly approve the completed record."
+  short_description: "按八个阶段逐步完成网站"
+  default_prompt: "Use $buyna-website-builder to execute only my current approved phase, load only that phase reference, and stop for explicit approval."

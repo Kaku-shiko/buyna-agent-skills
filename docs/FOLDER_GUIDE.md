@@ -110,7 +110,7 @@ planned-skills/
 | `buyna-customer-intake` | 收集客户基本资料 | 客户需求记录 |
 | `buyna-website-design` | 确认框架、字体、颜色、UI/UX、动画和参考 | 设计确认记录 |
 | `buyna-page-structure` | 确认页面、内容、手机端和政策页面 | 页面结构记录 |
-| `buyna-project-framework` | 确认完整技术架构、环境、模块边界和命令 | 技术框架记录 |
+| `buyai-dashboard-data-interaction` | 逐页建立服务器/API并连接现有数据、S3、业务和前端 | 可验证的功能切片 |
 
 这一组不负责实现支付、数据库或生产部署。
 
@@ -126,13 +126,13 @@ planned-skills/
 
 | Skill | 定位 |
 | --- | --- |
-| `buyai-merchant-builder` | 商家后台总协调器和商品/服务分支选择 |
-| `buyai-product-merchant-backend` | 登录、商品、SKU、库存、订单、客户和 CSV |
-| `buyai-booking-service-backend` | 登录、服务、档期、容量、预约和记录 |
-| `buyai-checkout-address-ux` | 购买人、地址、邮编、表单保存和后台同步 |
-| `buyai-storefront-layout-ux` | 商城结构、商家入口、分类、页脚和移动端 |
+| `buyai-merchant-builder` | 单一商家后台总协调器和商品/服务分支选择 |
 | `buyna-aws-data-layer` | 框架无关的 AWS 数据库、迁移和商家隔离 |
 | `buyna-s3-storage` | S3 图片与文件上传、授权、替换和删除 |
+| `buyai-product-merchant-backend` | 单一商家登录、商品、SKU、库存、订单、客户和 CSV |
+| `buyai-booking-service-backend` | 单一商家登录、服务、档期、容量、预约和记录 |
+| `buyai-checkout-address-ux` | 购买人、地址、邮编、表单保存和后台同步 |
+| `buyai-storefront-layout-ux` | 商城结构、商家入口、分类、页脚和移动端 |
 | `buyna-testing-quality` | 后台、API、权限、数据、支付和移动端测试 |
 | `buyna-aws-release` | AWS 发布准备、迁移、验证和回滚 |
 | `aws-project-deployer` | AWS 身份检查、架构、资源操作和部署验证 |

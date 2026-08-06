@@ -23,8 +23,16 @@ Readable beats decorative. Do not ship pale text, hidden seller login, giant bla
 
 Storefront needs brand/header, visible seller login/admin entry, meaningful nav, backend-driven categories when available, product/service grid or useful empty state, tappable links, shared footer/legal links, and mobile layout without clipped actions.
 
+Product checkout must show `微信`, `支付宝`, and `银行卡` as three distinct
+payment choices immediately before the final payment button. Use accessible
+radio cards or an equivalent single-selection control with clear selected,
+disabled, focus, and touch states.
+
 When backend exists, labels and sections read from database/settings. Tabs show `All` first, then visible categories with active items. New active categories appear automatically; empty categories hide. Footer/company info reads from settings.
 
 ## Validate
 
-Check desktop/mobile screenshots, seller login, backend-driven tabs, footer/policy links, empty state, JPY no decimals, no public editor/deployment badges, and Impeccable polish/audit when visual quality is the request.
+Check desktop/mobile screenshots, seller login, backend-driven tabs,
+checkout payment selector placement and states, footer/policy links, empty
+state, JPY no decimals, no public editor/deployment badges, and Impeccable
+polish/audit when visual quality is the request.

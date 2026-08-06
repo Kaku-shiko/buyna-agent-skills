@@ -152,6 +152,8 @@ Optional fields:
 
 Only add domain-specific fields when merchant asks or the service requires them.
 
+Store every completed customer-visible booking field as an immutable submission snapshot with stable key, submitted label, value, field type, display order, form/schema version, and locale. Preserve approved custom questions and free-text raw values even if the form changes later. The seller-authorized booking detail, applicable CSV, and manual-email context must display every safe snapshot entry. Never store or expose card data, CVV, passwords, auth/session tokens, provider secrets, or unapproved hidden fields.
+
 ## Seller Backoffice Filters
 
 Bookings page should support:
