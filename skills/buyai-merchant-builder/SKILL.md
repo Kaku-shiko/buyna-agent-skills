@@ -18,7 +18,7 @@ Act only as a narrow router for one merchant and one primary merchant administra
 
 ## Routing
 
-- New merchant registration on existing resources → `buyna-merchant-onboarding`
+- New merchant registration and fixed local project layout on existing resources → `buyna-merchant-onboarding`
 
 - Dashboard page-to-API work → `buyai-dashboard-data-interaction`
 - Products, SKU, stock, categories, orders, paid customers → `buyai-product-merchant-backend`
@@ -26,7 +26,7 @@ Act only as a narrow router for one merchant and one primary merchant administra
 - Buyer/customer forms → `buyai-checkout-address-ux`
 - GlobePay → `buyai-globepay-payment`
 - Structured data → `buyna-aws-data-layer`
-- Files/images → `buyna-s3-storage`
+- Files/images and fixed lifecycle → `buyna-s3-storage`
 - Storefront UI → `buyai-storefront-layout-ux`
 - AWS release → `buyna-aws-release`
 

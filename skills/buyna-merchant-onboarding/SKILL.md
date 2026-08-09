@@ -43,11 +43,17 @@ for explicit approval before continuing.
 1. **Preflight** — Verify the fixed existing resources, current release, backup method, unique identifiers, exact host, and `NEW_EC2_INSTANCES: 0`.
 2. **Staging copy** — Back up the database and run registration plus migrations on a disposable copy. Do not alter production data.
 3. **Pending registration** — Create the merchant identity as inactive or pending in the existing database. Do not expose its domain yet.
-4. **Data and storage scope** — Bind every owned query to `project_id + seller_id`; generate S3 keys under the approved project/seller prefix while retaining only required legacy reads.
-5. **Administrator scope** — Configure one merchant administrator and prove its session cannot be reused for another seller.
-6. **Application route** — Add the exact hostname to the existing application and Nginx route. Reuse the approved process and port; do not use a wildcard domain as a shortcut.
-7. **Functional validation** — Validate login, category/product or service CRUD, image upload/display/replacement/deletion, order detail with the complete customer submission, refresh persistence, and cross-merchant denial.
-8. **Activation** — Activate only this merchant after all applicable checks pass. Verify the live hostname and preserve the backup and previous release.
+4. **Project file layout** — For a new local project directory only, call
+   `packages/buyna-merchant-file-core` `scaffoldMerchantProject` with the
+   approved `project_id`, `seller_id`, and merchant type. Stop if the target
+   already exists; never overwrite it or create replacement AWS resources.
+5. **Data and storage scope** — Bind every owned query to `project_id + seller_id`;
+   route file lifecycle work to `buyna-s3-storage`, which uses the fixed file
+   core, while retaining only required legacy reads.
+6. **Administrator scope** — Configure one merchant administrator and prove its session cannot be reused for another seller.
+7. **Application route** — Add the exact hostname to the existing application and Nginx route. Reuse the approved process and port; do not use a wildcard domain as a shortcut.
+8. **Functional validation** — Validate login, category/product or service CRUD, image upload/display/replacement/deletion, order detail with the complete customer submission, refresh persistence, and cross-merchant denial.
+9. **Activation** — Activate only this merchant after all applicable checks pass. Verify the live hostname and preserve the backup and previous release.
 
 If payment is requested, keep it disabled until the applicable
 `buyai-globepay-payment` workflow has its own credentials, callback, server-side

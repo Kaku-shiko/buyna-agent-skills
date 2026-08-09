@@ -12,7 +12,9 @@ frontend checks, and user approval are complete.
    loading/error wiring while retaining mock business data.
 3. Implement merchant login, session, authorization, and ownership.
 4. Implement AWS database schemas and reversible migrations.
-5. Implement S3 when the approved UI contains image/file actions.
+5. When the approved UI contains image/file actions, call `buyna-s3-storage`
+   and use `packages/buyna-merchant-file-core`. Do not hand-write merchant
+   directory keys, replacement ordering, deletion, or orphan cleanup.
 6. Implement real APIs and business rules for the current Dashboard slice.
 7. Replace its mock adapter without redesigning the page.
 8. Verify loading, empty, validation, success, error, permission, refresh, and
