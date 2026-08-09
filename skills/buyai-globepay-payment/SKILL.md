@@ -14,7 +14,7 @@ canonical program API. Use `scripts/globepay-cli.mjs --operation <name>` for
 JSON CLI execution. Run its tests before project integration:
 
 ```text
-node --test scripts/globepay-core.test.mjs
+node --test scripts/globepay-core.test.mjs scripts/globepay-service.test.mjs
 ```
 
 Available operations are `config.validate`, `auth.sign`, `checkout.plan`,
@@ -23,6 +23,13 @@ JSON on stdin. Configuration and signing read credentials from server process
 environment variables; never put credentials in stdin, command arguments, or
 output. Treat the core result as validation or a proposed transition, not as a
 database write or proof of payment.
+
+For one-time checkout and status persistence, read
+`references/service-adapter-contract.md`, import `createGlobepayService` from
+`scripts/globepay-service.mjs`, and call `createCheckout` or
+`syncPaymentStatus`. Generate only the project-specific store/provider
+adapters, routes, and migration. Do not regenerate the orchestration already in
+the service module.
 
 ## Gold
 
