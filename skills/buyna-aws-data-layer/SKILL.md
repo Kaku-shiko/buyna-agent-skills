@@ -10,10 +10,12 @@ Own structured business data and its safe evolution without forcing a backend fr
 ## Steps
 
 1. Read `projects/<project_id>/resources.yaml`, or locate the equivalent approved resource record.
-2. Report the existing database engine, connection source, database/schema name, framework, migration system, S3 bucket, region, and project prefix.
-3. Confirm `project_id`, `seller_id`, and all `allow_create_*` values are `false` before writing code.
-4. Define owners, relations, constraints, status fields, timestamps, and indexes inside the existing database.
-5. Prepare reversible migrations and validate project/seller isolation on development or staging.
+2. Run `node scripts/inspect-existing-resources.mjs --resource <path>` and stop unless it returns `pass`.
+3. Report the existing database engine, connection source, database/schema name, framework, migration system, S3 bucket, region, and project prefix.
+4. Use `packages/buyna-postgres-merchant-core`; select its existing `node-postgres` adapter when the project uses `pg`.
+5. Read `references/orm-adapter-contract.md` and generate only an adapter when the approved ORM is not already supported.
+6. Run `node scripts/validate-migration.mjs --up <path> --down <path>` before any migration execution and stop unless it returns `pass`.
+7. Validate project/seller isolation on development or staging.
 
 ## Existing Resource Gate
 
@@ -46,6 +48,11 @@ deployment:
 Deliver schema/ORM/query-layer files, reversible migrations, and applicable
 tests in the real project. Report changed paths and migration/test results.
 Do not complete this Skill with a schema description alone.
+
+Do not regenerate merchant scoping, pagination, transaction, or idempotency
+orchestration already supplied by `buyna-postgres-merchant-core`. Configure an
+entity allowlist and call the fixed module. Run its package tests before
+project integration.
 
 ## Rules
 

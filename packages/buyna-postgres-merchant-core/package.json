@@ -1,0 +1,18 @@
+{
+  "name": "@buyna/postgres-merchant-core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/merchant-core.mjs",
+    "./node-postgres": "./adapters/node-postgres.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/merchant-core.test.mjs test/node-postgres.test.mjs"
+  },
+  "peerDependencies": {
+    "pg": ">=8"
+  },
+  "peerDependenciesMeta": {
+    "pg": {"optional": true}
+  }
+}
