@@ -21,6 +21,11 @@ method, trusted browser context, and enabled-method map. Use its
 `endpointFamily` and `nextAction` in the project server adapter. Do not rewrite
 method/channel routing or let frontend code override the result.
 
+Use `createGlobepayService(...).createCheckout(...)` for the actual sequence.
+Implement only the project store/provider adapters described in
+`buyai-globepay-payment/references/service-adapter-contract.md`; do not rewrite
+pending-order-first orchestration in the route handler.
+
 ## Method Rules
 
 Before the final payment button, require a three-choice selector in this order:
