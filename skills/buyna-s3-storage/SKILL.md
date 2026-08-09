@@ -11,9 +11,11 @@ Own files and images; keep business records in the database.
 
 1. Run the `buyna-aws-data-layer` Existing Resource Gate and read the approved project resource record.
 2. Inspect the existing bucket, region, project prefix, access model, object keys, and database metadata.
-3. Define project/seller/entity namespacing and file validation.
-4. Implement server-authorized upload, display, replacement, deletion, and orphan cleanup.
-5. Verify ownership, rollback, and failure behavior.
+3. Use `packages/buyna-merchant-file-core`; do not regenerate project/seller key construction or lifecycle ordering.
+4. Read `references/merchant-file-adapter-contract.md` and implement only the approved S3 and PostgreSQL metadata adapters.
+5. Call the fixed `confirmUpload`, `replaceObject`, `softDelete`, and `cleanupOrphans` interfaces from project routes or jobs.
+6. Run `npm test --prefix packages/buyna-merchant-file-core` before project integration.
+7. Verify ownership, rollback, and failure behavior.
 
 ## Rules
 
@@ -39,3 +41,8 @@ Deliver the server-side storage code, configuration without secrets, cleanup
 logic, and applicable tests in the real project. Report changed paths and
 verification results; storage rules written only as documentation are not
 complete.
+
+Use `scaffoldMerchantProject` only for a new local project directory and stop
+when the target already exists. Its incomplete resource record is intentionally
+blocked until the real existing database, schema, bucket, and region are
+confirmed.
