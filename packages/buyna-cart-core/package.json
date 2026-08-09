@@ -1,0 +1,10 @@
+{
+  "name": "@buyna/cart-core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/cart-core.mjs",
+    "./local-storage": "./adapters/local-storage.mjs"
+  },
+  "scripts": { "test": "node --test test/cart-core.test.mjs" }
+}

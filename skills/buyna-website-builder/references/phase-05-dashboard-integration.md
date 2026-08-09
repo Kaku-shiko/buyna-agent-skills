@@ -9,6 +9,10 @@ When the current slice uploads, replaces, deletes, or cleans images/files, route
 to `buyna-s3-storage`, which must call the same package's fixed lifecycle service.
 Never regenerate the layout for an existing project.
 
+For 商品管理/分类管理 use `buyna-merchant-catalog-core`. For seller Orders,
+order detail, and CSV use `buyna-order-core`. The current project generates only
+Adapters and API wiring.
+
 Save frontend and backend code and tests. Stop for approval before the next
 slice. Complete the phase only when all approved Dashboard slices have no
 unexplained mock business actions.

@@ -18,19 +18,27 @@ routes.
 
 - `listProducts`
 - `createProduct`
+- `updateProduct`
 - `setProductStock`
 - `setProductVisibility`
 - `archiveProduct`
 - `reorderProducts`
 - `listCategories`
 - `createCategory`
+- `updateCategory`
 - `setCategoryVisibility`
 - `archiveCategory`
+- `createVariant`
+- `updateVariant`
 
 The module fixes field allowlists, filter/sort fields, normalization, soft
 deletion, and transactional product ordering. A project may add an Adapter or
 approved route mapping, but must not bypass merchant scope or replace archive
 with hard deletion.
+
+Compose image upload, replacement, deletion, ordering, and orphan cleanup with
+`packages/buyna-merchant-file-core`. The project may configure image limits and
+field mapping, but must not rewrite S3 ownership or lifecycle ordering.
 
 Run:
 
