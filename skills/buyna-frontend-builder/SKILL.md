@@ -12,7 +12,8 @@ modes. Never mix the completion claims of the two modes.
 
 1. Read the approved customer record, the complete output from `buyna-website-design`, and the approved page/content plan from `buyna-page-structure`.
    For a product merchant Dashboard, read
-   `references/product-merchant-dashboard-ui.md`.
+   `references/product-merchant-dashboard-ui.md` and
+   `references/merchant-dashboard-fixed-ui.md`.
 2. Inspect existing routes/components and preserve approved project patterns.
 3. Before Dashboard coding, present its navigation, page composition,
    desktop/mobile behavior, and inherited design system for explicit approval.
@@ -21,6 +22,13 @@ modes. Never mix the completion claims of the two modes.
 6. Record the fields, operations, validation, ownership, and response states required from the later API.
 7. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
 8. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
+
+For a product merchant Dashboard, use
+`packages/buyna-merchant-dashboard-ui` instead of regenerating its shell,
+navigation, table, status, pagination, dialog, and responsive-state code.
+Configure the approved design tokens and project API/router adapters. Generate
+new UI only for an explicitly approved requirement not covered by the fixed
+package.
 
 ## Dashboard UI Boundary
 

@@ -1,0 +1,16 @@
+{
+  "name": "@buyna/merchant-dashboard-ui",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/dashboard-model.mjs",
+    "./styles.css": "./src/dashboard.css"
+  },
+  "scripts": {
+    "test": "node --test test/dashboard-model.test.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}
