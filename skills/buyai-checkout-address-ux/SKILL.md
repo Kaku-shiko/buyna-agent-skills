@@ -11,6 +11,11 @@ Use for buyer/customer forms, shipping UX, Japan postal auto-fill, mobile input,
 
 Confirm buyer language, admin language, seller country, shipping/service country, flow type, and required fields. Inspect form state, validation, checkout/payment actions, order schema, order detail, and CSV.
 
+For product commerce, resolve `buyna-cart-core` and `buyna-order-core` from the
+project `packages/` or `$env:USERPROFILE/.codex/packages/`. Stop with
+`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` instead of regenerating either
+core.
+
 Read `references/checkout-address-rules.md` for labels, schemas, and postal-code behavior.
 
 ## Combine Skills

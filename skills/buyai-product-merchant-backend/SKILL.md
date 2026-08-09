@@ -9,6 +9,12 @@ Use for product ecommerce: jewelry, apparel, goods, SKU catalogs, and shippable 
 
 ## First Move
 
+Resolve the fixed-module root before implementation. In a repository/project
+installation it is `packages/`; in a user installation it is
+`$env:USERPROFILE/.codex/packages/`. Stop with
+`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when Dashboard, catalog, cart,
+order, PostgreSQL, or file core is missing. Do not regenerate a missing core.
+
 Read the approved Phase 4 frontend code completion record and API contract.
 Inspect the actual public product frontend and merchant Dashboard source and
 confirm that the applicable frontend build/type checks passed. If the record,

@@ -17,6 +17,7 @@ buyna-agent-skills/
 ├── docs/             给团队成员阅读的操作文档
 ├── scripts/          安装和校验仓库的自动化脚本
 ├── skills/           Codex可以安装和调用的 Skill
+├── packages/         Skill优先调用的固定业务代码模块
 ├── planned-skills/   尚未确定定位的 Skill占位区
 ├── README.md         GitHub项目首页和快速入口
 ├── CONTRIBUTING.md   贡献与修改流程
@@ -77,6 +78,12 @@ skills/<skill-name>/<skill-name>/SKILL.md
 ```
 
 同名嵌套会导致重复发现、更新混乱或错误调用。
+
+### `packages/`
+
+存放可测试、可复用的固定代码。Skill负责判断和调用，项目只生成
+Adapter、路由和配置。完整安装会同步此目录；缺少模块时必须停止，禁止
+退回到重新生成核心业务规则。
 
 ### `planned-skills/`
 

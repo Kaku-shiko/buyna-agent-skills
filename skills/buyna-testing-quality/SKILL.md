@@ -9,13 +9,17 @@ Check the real system and report evidence, not assumptions.
 
 ## Test Order
 
-1. Build, type, lint, and migration checks.
-2. Backend unit/API and permission checks.
-3. Frontend loading, empty, success, and error states.
-4. Main user journey with real backend data.
-5. Mobile viewport, touch targets, overflow, and safe areas.
-6. Secrets, seller isolation, payment verification, and audit records.
-7. Source-delivery and deployment-package size/hygiene checks.
+1. For product commerce, verify the six fixed modules exist and run their
+   package tests before project integration tests. A missing core is
+   `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED`, not permission to regenerate
+   it.
+2. Build, type, lint, and migration checks.
+3. Backend unit/API and permission checks.
+4. Frontend loading, empty, success, and error states.
+5. Main user journey with real backend data.
+6. Mobile viewport, touch targets, overflow, and safe areas.
+7. Secrets, seller isolation, payment verification, and audit records.
+8. Source-delivery and deployment-package size/hygiene checks.
 
 ## Pre-Upload Package Gate
 

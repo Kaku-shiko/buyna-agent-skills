@@ -8,6 +8,12 @@ description: "Build or repair Buyna.ai public and merchant-admin frontends using
 Build the approved public frontend and merchant Dashboard in one of two explicit
 modes. Never mix the completion claims of the two modes.
 
+Resolve fixed modules from the current project `packages/` first, then the user
+installation at `$env:USERPROFILE/.codex/packages/`. For a product merchant,
+stop with `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` instead of
+regenerating a missing Dashboard, catalog, cart, order, PostgreSQL, or file
+core.
+
 ## Frontend Code Mode: Phase 4
 
 1. Read the approved customer record, the complete output from `buyna-website-design`, and the approved page/content plan from `buyna-page-structure`.
@@ -18,6 +24,9 @@ modes. Never mix the completion claims of the two modes.
 3. Before Dashboard coding, present its navigation, page composition,
    desktop/mobile behavior, and inherited design system for explicit approval.
 4. Implement the public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope.
+   For product commerce, include the approved cart presentation and connect it
+   to a mock Adapter matching `buyna-cart-core`; do not implement cart pricing
+   rules in components.
 5. Implement all approved desktop and mobile interactions with clearly marked mock data.
 6. Record the fields, operations, validation, ownership, and response states required from the later API.
 7. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
