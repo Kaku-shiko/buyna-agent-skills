@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createCartService} from '../src/cart-core.mjs';
+import {createLocalStorageCartStore} from '../adapters/local-storage.mjs';
+
+function fixture(){
+  let saved=[];
+  const store={async load(){return structuredClone(saved)},async save({items}){saved=structuredClone(items);return structuredClone(saved)},async clear(){saved=[]}};
+  const catalog={async resolvePurchasableItem({productId,variantId}){return{id:productId,variantId:variantId??null,name:'Tea',skuCode:variantId?'SKU-M':null,unitPrice:1200,currency:'JPY',availableStock:5,status:'active',imageUrl:'/tea.webp'}}};
+  return{store,catalog,getSaved:()=>saved};
+}
+
+test('adding the same product and SKU merges quantity and uses catalog price',async()=>{
+  const {store,catalog}=fixture();
+  const cart=createCartService({store,catalog,projectId:'shop',sellerId:'seller',cartId:'guest-1'});
+  await cart.addItem({productId:'p1',variantId:'v1',quantity:2,unitPrice:1});
+  const result=await cart.addItem({productId:'p1',variantId:'v1',quantity:1,unitPrice:1});
+  assert.equal(result.items.length,1);
+  assert.equal(result.items[0].quantity,3);
+  assert.equal(result.items[0].unitPrice,1200);
+  assert.equal(result.subtotal,3600);
+});
+
+test('quantity update, removal, and checkout snapshot stay server-revalidated',async()=>{
+  const {store,catalog}=fixture();
+  const cart=createCartService({store,catalog,projectId:'shop',sellerId:'seller',cartId:'guest-2',pricing:{shipping:()=>500,discount:()=>200,tax:()=>100}});
+  await cart.addItem({productId:'p1',quantity:2});
+  const updated=await cart.updateQuantity({productId:'p1',quantity:3});
+  assert.equal(updated.subtotal,3600);
+  const snapshot=await cart.createCheckoutSnapshot();
+  assert.deepEqual({subtotal:snapshot.subtotal,shipping:snapshot.shipping,discount:snapshot.discount,tax:snapshot.tax,total:snapshot.total},{subtotal:3600,shipping:500,discount:200,tax:100,total:4000});
+  const empty=await cart.removeItem({productId:'p1'});
+  assert.equal(empty.itemCount,0);
+  await assert.rejects(()=>cart.createCheckoutSnapshot(),/EMPTY_CART/);
+});
+
+test('local storage adapter persists only product, variant, and quantity',async()=>{
+  const memory=new Map();
+  const storage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value),removeItem:key=>memory.delete(key)};
+  const store=createLocalStorageCartStore({storage,keyPrefix:'buyna-cart'});
+  const scope={projectId:'shop',sellerId:'seller',cartId:'guest'};
+  await store.save({scope,items:[{productId:'p1',variantId:'v1',quantity:2,unitPrice:1,name:'untrusted'}]});
+  assert.deepEqual(await store.load({scope}),[{productId:'p1',variantId:'v1',quantity:2}]);
+  assert.doesNotMatch([...memory.values()][0],/unitPrice|untrusted/);
+});

@@ -27,6 +27,9 @@ For the current page only:
 4. Route domain logic to `buyai-product-merchant-backend` or
    `buyai-booking-service-backend`. Product/category slices must use the fixed
    `packages/buyna-merchant-catalog-core` selected by the product Skill.
+   Orders and order-detail slices must use
+   `packages/buyna-order-core`; payment status remains owned by the GlobePay
+   status service.
 5. Route checkout/payment only when the current slice requires it.
 6. Use `buyna-frontend-builder` integration mode to replace only the matching mock adapter.
 7. Verify persistence, refresh, permission, error, mobile, and public-site synchronization.

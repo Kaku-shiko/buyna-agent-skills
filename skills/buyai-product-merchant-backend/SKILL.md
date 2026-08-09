@@ -25,6 +25,12 @@ filter/sort rules, stock/visibility/archive operations, or transactional
 ordering. Generate only the project route and database Adapter required by the
 approved API contract.
 
+For shopping-cart, checkout-order creation, seller Orders, order detail, or
+order CSV, read `references/cart-order-fixed-cores.md`. Call
+`packages/buyna-cart-core` and `packages/buyna-order-core`; generate only the
+project Store/Database Adapters, routes, pricing configuration, custom-field
+mapping, and notification templates.
+
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 
 ## Dashboard Contract Boundary
@@ -69,6 +75,8 @@ Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sy
 
 When catalog behavior is in scope, run
 `npm test --prefix packages/buyna-merchant-catalog-core` before project tests.
+When cart or order behavior is in scope, also run the matching fixed-package
+tests before project integration tests.
 
 ## Code Delivery
 

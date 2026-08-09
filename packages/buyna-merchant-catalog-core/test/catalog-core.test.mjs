@@ -71,3 +71,26 @@ test('category management shares fixed list, visibility, and archive behavior',a
     ['update','categories','c1',{status:'archived',deleted_at:'2026-08-10T03:00:00.000Z'}],
   ]);
 });
+
+test('SKU writes use the fixed variant policy and reject negative price or stock',async()=>{
+  const {core,calls}=fakeCore();
+  const service=createMerchantCatalogService({dataCore:core});
+  await service.createVariant({productId:'p1',skuCode:'SKU-1',options:{size:'M'},price:1500,stock:4,currency:'jpy'});
+  await service.updateVariant({variantId:'v1',price:1600,stock:2});
+  assert.deepEqual(calls.filter(call=>call[0]==='create'||call[0]==='update').slice(-2),[
+    ['create','product_variants',{product_id:'p1',sku_code:'SKU-1',options:{size:'M'},price:1500,stock_quantity:4,currency:'JPY',status:'active'}],
+    ['update','product_variants','v1',{price:1600,stock_quantity:2}],
+  ]);
+  await assert.rejects(()=>service.createVariant({productId:'p1',skuCode:'bad',price:-1,stock:1}),/INVALID_VARIANT_PRICE/);
+});
+
+test('product and category edits map only approved normalized fields',async()=>{
+  const {core,calls}=fakeCore();
+  const service=createMerchantCatalogService({dataCore:core});
+  await service.updateProduct({productId:'p1',name:' New ',price:2000,stock:8,currency:'jpy',featured:true});
+  await service.updateCategory({categoryId:'c1',name:' Care ',slug:'care'});
+  assert.deepEqual(calls.filter(call=>call[0]==='update').slice(-2),[
+    ['update','products','p1',{name:'New',price:2000,stock:8,currency:'JPY',featured:true}],
+    ['update','categories','c1',{name:'Care',slug:'care'}],
+  ]);
+});

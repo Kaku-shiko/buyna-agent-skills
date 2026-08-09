@@ -17,6 +17,13 @@ Read `references/checkout-address-rules.md` for labels, schemas, and postal-code
 
 Use `buyai-product-merchant-backend` for product checkout, `buyai-booking-service-backend` for booking forms, `buyai-globepay-payment` for payment, and `buyai-storefront-layout-ux` for mobile/readability.
 
+For product commerce, use `packages/buyna-cart-core` for cart state and the
+server-revalidated checkout snapshot, then `packages/buyna-order-core` for the
+local `pending_payment` order and immutable submission snapshot. Generate only
+the form schema/field mapping, persistence Adapter, routes, and approved
+shipping/discount/tax configuration. Do not regenerate cart totals or order
+snapshot logic.
+
 ## Gold
 
 Buyer forms must reduce typing and never lose data. Validate before payment. Show inline errors, not raw JSON/Zod. Preserve values after validation failure, GlobePay rejection, network error, or failed payment creation. Clear drafts only after verified success or reset.
