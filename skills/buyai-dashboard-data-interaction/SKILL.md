@@ -19,7 +19,11 @@ For the current page only:
 
 1. Preserve the working stack; establish or extend the executable server/API boundary and environment-safe endpoint configuration.
 2. Implement merchant login/session, authorization, `project_id`, and `seller_id` scope when required.
-3. Run `buyna-aws-data-layer` Existing Resource Gate; use `buyna-s3-storage` only for approved file actions.
+3. Run `buyna-aws-data-layer` Existing Resource Gate. For a newly approved
+   merchant project, require the `buyna-merchant-onboarding` scaffold result.
+   For approved file actions, call `buyna-s3-storage`; it must use
+   `packages/buyna-merchant-file-core` rather than regenerate keys or lifecycle
+   code.
 4. Route domain logic to `buyai-product-merchant-backend` or `buyai-booking-service-backend`.
 5. Route checkout/payment only when the current slice requires it.
 6. Use `buyna-frontend-builder` integration mode to replace only the matching mock adapter.
