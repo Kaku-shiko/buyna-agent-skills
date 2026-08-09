@@ -15,6 +15,13 @@ Never mark paid from redirect, opened payment page, or provider order creation. 
 
 Read `references/status-sync-rules.md`. Inspect orders, payments, paid customers/bookings, provider ids, return URL, notify URL, webhook, refresh button, and dashboard queries.
 
+Run `status.evaluate` through
+`buyai-globepay-payment/scripts/globepay-cli.mjs` for every notify, provider
+query, or reconciliation result. Use the returned transition, effects, and
+idempotency key inside one project-owned database transaction. Never call it
+with redirect/browser state as a trusted event, and never treat its output as a
+completed write until the transaction and post-write read both succeed.
+
 ## Required Flow
 
 Notify and return query call one idempotent writer. It finds local order by provider id, sets paid/refunded status, stores raw data, creates paid record once, updates stock/capacity once, and logs write failures.

@@ -15,6 +15,12 @@ Use `https://pay.globepay.co.jp/api/v1.0` for GlobePay Japan. Sandbox/production
 
 Read `references/config-signing-rules.md`. Inspect `GLOBEPAY_BASE_URL` or `GLOBEPAY_API_BASE_URL`, `GLOBEPAY_PARTNER_CODE`, `GLOBEPAY_CREDENTIAL_CODE`, `GLOBEPAY_NOTIFY_URL`, `GLOBEPAY_RETURN_URL`, server timezone/clock, and whether the merchant account enabled the requested payment method.
 
+Run the fixed core `config.validate` operation from
+`buyai-globepay-payment/scripts/globepay-cli.mjs` before writing an adapter.
+Use `auth.sign` or import `buildAuthParams` instead of rewriting signing logic.
+The CLI reads credentials only from the server environment and must never print
+the credential code. Stop when it returns `blocked` or `failed`.
+
 ## Required Rules
 
 Every request and jump URL needs fresh `time`, `nonce_str`, and `sign`. Signing string is:

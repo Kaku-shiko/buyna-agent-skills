@@ -7,6 +7,23 @@ description: Route Buyai GlobePay Japan work to smaller payment skills. Use when
 
 Use this as the GlobePay router. Do not implement detailed endpoint logic here; select the right payment subskill and combine it with product, booking, or checkout skills.
 
+## Fixed Core
+
+Locate this installed Skill directory and use `scripts/globepay-core.mjs` as the
+canonical program API. Use `scripts/globepay-cli.mjs --operation <name>` for
+JSON CLI execution. Run its tests before project integration:
+
+```text
+node --test scripts/globepay-core.test.mjs
+```
+
+Available operations are `config.validate`, `auth.sign`, `checkout.plan`,
+`status.evaluate`, and `recurring.validate`. Pass non-secret operation input as
+JSON on stdin. Configuration and signing read credentials from server process
+environment variables; never put credentials in stdin, command arguments, or
+output. Treat the core result as validation or a proposed transition, not as a
+database write or proof of payment.
+
 ## Gold
 
 GlobePay Japan host must be `https://pay.globepay.co.jp/api/v1.0`. Do not use `.co`, `.cn`, guessed hosts, or duplicated `/api/v1.0`. Keep `credential_code` server-side. Order creation is not payment success. Paid/refunded status needs verified notify/query.

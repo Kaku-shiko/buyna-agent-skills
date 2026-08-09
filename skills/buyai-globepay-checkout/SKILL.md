@@ -15,6 +15,12 @@ Create a local `pending_payment` order/booking before calling GlobePay. Store bu
 
 Read `references/checkout-endpoints.md`. Confirm selected method, merchant enabled channels, currency, item amount, notify URL, return URL, and whether this is product or booking flow.
 
+Run `checkout.plan` through
+`buyai-globepay-payment/scripts/globepay-cli.mjs` with the explicit selected
+method, trusted browser context, and enabled-method map. Use its
+`endpointFamily` and `nextAction` in the project server adapter. Do not rewrite
+method/channel routing or let frontend code override the result.
+
 ## Method Rules
 
 Before the final payment button, require a three-choice selector in this order:

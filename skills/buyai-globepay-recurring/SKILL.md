@@ -15,6 +15,12 @@ WorldPay Recurring requires recurring and 3DS permission. First payment is custo
 
 Read `references/recurring-rules.md`. Confirm partner code, credential, 3DS/recurring permission, plan, amount, currency, billing schedule, notify/return URLs, and test vs production.
 
+Run `recurring.validate` through
+`buyai-globepay-payment/scripts/globepay-cli.mjs` before creating a preorder or
+scheduler record. Use the fixed config/signing functions for authentication.
+This validation does not prove that the merchant account has WorldPay
+Recurring or 3DS permission; confirm that separately with the provider.
+
 ## Pricing Source
 
 - Plan names, amounts, currency, and billing schedule must come from project configuration or database records.
