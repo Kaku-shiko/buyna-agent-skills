@@ -10,6 +10,8 @@ Act only as a narrow router for one merchant and one primary merchant administra
 ## Entry
 
 1. Inspect the real repository and environment.
+   Resolve fixed modules from project `packages/` or
+   `$env:USERPROFILE/.codex/packages/`; never regenerate a missing fixed core.
 2. Confirm product, booking/service, or mixed scope; languages; currency; runtime; and existing data.
 3. For adding one merchant to an already verified multi-tenant backend, route directly to `buyna-merchant-onboarding`; do not require a new frontend before its intake and preflight steps.
 4. Before other backend work, require the approved Phase 4 frontend/Dashboard code record and API contract. Otherwise route only to `buyna-frontend-builder`.
@@ -22,6 +24,7 @@ Act only as a narrow router for one merchant and one primary merchant administra
 
 - Dashboard page-to-API work → `buyai-dashboard-data-interaction`
 - Products, SKU, stock, categories, orders, paid customers → `buyai-product-merchant-backend`
+- Shopping cart and local pending orders → `buyai-product-merchant-backend`
 - Services, availability, capacity, bookings, deposits → `buyai-booking-service-backend`
 - Buyer/customer forms → `buyai-checkout-address-ux`
 - GlobePay → `buyai-globepay-payment`

@@ -29,9 +29,16 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
 
 ## Installation Rules
 
-- Prefer `$skill-installer` with repository `Kaku-shiko/buyna-agent-skills`.
+- For the complete website workflow, clone
+  `Kaku-shiko/buyna-agent-skills` and run `scripts/install.ps1`; this installs
+  both Skills and fixed code modules. Do not treat `$skill-installer` alone as
+  a complete commerce installation because it installs Skill folders but not
+  repository-level `packages/`.
 - Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
+- Require `buyna-merchant-dashboard-ui`, `buyna-merchant-catalog-core`,
+  `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`, and
+  `buyna-merchant-file-core` under the installed module root.
 - Require a new Codex task after installation or update so discovery refreshes.
 - The current repository is public and requires no invitation for installation. Require authenticated Git credentials only for write operations.
 

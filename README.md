@@ -16,6 +16,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 | `docs/` | 团队操作、写作和目录说明 | 否 |
 | `scripts/` | 安装与校验脚本 | 否 |
 | `skills/` | 可独立安装和调用的 Skill | 是 |
+| `packages/` | Dashboard、商品、购物车、订单、PostgreSQL和文件固定代码模块 | 由安装脚本同步 |
 | `planned-skills/` | 尚未定义内容的未来 Skill占位目录 | 否 |
 
 `skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
@@ -79,7 +80,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 静态企业网站可以跳过商家、数据库、S3、结账和支付步骤；商品与服务分支不能同时自动执行，混合项目也要逐个完成并确认。
 
-## 推荐安装方式：让 Codex 从 GitHub 安装
+## Skill-only安装方式
 
 在 Codex 中输入：
 
@@ -112,6 +113,9 @@ skills/aws-project-deployer
 
 当前仓库是 Public。任何人都可以查看、克隆和安装，不需要 GitHub邀请或 Token；向仓库提交修改仍需要授权，或通过 Fork和 Pull Request贡献。
 
+`$skill-installer` 只安装 Skill说明，不能安装仓库根目录的固定代码模块。
+商城开发请使用下面的完整安装方式。
+
 安装后重新打开 Codex 任务，再输入：
 
 ```text
@@ -124,7 +128,7 @@ skills/aws-project-deployer
 请使用 $buyai-globepay-payment，判断本次 GlobePay 任务应该调用哪个支付 Skill。
 ```
 
-## Windows 手动安装
+## Windows完整安装（推荐）
 
 克隆或下载本仓库后，在仓库根目录执行：
 
@@ -136,6 +140,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 ```text
 C:\Users\<用户名>\.codex\skills\
+C:\Users\<用户名>\.codex\packages\
 ```
 
 更新已安装版本：
@@ -151,7 +156,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Force
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Scope Project -ProjectPath "C:\path\to\project"
 ```
 
-项目安装目标为 `.agents/skills/`，适合团队项目随仓库共享；个人安装目标为 `.codex/skills/`，适合在多个项目中调用。
+项目安装目标为 `.agents/skills/` 和项目 `packages/`；个人安装目标为
+`.codex/skills/` 和 `.codex/packages/`。安装脚本会同步 Skill 与固定代码，
+避免 AI 找不到模块后重新生成业务逻辑。
 
 ## 仓库规则
 

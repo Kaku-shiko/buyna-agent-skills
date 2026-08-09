@@ -8,14 +8,19 @@ param(
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $sourceRoot = Join-Path $repositoryRoot 'skills'
+$moduleSourceRoot = Join-Path $repositoryRoot 'packages'
 
 if ($Scope -eq 'User') {
     $destinationRoot = Join-Path $env:USERPROFILE '.codex\skills'
+    $moduleDestinationRoot = Join-Path $env:USERPROFILE '.codex\packages'
 } else {
-    $destinationRoot = Join-Path ([IO.Path]::GetFullPath($ProjectPath)) '.agents\skills'
+    $resolvedProjectPath = [IO.Path]::GetFullPath($ProjectPath)
+    $destinationRoot = Join-Path $resolvedProjectPath '.agents\skills'
+    $moduleDestinationRoot = Join-Path $resolvedProjectPath 'packages'
 }
 
 New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $moduleDestinationRoot -Force | Out-Null
 
 $obsoleteSkills = @('buyna-project-framework')
 foreach ($obsoleteSkill in $obsoleteSkills) {
@@ -59,6 +64,30 @@ Get-ChildItem -Directory -LiteralPath $sourceRoot | ForEach-Object {
     Write-Host "Installed: $skillName"
 }
 
+Get-ChildItem -Directory -LiteralPath $moduleSourceRoot | ForEach-Object {
+    $moduleName = $_.Name
+    $source = $_.FullName
+    $destination = Join-Path $moduleDestinationRoot $moduleName
+
+    if (-not (Test-Path -LiteralPath (Join-Path $source 'package.json'))) {
+        throw "Invalid fixed module: $moduleName is missing package.json"
+    }
+    if ((Test-Path -LiteralPath $destination) -and -not $Force) {
+        throw "Fixed module already exists: $destination. Use -Force to update installed modules."
+    }
+    if ((Test-Path -LiteralPath $destination) -and $Force) {
+        $resolvedRoot = [IO.Path]::GetFullPath($moduleDestinationRoot).TrimEnd('\') + '\'
+        $resolvedDestination = [IO.Path]::GetFullPath($destination)
+        if (-not $resolvedDestination.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to replace a fixed module outside the module root: $resolvedDestination"
+        }
+        Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
+    }
+    Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+    Write-Host "Installed fixed module: $moduleName"
+}
+
 Write-Host ""
 Write-Host "Installation complete: $destinationRoot"
+Write-Host "Fixed modules: $moduleDestinationRoot"
 Write-Host 'Restart Codex or open a new task, then invoke $buyna-website-builder.'

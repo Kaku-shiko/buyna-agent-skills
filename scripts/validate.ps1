@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $skillsRoot = Join-Path $repositoryRoot 'skills'
+$packagesRoot = Join-Path $repositoryRoot 'packages'
 $failed = @()
 
 Get-ChildItem -Directory -LiteralPath $skillsRoot | ForEach-Object {
@@ -22,6 +23,21 @@ Get-ChildItem -Directory -LiteralPath $skillsRoot | ForEach-Object {
     }
     if ($content -notmatch '(?m)^description:\s*.+$') {
         $failed += "$($_.Name): missing description"
+    }
+}
+
+$requiredPackages = @(
+    'buyna-merchant-dashboard-ui',
+    'buyna-merchant-catalog-core',
+    'buyna-cart-core',
+    'buyna-order-core',
+    'buyna-postgres-merchant-core',
+    'buyna-merchant-file-core'
+)
+foreach ($packageName in $requiredPackages) {
+    $packageRoot = Join-Path $packagesRoot $packageName
+    if (-not (Test-Path -LiteralPath (Join-Path $packageRoot 'package.json'))) {
+        $failed += "$packageName`: missing fixed module package.json"
     }
 }
 

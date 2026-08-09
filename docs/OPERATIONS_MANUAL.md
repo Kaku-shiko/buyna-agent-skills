@@ -33,6 +33,13 @@ buyna-agent-skills/
 ├── scripts/
 │   ├── install.ps1
 │   └── validate.ps1
+├── packages/
+│   ├── buyna-merchant-dashboard-ui/
+│   ├── buyna-merchant-catalog-core/
+│   ├── buyna-cart-core/
+│   ├── buyna-order-core/
+│   ├── buyna-postgres-merchant-core/
+│   └── buyna-merchant-file-core/
 ├── .github/
 │   ├── CODEOWNERS
 │   ├── ISSUE_TEMPLATE/
@@ -83,7 +90,7 @@ flowchart TD
 
 ## 5. 第一次安装
 
-### 方法 A：让 Codex 安装
+### 方法 A：Skill-only安装
 
 ```text
 请使用 $skill-installer，从 GitHub 公开仓库
@@ -92,7 +99,9 @@ Kaku-shiko/buyna-agent-skills 安装 skills/ 下的全部 Skill。
 
 公开仓库安装不需要邀请或 GitHub Token。
 
-### 方法 B：克隆后安装
+此方式不包含根目录 `packages/`，不能用于完整商城代码调用。
+
+### 方法 B：克隆后完整安装（推荐）
 
 ```powershell
 git clone https://github.com/Kaku-shiko/buyna-agent-skills.git
@@ -101,6 +110,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 ```
 
 完成后关闭当前 Codex 任务并新建任务。
+安装脚本同时安装 Skill 与固定模块。个人模块位于 `.codex/packages/`；
+项目安装模块位于项目 `packages/`。
 
 ## 6. 日常调用
 
@@ -240,6 +251,12 @@ Issue必须包含：
 - 检查 `SKILL.md` YAML。
 - 新建 Codex 任务。
 - 使用 `$skill-name` 显式调用。
+
+### Skill找不到固定代码模块
+
+- 不要让 AI 重新生成缺失模块。
+- 确认项目 `packages/` 或个人 `.codex/packages/` 中存在六个 Buyna固定模块。
+- 在最新仓库中执行 `scripts/install.ps1 -Force`，然后新建 Codex任务。
 
 ### GitHub仓库无法下载
 
