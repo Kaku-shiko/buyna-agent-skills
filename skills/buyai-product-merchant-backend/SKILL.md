@@ -18,6 +18,13 @@ migrations, storage rules, APIs, or backend business logic.
 
 After the gate passes, read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, image limit.
 
+For 商品管理 or 分类管理, also read
+`references/merchant-catalog-fixed-core.md` and call
+`packages/buyna-merchant-catalog-core`. Do not regenerate its field policies,
+filter/sort rules, stock/visibility/archive operations, or transactional
+ordering. Generate only the project route and database Adapter required by the
+approved API contract.
+
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 
 ## Dashboard Contract Boundary
@@ -59,6 +66,9 @@ Create the pending order with the complete safe customer submission snapshot def
 ## Validate
 
 Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sync, complete customer snapshot storage and order-detail rendering, verified paid once, refund sync, CSV, cleanup, mobile backend.
+
+When catalog behavior is in scope, run
+`npm test --prefix packages/buyna-merchant-catalog-core` before project tests.
 
 ## Code Delivery
 

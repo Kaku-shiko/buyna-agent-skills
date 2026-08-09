@@ -24,7 +24,9 @@ For the current page only:
    For approved file actions, call `buyna-s3-storage`; it must use
    `packages/buyna-merchant-file-core` rather than regenerate keys or lifecycle
    code.
-4. Route domain logic to `buyai-product-merchant-backend` or `buyai-booking-service-backend`.
+4. Route domain logic to `buyai-product-merchant-backend` or
+   `buyai-booking-service-backend`. Product/category slices must use the fixed
+   `packages/buyna-merchant-catalog-core` selected by the product Skill.
 5. Route checkout/payment only when the current slice requires it.
 6. Use `buyna-frontend-builder` integration mode to replace only the matching mock adapter.
 7. Verify persistence, refresh, permission, error, mobile, and public-site synchronization.
