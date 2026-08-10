@@ -22,6 +22,9 @@ Turn the approved customer information and design direction into a confirmed web
    For the product branch, use this six-page composition:
    仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置.
 8. Add the privacy-policy requirement using `references/privacy-policy-checklist.md` and identify any conditional commerce, booking, account, cookie, or legal pages.
+   For product commerce, record the fixed MEDINANCE flow as UI structure:
+   right-side cart drawer → buyer form → order review → payment → verified
+   result. Do not collapse the order-review page into the cart or payment page.
 9. Record missing copy, images, translations, links, SEO metadata, legal details, and other customer materials as `待补充`.
 10. Present one concise desktop/mobile page-structure table for customer approval, then stop.
 
