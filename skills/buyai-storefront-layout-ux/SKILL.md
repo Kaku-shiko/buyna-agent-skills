@@ -23,6 +23,12 @@ Readable beats decorative. Do not ship pale text, hidden seller login, giant bla
 
 Storefront needs brand/header, visible seller login/admin entry, meaningful nav, backend-driven categories when available, product/service grid or useful empty state, tappable links, shared footer/legal links, and mobile layout without clipped actions.
 
+For product commerce, default to the MEDINANCE cart interaction: “加入购物车”
+opens a right-side drawer with item count, image/details, quantity controls,
+remove, totals, and one checkout action for all items. Use the fixed
+`buyna-cart-core` React components; configure styling instead of rebuilding the
+interaction.
+
 Product checkout must show `微信`, `支付宝`, and `银行卡` as three distinct
 payment choices immediately before the final payment button. Use accessible
 radio cards or an equivalent single-selection control with clear selected,

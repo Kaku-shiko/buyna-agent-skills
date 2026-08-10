@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCartService} from '../src/cart-core.mjs';
+import {createCartService,MEDINANCE_CART_FLOW} from '../src/cart-core.mjs';
 import {createLocalStorageCartStore} from '../adapters/local-storage.mjs';
 
 function fixture(){
@@ -42,4 +42,28 @@ test('local storage adapter persists only product, variant, and quantity',async(
   await store.save({scope,items:[{productId:'p1',variantId:'v1',quantity:2,unitPrice:1,name:'untrusted'}]});
   assert.deepEqual(await store.load({scope}),[{productId:'p1',variantId:'v1',quantity:2}]);
   assert.doesNotMatch([...memory.values()][0],/unitPrice|untrusted/);
+});
+
+test('MEDINANCE defaults limit quantity and cart lines',async()=>{
+  const {store,catalog}=fixture();
+  const cart=createCartService({store,catalog,projectId:'shop',sellerId:'seller',cartId:'medinance-default'});
+  await assert.rejects(()=>cart.addItem({productId:'p1',quantity:11}),/INVALID_CART_QUANTITY/);
+  for(let index=1;index<=20;index++)await cart.addItem({productId:`p${index}`,quantity:1});
+  await assert.rejects(()=>cart.addItem({productId:'p21',quantity:1}),/CART_LINE_LIMIT_EXCEEDED/);
+});
+
+test('cart clears only after verified payment or explicit reset',async()=>{
+  const {store,catalog}=fixture();
+  const cart=createCartService({store,catalog,projectId:'shop',sellerId:'seller',cartId:'clear-gate'});
+  await cart.addItem({productId:'p1',quantity:1});
+  await assert.rejects(()=>cart.clearCart({reason:'payment_redirect'}),/CART_CLEAR_NOT_ALLOWED/);
+  assert.equal((await cart.getCart()).itemCount,1);
+  await cart.clearCart({reason:'verified_payment'});
+  assert.equal((await cart.getCart()).itemCount,0);
+});
+
+test('the fixed storefront flow matches the MEDINANCE cart sequence',()=>{
+  assert.equal(MEDINANCE_CART_FLOW.presentation,'right_drawer');
+  assert.deepEqual(MEDINANCE_CART_FLOW.steps,['cart','buyer_form','order_review','provider_payment','server_verified_result']);
+  assert.equal(MEDINANCE_CART_FLOW.checkoutMode,'all_items_once');
 });

@@ -40,6 +40,16 @@ Cards should avoid hard borders that make the page look rigid. Prefer soft borde
 
 Product descriptions on detail pages must allow long text. Use proper wrapping, readable line-height, and expandable/scrollable sections only when necessary. Do not clip long Japanese/Chinese descriptions.
 
+## Cart And Order Review
+
+Use the fixed MEDINANCE sequence: cart drawer, buyer form, order review,
+provider payment, server-verified result. The right-side drawer contains every
+selected item and one checkout action for the whole cart. The order-review page
+shows product images/details, quantities, buyer/address fields, totals, selected
+payment method, and one final payment button. Do not skip review or replace it
+with a QR-only page. Preserve cart/form state on validation, network, provider,
+or return errors; clear only after verified success or explicit reset.
+
 ## Footer
 
 Use one shared footer component across public pages. Content should come from `site_settings`, `merchant_profile`, or equivalent shared config. Recommended fields: logo, brand name, legal company name, postal code, address, phone, email, business hours, seller login link, privacy policy, and terms link.
