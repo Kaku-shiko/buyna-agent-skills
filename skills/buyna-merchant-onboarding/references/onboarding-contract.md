@@ -63,6 +63,7 @@ Record `PASS`, `FAIL`, or `N/A` for each applicable check:
 | S3 | Upload, signed display, replacement, deletion policy, correct prefix, and cross-seller denial pass |
 | Orders | Pending order persists and authorized detail returns the complete safe customer submission |
 | Payment | `N/A` or disabled unless seller-owned configuration and provider verification pass |
+| CRM GMV | Disabled binding for non-payment merchants; payment merchants require Outbox, worker, CRM identity, paid/refund sync, and matching CRM totals |
 | Rollback | Database backup, previous release, and exact reversal command/location are recorded |
 
 Do not activate when any applicable row is `FAIL` or untested.
@@ -87,4 +88,5 @@ checks:
   storage: PASS
   orders: PASS
   payment: N/A
+  crm_gmv: DISABLED
 ```

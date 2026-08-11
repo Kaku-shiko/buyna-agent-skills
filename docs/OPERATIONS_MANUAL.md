@@ -255,7 +255,7 @@ Issue必须包含：
 ### Skill找不到固定代码模块
 
 - 不要让 AI 重新生成缺失模块。
-- 确认项目 `packages/` 或个人 `.codex/packages/` 中存在六个 Buyna固定模块。
+- 确认项目 `packages/` 或个人 `.codex/packages/` 中存在六个基础固定模块；GMV项目还必须存在 `buyna-gmv-core`。
 - 在最新仓库中执行 `scripts/install.ps1 -Force`，然后新建 Codex任务。
 
 ### GitHub仓库无法下载

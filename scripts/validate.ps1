@@ -32,7 +32,8 @@ $requiredPackages = @(
     'buyna-cart-core',
     'buyna-order-core',
     'buyna-postgres-merchant-core',
-    'buyna-merchant-file-core'
+    'buyna-merchant-file-core',
+    'buyna-gmv-core'
 )
 foreach ($packageName in $requiredPackages) {
     $packageRoot = Join-Path $packagesRoot $packageName

@@ -11,7 +11,8 @@ Build or repair a real merchant backend on the current Buyna.ai-owned AWS enviro
 3. Use `buyai-checkout-address-ux` for buyer/customer forms.
 4. Use `buyai-storefront-layout-ux` and `impeccable` for public UI.
 5. Use `buyai-globepay-payment` for payment routing and its config, checkout, recurring, and status-sync subskills.
-6. Use `aws-project-deployer` for AWS resources and deployment verification.
+6. Use `buyna-gmv-commerce` for mandatory CRM GMV delivery on every payment-capable merchant.
+7. Use `aws-project-deployer` for AWS resources and deployment verification.
 
 Do not bounce work between coordinators. The merchant builder owns classification; narrower skills own implementation rules.
 
@@ -95,6 +96,7 @@ Public flows must provide the applicable list/detail, buyer or booking form, pay
 6. Treat return URLs as navigation, not proof of payment.
 7. Verify notify signatures and/or query GlobePay from the server.
 8. Use one idempotent status writer to mark paid/refunded, create business records once, and update stock/capacity once.
+9. In that transaction, add the fixed GMV Outbox event; deliver it asynchronously to CRM after commit.
 
 Keep `partner_code`, `credential_code`, signing material, tokens, and raw card data out of frontend code, URLs, logs, exports, and Notion documentation. Detailed GlobePay hosts, endpoints, signatures, recurring flow, and status transitions belong only in the `buyai-globepay-*` skills.
 
@@ -142,6 +144,7 @@ Keep `partner_code`, `credential_code`, signing material, tokens, and raw card d
 - Buyer form persists and the server revalidates it.
 - Local pending records precede provider calls.
 - Verified payment writes paid/refunded records exactly once.
+- Payment-capable merchants deliver paid/refund GMV exactly once and the CRM revenue-management page matches local verified totals.
 - Orders/paid customers or bookings, filters, CSV, email, and totals agree.
 - Secrets remain server-side and logs are safe.
 - Mobile seller backend has reachable actions and no clipped content.

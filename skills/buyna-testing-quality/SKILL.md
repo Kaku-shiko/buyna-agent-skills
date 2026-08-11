@@ -9,10 +9,12 @@ Check the real system and report evidence, not assumptions.
 
 ## Test Order
 
-1. For product commerce, verify the six fixed modules exist and run their
+1. For product commerce, verify the six base fixed modules exist and run their
    package tests before project integration tests. A missing core is
    `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED`, not permission to regenerate
    it.
+   For every payment-capable Buyna merchant, also require and test
+   `buyna-gmv-core`, its Outbox, CRM identity binding, and paid/refund sync.
 2. Build, type, lint, and migration checks.
 3. Backend unit/API and permission checks.
 4. Frontend loading, empty, success, and error states.

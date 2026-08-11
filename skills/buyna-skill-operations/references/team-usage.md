@@ -12,7 +12,7 @@ GitHub repository Kaku-shiko/buyna-agent-skills.
 The repository is public, so installation does not require an invitation or GitHub token. Never paste a GitHub token into a prompt or repository file.
 
 This method installs instructions only. It is insufficient for the fixed
-Dashboard, catalog, cart, order, PostgreSQL, and file modules.
+Dashboard, catalog, cart, order, PostgreSQL, file, and GMV modules.
 
 ## Install from a cloned repository
 
@@ -56,9 +56,10 @@ and AWS release work without loading every rule at once.
 ## Diagnose missing Skills
 
 1. Confirm the complete folder exists under the intended Skill root.
-2. For commerce work, confirm all six fixed modules exist under the installed
+2. For commerce work, confirm all six base fixed modules exist under the installed
    module root. Re-run the cloned repository installer with `-Force` when they
    are missing.
+   When CRM GMV is requested, also confirm `buyna-gmv-core` exists.
 3. Confirm `SKILL.md` is directly inside the Skill folder, not inside a duplicate nested folder.
 4. Confirm YAML frontmatter has valid `name` and `description`.
 5. Restart Codex or create a new task.

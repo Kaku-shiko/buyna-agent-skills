@@ -153,6 +153,7 @@ planned-skills/
 | `buyai-globepay-config` | 主机、环境变量、签名、币种和错误诊断 |
 | `buyai-globepay-checkout` | 单次卡支付、二维码、H5和跳转 |
 | `buyai-globepay-status-sync` | notify、return、查询、paid和refund同步 |
+| `buyna-gmv-commerce` | 将商家支付与退款事件安全同步到 CRM GMV |
 | `buyai-globepay-recurring` | WorldPay Recurring、3DS、CIT和MIT订阅 |
 
 支付子 Skill只保存规则，不保存真实 `partner_code` 或 `credential_code`。
