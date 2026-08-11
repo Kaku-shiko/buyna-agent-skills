@@ -66,6 +66,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 所有开通支付的 Buyna.ai 商家必须安装 GMV 固定模块并通过 CRM 同步验证；
 没有支付功能的商家保留禁用的 CRM GMV 身份，启用支付时再激活。
+GMV 只能在 `admin.buyna.ai` 的 Buyna.ai CRM 管理员界面查看；商家前台、商家后台和商家 API 均不得显示或提供 GMV。
 
 ## 标准调用顺序
 

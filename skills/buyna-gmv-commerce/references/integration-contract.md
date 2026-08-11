@@ -20,4 +20,4 @@ Use `paymentCaptured(...)` or `refundCompleted(...)` to create the payload. Inse
 
 Keep `BUYNA_GMV_API_URL`, client identity/secret, project id, seller id, and merchant name server-side. For an approved transitional bearer endpoint use `GMV_INGESTION_SECRET`; never distribute one bearer secret across unrelated merchant backends.
 
-The merchant browser calls its own authenticated backend. Derive identity from the merchant session; never accept browser-supplied project or seller identity as authority.
+The Outbox and worker are server-only. Do not add GMV read routes to the merchant backend, and do not expose GMV data or credentials to the merchant storefront, merchant admin, public API, browser bundle, or exports. Merchant order/payment/refund screens may retain their ordinary operational records without GMV labels or GMV aggregation.
