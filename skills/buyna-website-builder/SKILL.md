@@ -24,7 +24,7 @@ Act as a question-and-answer state machine. Execute only the current approved ph
 3. Page structure → `buyna-page-structure`
 4. Frontend and Dashboard UI code → `buyna-frontend-builder` UI mode
 5. Dashboard functional integration → `buyai-dashboard-data-interaction`
-6. Checkout and payment → `buyai-checkout-address-ux` and `buyai-globepay-payment`; allow `NOT_APPLICABLE`
+6. Checkout and payment → `buyai-checkout-address-ux`, `buyai-globepay-payment`, and mandatory `buyna-gmv-commerce`; allow `NOT_APPLICABLE`
 7. Testing and upload gate → `buyna-testing-quality`
 8. AWS release → `buyna-aws-release`
 

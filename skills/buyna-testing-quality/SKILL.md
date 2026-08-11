@@ -13,7 +13,8 @@ Check the real system and report evidence, not assumptions.
    package tests before project integration tests. A missing core is
    `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED`, not permission to regenerate
    it.
-   When GMV is in scope, also require and test `buyna-gmv-core`.
+   For every payment-capable Buyna merchant, also require and test
+   `buyna-gmv-core`, its Outbox, CRM identity binding, and paid/refund sync.
 2. Build, type, lint, and migration checks.
 3. Backend unit/API and permission checks.
 4. Frontend loading, empty, success, and error states.

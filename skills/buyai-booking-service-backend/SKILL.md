@@ -32,6 +32,8 @@ approval.
 ## Combine Skills
 
 Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.
+For every paid or deposit booking, require `buyna-gmv-commerce` and
+`buyna-gmv-core`; inquiry-only services retain a disabled CRM GMV binding.
 
 ## Gold
 

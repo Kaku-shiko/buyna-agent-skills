@@ -11,8 +11,8 @@ Use for product ecommerce: jewelry, apparel, goods, SKU catalogs, and shippable 
 
 Resolve the fixed-module root before implementation. In a repository/project
 installation it is `packages/`; in a user installation it is
-`$env:USERPROFILE/.codex/packages/`. When CRM GMV is approved, also require
-`buyna-gmv-core`. Stop with
+`$env:USERPROFILE/.codex/packages/`. For every checkout-capable Buyna merchant,
+also require `buyna-gmv-core`. Stop with
 `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when Dashboard, catalog, cart,
 order, PostgreSQL, or file core is missing. Do not regenerate a missing core.
 
@@ -55,7 +55,9 @@ as frontend routes; this Skill implements their server-side behavior only.
 ## Combine Skills
 
 Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.
-Use `buyna-gmv-commerce` only when the user approved CRM GMV integration.
+Use `buyna-gmv-commerce` for every checkout-capable Buyna merchant. The user
+still approves the current implementation step, but GMV is not an optional
+production capability once payments are enabled.
 
 ## Gold
 

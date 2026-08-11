@@ -45,9 +45,10 @@ Seller Orders may have one page-level silent refresh button. It checks unfinishe
 
 Use `buyai-globepay-checkout` for provider order creation, `buyai-globepay-config` for signing/query failures, and product/booking skills for records, stock, capacity, CSV, and email.
 
-When CRM GMV is approved, route the verified paid/refund transition to
+For every Buyna merchant, route the verified paid/refund transition to
 `buyna-gmv-commerce`. Insert its fixed outbox event in the same transaction;
-never call CRM before the local payment write commits.
+never call CRM before the local payment write commits. A payment deployment
+fails its release gate when this integration or its sync test is missing.
 
 ## Validate
 

@@ -5,7 +5,8 @@ description: "Connect Buyna.ai merchant payment and completed-refund events to a
 
 # Buyna GMV Commerce
 
-Connect one approved merchant payment flow to CRM through the fixed GMV module.
+Connect every Buyna merchant identity to CRM and make GMV event delivery mandatory
+for every merchant with checkout or paid booking capability.
 
 ## Gate
 
@@ -19,7 +20,7 @@ Connect one approved merchant payment flow to CRM through the fixed GMV module.
 
 Complete one step, validate it, report evidence, and stop for approval before the next step.
 
-1. **Identity binding** — Add `project_id + seller_id` to the CRM merchant record and bind one server credential to exactly that identity. Prefer per-merchant HMAC; allow bearer only for an explicitly approved transition.
+1. **Identity binding** — Add `project_id + seller_id` to every CRM merchant record. Payment-capable merchants receive an active server credential; merchants without payment remain registered with GMV disabled until payment is enabled. Prefer per-merchant HMAC; allow bearer only for an explicitly approved transition.
 2. **Outbox migration** — Generate only the project migration and Adapter described in the integration contract. Insert immutable events with a unique provider event key.
 3. **Payment writer** — After verified notify/query returns `PAY_SUCCESS`, update the order and insert `paymentCaptured(...)` in the same PostgreSQL transaction. Use the actual charged amount after discounts, shipping, and tax.
 4. **Refund writer** — After provider-confirmed refund completion, update the refund and insert `refundCompleted(...)` in the same transaction. Reject cumulative refunds above the paid amount.
@@ -27,6 +28,10 @@ Complete one step, validate it, report evidence, and stop for approval before th
 6. **CRM ingestion** — Verify HMAC identity binding, event idempotency, immutable storage, and merchant/project aggregation. Never accept browser authority for merchant identity, amount, paid status, or refund status.
 7. **Read integration** — Expose seller-authorized summary/trend/events through the merchant backend; the browser calls its own backend, not CRM directly.
 8. **Verification** — Test paid, coupon-adjusted amount, duplicate notify, partial/full refund, CRM outage and retry, wrong seller denial, signature replay, and CRM/merchant totals.
+
+A payment-capable merchant cannot pass onboarding, Phase 6, or production release
+without the outbox, worker, CRM binding, and executed sync tests. CRM downtime may
+delay analytics but must never fail or roll back the customer payment.
 
 ## Fixed Versus Generated
 
