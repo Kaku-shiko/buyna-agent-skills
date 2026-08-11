@@ -1,6 +1,6 @@
 # Buyna.ai Agent Skills
 
-Buyna.ai 团队网站开发 Skill 仓库。当前包含 22 个可安装 Skill。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
+Buyna.ai 团队网站开发 Skill 仓库。当前包含 23 个可安装 Skill。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
 公开仓库：[https://github.com/Kaku-shiko/buyna-agent-skills](https://github.com/Kaku-shiko/buyna-agent-skills)
 
@@ -16,7 +16,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 | `docs/` | 团队操作、写作和目录说明 | 否 |
 | `scripts/` | 安装与校验脚本 | 否 |
 | `skills/` | 可独立安装和调用的 Skill | 是 |
-| `packages/` | Dashboard、商品、购物车、订单、PostgreSQL和文件固定代码模块 | 由安装脚本同步 |
+| `packages/` | Dashboard、商品、购物车、订单、PostgreSQL、文件和GMV固定代码模块 | 由安装脚本同步 |
 | `planned-skills/` | 尚未定义内容的未来 Skill占位目录 | 否 |
 
 `skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
@@ -61,7 +61,8 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 2. `buyai-globepay-config`：日本接口地址、环境变量、签名和币种。
 3. `buyai-globepay-checkout`：单次卡支付、二维码、H5 和跳转支付。
 4. `buyai-globepay-status-sync`：notify、return、查询、支付及退款状态同步。
-5. `buyai-globepay-recurring`：WorldPay Recurring、3DS、CIT 和 MIT 订阅。
+5. `buyna-gmv-commerce`：将已验证支付和已完成退款同步到 CRM GMV。
+6. `buyai-globepay-recurring`：WorldPay Recurring、3DS、CIT 和 MIT 订阅。
 
 ## 标准调用顺序
 
@@ -103,6 +104,7 @@ skills/buyai-globepay-payment
 skills/buyai-globepay-config
 skills/buyai-globepay-checkout
 skills/buyai-globepay-status-sync
+skills/buyna-gmv-commerce
 skills/buyai-globepay-recurring
 skills/buyna-frontend-builder
 skills/buyai-storefront-layout-ux

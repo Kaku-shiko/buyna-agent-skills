@@ -28,6 +28,7 @@ Act only as a narrow router for one merchant and one primary merchant administra
 - Services, availability, capacity, bookings, deposits → `buyai-booking-service-backend`
 - Buyer/customer forms → `buyai-checkout-address-ux`
 - GlobePay → `buyai-globepay-payment`
+- Merchant and project GMV linked to CRM → `buyna-gmv-commerce`
 - Structured data → `buyna-aws-data-layer`
 - Files/images and fixed lifecycle → `buyna-s3-storage`
 - Storefront UI → `buyai-storefront-layout-ux`

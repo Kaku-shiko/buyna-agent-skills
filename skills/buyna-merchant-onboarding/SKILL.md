@@ -55,6 +55,11 @@ for explicit approval before continuing.
 8. **Functional validation** — Validate login, category/product or service CRUD, image upload/display/replacement/deletion, order detail with the complete customer submission, refresh persistence, and cross-merchant denial.
 9. **Activation** — Activate only this merchant after all applicable checks pass. Verify the live hostname and preserve the backup and previous release.
 
+When GMV is explicitly requested, route one additional approved step to
+`buyna-gmv-commerce`: bind the CRM merchant identity, install the fixed module,
+and verify one paid and one refund event. GMV is not permission to change
+payment configuration or deploy production.
+
 If payment is requested, keep it disabled until the applicable
 `buyai-globepay-payment` workflow has its own credentials, callback, server-side
 status verification, and controlled test. Never inherit another seller's payment
