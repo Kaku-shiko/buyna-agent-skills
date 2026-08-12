@@ -26,7 +26,7 @@ export const DASHBOARD_PAGES=Object.freeze({
   categories:{table:'categories',filters:['search','visibility'],actions:['create','edit','archive','visibility','reorder'],states:commonStates},
   orders:{table:'orders',filters:['search','status','month'],actions:['detail','refreshPayments','exportCsv'],states:commonStates},
   paidCustomers:{table:'paidCustomers',filters:['search','month'],actions:['detail','exportCsv','contact'],states:commonStates},
-  paymentSettings:{sections:['connectionStatus','enabledMethods','notifyUrl','returnUrl','merchantPortal','buynaSubscription'],actions:['validateConfiguration'],states:['loading','unconfigured','configured','error','permission']},
+  paymentSettings:{sections:['connectionStatus','enabledMethods','notifyUrl','returnUrl','merchantPortal','buynaSubscription'],actions:['validateConfiguration'],states:['loading','unconfigured','configured','subscriptionUnavailable','error','permission'],ownership:['projectId','sellerId'],subscriptionAccess:'server_only_read'},
 });
 export function createTableView(input={}){
   if(input.loading)return{state:'loading',rows:[]};

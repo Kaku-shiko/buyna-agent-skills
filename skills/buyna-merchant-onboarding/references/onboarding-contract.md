@@ -33,6 +33,13 @@ Store no secrets in this record.
 ## Canonical ownership
 
 - Treat `project_id + seller_id` as the owner identity.
+- Register the same canonical identifiers in Buyna.ai CRM. Add the new
+  `seller_id` to `CRM_MERCHANT_SUBSCRIPTION_SELLERS` through the approved
+  server configuration and verify the read-only subscription response contains
+  only plan, status, start date, and bound domain.
+- The merchant application resolves identity from its server configuration and
+  authenticated session. A browser-supplied `seller_id` or copied sample
+  merchant value is never authoritative.
 - Resolve the tenant server-side from an approved exact hostname or authenticated session.
 - Scope every product, category, service, order, customer, payment, and media query to the resolved seller.
 - Reject unknown hosts and sessions issued for another seller.
