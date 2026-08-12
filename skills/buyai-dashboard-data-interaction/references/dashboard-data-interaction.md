@@ -16,6 +16,10 @@ frontend checks, and user approval are complete.
    and use `packages/buyna-merchant-file-core`. Do not hand-write merchant
    directory keys, replacement ordering, deletion, or orphan cleanup.
 6. Implement real APIs and business rules for the current Dashboard slice.
+   The `支付/订阅设置` slice combines two visually separate cards: unchanged
+   GlobePay safe configuration and the current merchant's Buyna.ai subscription
+   summary. Fetch subscription data server-to-server and return only plan,
+   status, start date, and bound domain.
 7. Replace its mock adapter without redesigning the page.
 8. Verify loading, empty, validation, success, error, permission, refresh, and
    persistence behavior.
@@ -30,6 +34,8 @@ frontend checks, and user approval are complete.
 - Do not replace mock adapters until endpoints and error behavior pass.
 - Do not silently change approved Dashboard UI.
 - Do not mark payment paid from the browser or redirect alone.
+- Do not expose CRM credentials, other merchants, GMV, or subscription write
+  controls in a merchant Dashboard.
 
 ## Delivery Record
 

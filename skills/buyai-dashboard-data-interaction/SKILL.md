@@ -30,7 +30,13 @@ For the current page only:
    Orders and order-detail slices must use
    `packages/buyna-order-core`; payment status remains owned by the GlobePay
    status service.
-5. Route checkout/payment only when the current slice requires it.
+5. Route checkout/payment only when the current slice requires it. For the
+   payment settings slice, label the page `支付/订阅设置`. Preserve GlobePay
+   masked metadata, Notify URL, Return URL, enabled methods, and portal link.
+   Add a separate Buyna.ai subscription section showing only the authenticated
+   merchant's plan, status, start date, and bound domain through a
+   server-to-server CRM lookup. Never expose CRM credentials, other merchants,
+   GMV, billing internals, or a browser-direct CRM connection.
 6. Use `buyna-frontend-builder` integration mode to replace only the matching mock adapter.
 7. Verify persistence, refresh, permission, error, mobile, and public-site synchronization.
 8. Return the delivery record and stop for approval.
@@ -47,6 +53,8 @@ For the 订单/预约 slice, require the approved detail UI and API contract to 
 - Reuse approved AWS resources; do not introduce Supabase, Lovable, replacement databases, buckets, or instances.
 - Do not replace a mock before its endpoint and failure behavior pass.
 - Do not infer payment success from browser state or redirects.
+- Keep subscription status read-only in the merchant Dashboard. Subscription
+  changes remain owned by Buyna.ai CRM.
 
 ## Delivery
 
