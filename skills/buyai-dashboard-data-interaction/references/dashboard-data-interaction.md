@@ -19,7 +19,10 @@ frontend checks, and user approval are complete.
    The `支付/订阅设置` slice combines two visually separate cards: unchanged
    GlobePay safe configuration and the current merchant's Buyna.ai subscription
    summary. Fetch subscription data server-to-server and return only plan,
-   status, start date, and bound domain.
+   status, start date, and bound domain. The merchant backend must take its
+   `project_id` and `seller_id` from server configuration plus the authenticated
+   session, never from a browser query parameter. Register each new seller in
+   the CRM subscription-read allowlist during merchant onboarding.
 7. Replace its mock adapter without redesigning the page.
 8. Verify loading, empty, validation, success, error, permission, refresh, and
    persistence behavior.
@@ -36,6 +39,9 @@ frontend checks, and user approval are complete.
 - Do not mark payment paid from the browser or redirect alone.
 - Do not expose CRM credentials, other merchants, GMV, or subscription write
   controls in a merchant Dashboard.
+- Do not use MEDINANCE or any other case project as a default identity. Case
+  projects are fixtures only; the same contract must work for every onboarded
+  merchant.
 
 ## Delivery Record
 

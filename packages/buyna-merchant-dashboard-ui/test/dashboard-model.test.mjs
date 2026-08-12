@@ -17,5 +17,7 @@ test('table view clamps pagination and exposes loading empty error and ready sta
 });
 test('payment and subscription settings remain one approved dashboard page',()=>{
   assert.deepEqual(DASHBOARD_PAGES.paymentSettings.sections,['connectionStatus','enabledMethods','notifyUrl','returnUrl','merchantPortal','buynaSubscription']);
-  assert.deepEqual(DASHBOARD_PAGES.paymentSettings.states,['loading','unconfigured','configured','error','permission']);
+  assert.deepEqual(DASHBOARD_PAGES.paymentSettings.states,['loading','unconfigured','configured','subscriptionUnavailable','error','permission']);
+  assert.deepEqual(DASHBOARD_PAGES.paymentSettings.ownership,['projectId','sellerId']);
+  assert.equal(DASHBOARD_PAGES.paymentSettings.subscriptionAccess,'server_only_read');
 });

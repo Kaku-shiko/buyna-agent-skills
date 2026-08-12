@@ -52,10 +52,13 @@ for explicit approval before continuing.
    core, while retaining only required legacy reads.
 6. **Administrator scope** — Configure one merchant administrator and prove its session cannot be reused for another seller.
 7. **Application route** — Add the exact hostname to the existing application and Nginx route. Reuse the approved process and port; do not use a wildcard domain as a shortcut.
-8. **Functional validation** — Validate login, category/product or service CRUD, image upload/display/replacement/deletion, order detail with the complete customer submission, refresh persistence, and cross-merchant denial.
+8. **Functional validation** — Validate login, category/product or service CRUD, image upload/display/replacement/deletion, order detail with the complete customer submission, payment/subscription settings, refresh persistence, and cross-merchant denial.
 9. **Activation** — Activate only this merchant after all applicable checks pass. Verify the live hostname and preserve the backup and previous release.
 
-Register every merchant identity in CRM with `project_id + seller_id`. When
+Register every merchant identity in CRM with `project_id + seller_id`, add its
+`seller_id` to the server-side subscription-read allowlist, and verify that the
+merchant Dashboard can read only its own plan, status, start date, and domain.
+Do not copy a case project's identity or credential. When
 payment is required now, route a mandatory pre-activation step to
 `buyna-gmv-commerce`: install the fixed module, create the outbox and worker,
 bind the CRM credential, and verify paid/refund synchronization. When payment
