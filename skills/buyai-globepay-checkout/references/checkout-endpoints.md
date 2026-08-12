@@ -24,6 +24,8 @@ Normal merchant card flow must be GlobePay-hosted.
 - Pay page: `GET /h5_payment/partners/{partner_code}/orders/{order_id}/pay`
 - Prefer this flow for an enabled WeChat or Alipay channel in an ordinary
   mobile browser.
+- Do not return `show_qr` to the same phone. Use this H5 flow whenever the
+  merchant account enables mobile WeChat/Alipay payment.
 - Send the buyer only to the provider-returned or correctly signed pay URL.
 - Include an HTTPS return URL that identifies the local pending order without
   exposing secrets.
@@ -46,6 +48,10 @@ merchant channels, and trusted browser context:
 | Matching WeChat/Alipay in-app browser | Enabled JSAPI |
 | Ordinary mobile browser | Enabled Mobile H5 |
 | Desktop browser | QR or signed hosted pay page |
+
+Reject any WeChat/Alipay mobile plan whose next action is `show_qr`. Do not
+silently downgrade H5/JSAPI to the desktop Gateway. When the required channel
+is unavailable, keep the order pending and report the configuration blocker.
 
 Do not use viewport width alone to choose a payment endpoint. Treat user-agent
 or client hints only as routing input, not authorization. The server must
