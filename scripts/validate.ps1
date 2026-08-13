@@ -31,6 +31,7 @@ $requiredPackages = @(
     'buyna-merchant-catalog-core',
     'buyna-cart-core',
     'buyna-order-core',
+    'buyna-coupon-core',
     'buyna-postgres-merchant-core',
     'buyna-merchant-file-core',
     'buyna-gmv-core'

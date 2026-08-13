@@ -7,7 +7,7 @@ Use only the current approved phase:
 3. Page structure → `buyna-page-structure`
 4. Frontend and Dashboard UI → `buyna-frontend-builder` UI mode
 5. Dashboard functional integration → `buyai-dashboard-data-interaction`, which selects existing-resource, merchant file layout/lifecycle, product/service, and frontend integration Skills for one slice
-6. Checkout/payment → `buyai-checkout-address-ux`, `buyai-globepay-payment`, and `buyna-gmv-commerce`, or `NOT_APPLICABLE`
+6. Checkout/payment → `buyai-checkout-address-ux`, `buyai-globepay-payment`, and `buyna-gmv-commerce`; add `buyai-coupon-mobile-checkout` only when the approved product checkout uses coupons, or use `NOT_APPLICABLE`
 7. Testing/upload gate → `buyna-testing-quality`
 8. AWS release → `buyna-aws-release`
 

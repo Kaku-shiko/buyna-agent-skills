@@ -14,7 +14,7 @@ installation it is `packages/`; in a user installation it is
 `$env:USERPROFILE/.codex/packages/`. For every checkout-capable Buyna merchant,
 also require `buyna-gmv-core`. Stop with
 `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when Dashboard, catalog, cart,
-order, PostgreSQL, or file core is missing. Do not regenerate a missing core.
+order, coupon, PostgreSQL, or file core is missing. Do not regenerate a missing core.
 
 Read the approved Phase 4 frontend code completion record and API contract.
 Inspect the actual public product frontend and merchant Dashboard source and
@@ -55,6 +55,8 @@ as frontend routes; this Skill implements their server-side behavior only.
 ## Combine Skills
 
 Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.
+When coupons and mobile wallet payment must operate as one approved checkout
+slice, route that boundary through `buyai-coupon-mobile-checkout`.
 Use `buyna-gmv-commerce` for every checkout-capable Buyna merchant. The user
 still approves the current implementation step, but GMV is not an optional
 production capability once payments are enabled.

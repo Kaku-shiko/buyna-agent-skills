@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyai Coupon Commerce"
+  short_description: "Build merchant coupons with fixed safe rules"
+  default_prompt: "Use $buyai-coupon-commerce to implement the approved coupon Dashboard, checkout, order snapshot, PostgreSQL adapter, and payment lifecycle using the fixed coupon core."

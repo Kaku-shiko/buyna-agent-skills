@@ -30,6 +30,9 @@ For the current page only:
    Orders and order-detail slices must use
    `packages/buyna-order-core`; payment status remains owned by the GlobePay
    status service.
+   Coupon management slices must route to `buyai-coupon-commerce` and use
+   `packages/buyna-coupon-core`; do not duplicate eligibility, reservation,
+   redemption, or release rules in Dashboard routes.
 5. Route checkout/payment only when the current slice requires it. For the
    payment settings slice, label the page `支付/订阅设置`. Preserve GlobePay
    masked metadata, Notify URL, Return URL, enabled methods, and portal link.
@@ -44,7 +47,7 @@ For the current page only:
 7. Verify persistence, refresh, permission, error, mobile, and public-site synchronization.
 8. Return the delivery record and stop for approval.
 
-Recommended product order: 仪表盘、商品管理、分类管理、订单、付费客户、支付设置.
+Recommended product order: 仪表盘、商品管理、分类管理、优惠券管理、订单、付费客户、支付/订阅设置.
 
 For the 订单/预约 slice, require the approved detail UI and API contract to render the complete safe customer submission snapshot returned by the backend. Do not silently omit custom, unknown, or legacy fields; keep list rows concise and show the full snapshot in the authorized detail view.
 

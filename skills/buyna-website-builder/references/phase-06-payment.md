@@ -10,3 +10,7 @@ For product commerce, connect the approved cart UI to
 `packages/buyna-order-core`, and only then start GlobePay. Generate project
 Adapters and approved pricing/form configuration; do not regenerate fixed cart
 or order rules.
+When the approved product checkout includes coupons, route the integration
+slice through `buyai-coupon-mobile-checkout`. It coordinates the existing
+coupon, order, responsive GlobePay, trusted status, and GMV Skills; it does not
+replace them or unlock unrelated Phase 6 work.

@@ -45,6 +45,9 @@ GlobePay Japan host must be `https://pay.globepay.co.jp/api/v1.0`. Do not use `.
 ## Combine With
 
 Use `buyai-product-merchant-backend` for product/SKU orders, `buyai-booking-service-backend` for reservations/capacity, and `buyai-checkout-address-ux` for buyer form persistence.
+Use `buyai-coupon-mobile-checkout` only when an approved product checkout must
+coordinate coupon reservation with responsive wallet payment and trusted
+redemption/release.
 
 ## Validate
 
