@@ -12,7 +12,7 @@ GitHub repository Kaku-shiko/buyna-agent-skills.
 The repository is public, so installation does not require an invitation or GitHub token. Never paste a GitHub token into a prompt or repository file.
 
 This method installs instructions only. It is insufficient for the fixed
-Dashboard, catalog, cart, order, PostgreSQL, file, and GMV modules.
+Dashboard, catalog, cart, order, coupon, PostgreSQL, file, and GMV modules.
 
 ## Install from a cloned repository
 

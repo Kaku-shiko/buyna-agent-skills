@@ -140,6 +140,8 @@ planned-skills/
 | `buyai-product-merchant-backend` | 单一商家登录、商品、SKU、库存、订单、客户和 CSV |
 | `buyai-booking-service-backend` | 单一商家登录、服务、档期、容量、预约和记录 |
 | `buyai-checkout-address-ux` | 购买人、地址、邮编、表单保存和后台同步 |
+| `buyai-coupon-commerce` | 优惠券定义、领取、预占、订单快照、核销和释放 |
+| `buyai-coupon-mobile-checkout` | 第 6 阶段优惠券与移动 H5/JSAPI 支付联动 |
 | `buyai-storefront-layout-ux` | 商城结构、商家入口、分类、页脚和移动端 |
 | `buyna-testing-quality` | 后台、API、权限、数据、支付和移动端测试 |
 | `buyna-aws-release` | AWS 发布准备、迁移、验证和回滚 |

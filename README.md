@@ -1,6 +1,6 @@
 # Buyna.ai Agent Skills
 
-Buyna.ai 团队网站开发 Skill 仓库。当前包含 23 个可安装 Skill。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
+Buyna.ai 团队网站开发 Skill 仓库。当前包含 26 个可安装 Skill。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
 公开仓库：[https://github.com/Kaku-shiko/buyna-agent-skills](https://github.com/Kaku-shiko/buyna-agent-skills)
 
@@ -16,7 +16,7 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 | `docs/` | 团队操作、写作和目录说明 | 否 |
 | `scripts/` | 安装与校验脚本 | 否 |
 | `skills/` | 可独立安装和调用的 Skill | 是 |
-| `packages/` | Dashboard、商品、购物车、订单、PostgreSQL、文件和GMV固定代码模块 | 由安装脚本同步 |
+| `packages/` | Dashboard、商品、购物车、订单、优惠券、PostgreSQL、文件和GMV固定代码模块 | 由安装脚本同步 |
 | `planned-skills/` | 尚未定义内容的未来 Skill占位目录 | 否 |
 
 `skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
@@ -50,10 +50,12 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 6. `buyai-product-merchant-backend`：单一商家登录、商品、SKU、库存、订单和客户。
 7. `buyai-booking-service-backend`：单一商家的服务、预约、容量、记录和后台。
 8. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
-9. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
-10. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
-11. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
-12. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
+9. `buyai-coupon-commerce`：优惠券后台、商城领取、订单优惠快照和核销生命周期。
+10. `buyai-coupon-mobile-checkout`：协调优惠券预占、移动 H5/JSAPI 支付和可信核销。
+11. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
+12. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
+13. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
+14. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
 
 ### GlobePay 支付分支
 
@@ -104,6 +106,8 @@ skills/buyna-s3-storage
 skills/buyai-product-merchant-backend
 skills/buyai-booking-service-backend
 skills/buyai-checkout-address-ux
+skills/buyai-coupon-commerce
+skills/buyai-coupon-mobile-checkout
 skills/buyai-globepay-payment
 skills/buyai-globepay-config
 skills/buyai-globepay-checkout

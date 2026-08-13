@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyai Coupon Mobile Checkout"
+  short_description: "Connect coupons to trusted mobile payment"
+  default_prompt: "Use $buyai-coupon-mobile-checkout for one approved coupon and mobile GlobePay checkout integration slice, then stop after validation."

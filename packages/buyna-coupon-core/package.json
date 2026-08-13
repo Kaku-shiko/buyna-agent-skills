@@ -1,0 +1,11 @@
+{
+  "name": "@buyna/coupon-core",
+  "version": "0.1.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/coupon-core.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/coupon-core.test.mjs"
+  }
+}
