@@ -182,6 +182,14 @@ Checkout form rules:
 - `terms_url`
 - `updated_at`
 
+## Product Price Source
+
+- Use prices from customer-supplied product materials when present.
+- When a price is absent, default `price_source` to `merchant_dashboard` without asking for confirmation.
+- Allow the merchant to create or import the product as a draft and maintain its price in 商品管理.
+- Never invent, estimate, or silently substitute a price. Do not publish or enable checkout until the effective product/SKU price is valid.
+- After a Dashboard price update, use the same catalog source for public list, detail, cart, checkout, and order snapshots.
+
 ## Money Display
 
 - Use a shared currency formatter for product list, product detail, checkout, seller product table, orders, paid customers, CSV export, and manual email actions.

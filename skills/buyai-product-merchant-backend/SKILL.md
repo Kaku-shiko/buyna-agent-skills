@@ -23,7 +23,7 @@ source code, API contract, verification, or user approval is missing, stop and
 return to `buyna-frontend-builder` Phase 4. Do not create database models,
 migrations, storage rules, APIs, or backend business logic.
 
-After the gate passes, read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, image limit.
+After the gate passes, read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, and image limit. Do not ask for missing product prices; default their source to merchant Dashboard maintenance.
 
 For 商品管理 or 分类管理, also read
 `references/merchant-catalog-fixed-core.md` and call
@@ -61,7 +61,7 @@ production capability once payments are enabled.
 
 ## Gold
 
-Product data is source of truth. Backend changes to name, price, category, status, images, stock, variants, featured flag, and sort order update public pages, checkout, and seller preview.
+Product data is source of truth. Import customer-supplied prices when present. When absent, continue without confirmation, expose price maintenance in 商品管理, and keep the product draft/unpublished until it has a valid sellable price. Never invent a price. Backend changes to name, price, category, status, images, stock, variants, featured flag, and sort order update public pages, checkout, and seller preview.
 
 Checkout requires buyer/shipping form and local `pending_payment` before GlobePay. No disconnected payment buttons.
 
