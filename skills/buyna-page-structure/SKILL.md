@@ -13,7 +13,7 @@ Turn the approved customer information and design direction into a confirmed web
 2. Determine whether Skill 2 selected a reusable template.
 3. If no template was selected, use the full planning mode in `references/structure-method.md`.
 4. If a template was selected, use the template review mode: confirm what to keep, remove, add, and replace.
-5. Define the shared header and footer, then list every page and its ordered content sections.
+5. When supplied images show page layouts, consume the approved reference-image audit from `buyna-website-design`. Recount the visible top-level sections, verify each section's components and represented information, and resolve any count or composition mismatch before defining the shared header, footer, and every page's ordered content sections.
 6. Read `references/mobile-structure-checklist.md` and define the mobile order, navigation, primary action, touch interactions, and content reductions for each page.
 7. Define required page states and functional pages: loading, empty, validation, success, error, permission when applicable, and 404.
    For merchant projects, separately list Dashboard navigation, screens,
@@ -37,6 +37,7 @@ Turn the approved customer information and design direction into a confirmed web
 - Include a footer link to the privacy policy by default.
 - Add other policy pages only when the website's functions or applicable requirements justify them.
 - Do not copy template text, company information, testimonials, images, or legal terms.
+- Do not silently drop or merge reference-image sections. Record every intentional keep, adapt, remove, merge, split, or add decision and its information impact.
 - Do not invent missing customer content; mark it `待补充`.
 - Do not provide legal conclusions or claim compliance. Request jurisdiction and business details before drafting policy text, and require qualified review where appropriate.
 - Do not begin frontend development, backend design, database selection, or deployment.

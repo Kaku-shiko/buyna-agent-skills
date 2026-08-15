@@ -2,6 +2,19 @@
 
 Recommend one primary choice. Mention alternatives only when they materially change the project.
 
+## Reference Image Audit
+
+For every supplied website screenshot or full-page reference image:
+
+1. Count the visible top-level sections from header through footer. Treat repeated cards inside one container as components, not separate sections.
+2. Give each section a stable number and descriptive name in visual order.
+3. Record each section's composition: heading, copy, media, cards/list, controls, primary/secondary actions, navigation, forms, trust elements, and layout pattern.
+4. Record the information represented: company claim, product/service data, proof, pricing, team, FAQ, contact, legal links, or another identifiable content type.
+5. Mark text or elements that cannot be read as `unreadable`; mark interpretation as `inferred`. Never invent missing information.
+6. Compare the extracted sections with the proposed design and record `keep`, `adapt`, `remove`, or `add`, with a short reason for every difference.
+
+Output one audit row per visible section. Confirm the audit with the user before treating the reference composition as approved. Preserve design inspiration without copying protected text, branding, imagery, or proprietary assets.
+
 ## Frontend Framework
 
 - Continue the inspected framework for an existing project unless migration is explicitly approved.
