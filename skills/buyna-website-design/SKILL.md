@@ -9,10 +9,10 @@ Turn confirmed customer information into an approved website design direction. D
 
 ## Workflow
 
-1. Read the confirmed output from `buyna-customer-intake` and inspect any customer logo, images, current website, or reference links.
+1. Read the confirmed output from `buyna-customer-intake` and inspect every customer logo, image, current website, or reference link. For each reference screenshot or full-page image, run the reference-image audit in `references/design-method.md` before proposing a direction.
 2. Read `references/design-method.md` and `references/motion-and-skill-routing.md`. Recommend one frontend framework, one primary motion approach, and the frontend skills needed for the project, with short reasons.
 3. Research current external inspiration and template sources using `references/reference-sources.md`. Give 3–5 relevant links, explain what to study in each, and note whether the item is inspiration or a reusable template.
-4. Confirm the UI/UX feeling, page structure, typography, color tokens, component style, responsive approach, and one distinctive design signature.
+4. Confirm the UI/UX feeling, page structure, typography, color tokens, component style, responsive approach, and one distinctive design signature. Compare the proposed structure against the audited reference: reconcile the exact visible section count, order, composition, and information represented; record intentional differences instead of silently omitting sections.
    For merchant projects, apply the same visual system to the Dashboard UI
    without defining database, permission, order, inventory, or payment logic.
 5. Produce the written design record defined in `references/design-fields.md` and ask for approval.
@@ -26,6 +26,7 @@ Turn confirmed customer information into an approved website design direction. D
 - Use customer assets when provided. Do not invent logos, slogans, company history, testimonials, clients, prices, or team members.
 - Use `frontend-design` principles: ground decisions in the real business, make typography intentional, choose one distinctive signature, and avoid generic AI-style decoration.
 - Treat reference websites as inspiration, not content to copy.
+- Do not reduce a reference image to visual style alone. Count and identify its visible sections, inspect the information and components inside each section, and distinguish observed facts from inferred or unreadable content.
 - Before adopting an external template, record its URL, author/provider, license or price status, framework compatibility, and allowed modifications.
 - Do not claim that an external template is free, licensed, or compatible without checking its current page.
 - Select animation tools by use case. Do not add every library to one project or use Three.js for ordinary interface motion.

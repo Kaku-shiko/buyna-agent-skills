@@ -2,6 +2,8 @@
 
 ## Full Planning Mode
 
+When a supplied screenshot or full-page image is a structure reference, start from the approved numbered audit. Verify its visible section count, order, component composition, and represented information before adapting it. Keep an explicit mapping from every reference section to the planned page section; label intentional merge, split, removal, or addition decisions.
+
 Start with the smallest useful structure:
 
 - Header: logo, primary navigation, primary action, optional language/login controls, and mobile menu.
@@ -48,3 +50,8 @@ For each page, record:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 Also record the shared desktop/mobile header, shared footer, global metadata, policy pages, and template-change list separately.
+
+For image-led references, append:
+
+| Reference section | Planned page/section | Decision | Preserved information | Changed/omitted information | Reason |
+| --- | --- | --- | --- | --- | --- |
