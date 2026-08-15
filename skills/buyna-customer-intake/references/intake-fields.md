@@ -29,9 +29,9 @@ If the address is incomplete, save the provided part and mark the remainder `待
 
 Ask:
 
-> 网站页面是否需要显示商品、服务或方案价格？使用什么货币？价格由客户提供，还是以后通过管理后台维护？
+> 网站页面是否需要显示商品、服务或方案价格？使用什么货币？
 
-Do not ask for payment credentials or implementation details. If the site has no public prices, record `不显示`.
+Do not ask for payment credentials or implementation details. If the site has no public prices, record `不显示`. If supplied product materials contain prices, record `客户提供`; otherwise record `管理后台维护` automatically without asking.
 
 ## Section 5: Customer Materials
 
@@ -44,7 +44,7 @@ Ask what the customer already has:
 - Existing website or reference links
 - Other documents or brand materials
 
-Allow every missing material to be marked `之后补全`.
+When no Logo or specific company/product/service images are supplied, record `Logo：之后补全` and `图片/视频：之后补全` automatically. Do not ask for confirmation, block intake, invent assets, or treat placeholders as approved materials. Allow every other missing material to be marked `之后补全`.
 
 ## Output Template
 
@@ -60,7 +60,7 @@ Allow every missing material to be marked `之后补全`.
 页面是否显示价格：
 价格类型（商品/服务/方案）：
 货币：
-价格资料来源（客户提供/管理后台维护/待确认）：
+价格资料来源（客户提供/管理后台维护）：
 
 现有资料素材：
 - Logo：
