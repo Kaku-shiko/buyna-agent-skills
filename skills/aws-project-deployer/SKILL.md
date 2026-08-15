@@ -1,6 +1,6 @@
 ---
 name: aws-project-deployer
-description: Connect Codex projects to the user's AWS account through the local codex-deploy profile, then prepare, deploy, inspect, update, or troubleshoot websites, APIs, storage, databases, domains, and payment-enabled applications. Use when the user says connect to AWS, deploy or publish a Buyna project to the fixed existing Buyna EC2 server, put it online, use an AWS database, create S3/RDS/CloudFront/Lambda resources, or operate the visual AWS publishing dashboard.
+description: Connect Codex projects to AWS through the local codex-deploy profile, then inspect, deploy, update, or troubleshoot Buyna websites on approved existing resources. Use for the fixed Buyna EC2 release path and existing database/S3/domain operations; use new infrastructure only when the user explicitly requests and separately approves it.
 ---
 
 # AWS Project Deployer
@@ -14,6 +14,12 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 - Treat successful STS identity verification as the connection gate. Do not claim AWS is connected or a deployment is live without verification.
 - Show the resources to be created and obtain confirmation immediately before creating paid or persistent resources such as RDS, Aurora, NAT Gateway, EC2, ECS, or provisioned capacity.
 - Prefer infrastructure as code and reversible updates. Do not delete production resources, databases, buckets, domains, certificates, or secrets without explicit confirmation and a backup/retention check.
+
+## Resource Mode
+
+- Default every Buyna website task to `existing_buyna_resources`: reuse the verified EC2 instance, approved PostgreSQL connection, approved S3 bucket, project prefix, and existing network/domain boundary.
+- Never infer permission to create a bucket, database, RDS/Aurora/DynamoDB resource, CloudFront distribution, Lambda/API stack, compute host, or extra port from a normal build, publish, storage, or database request.
+- Enter `new_infrastructure` only when the user explicitly requests new infrastructure, names the required resource class, and approves the cost/risk preview. This mode is outside `buyna-website-builder` and `buyna-aws-release`.
 
 ## Fixed Buyna server
 
@@ -39,14 +45,8 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 3. Resolve and verify the fixed Buyna EC2 target at `35.73.127.215`. Record the
    verified instance id, region, state, public IPv4 address, and existing
    runtime layout. Stop on any mismatch; never provision another instance.
-4. Choose the smallest suitable supporting architecture:
-   - Static SPA: S3 + CloudFront + ACM + Route 53; add SPA fallback to `index.html`.
-   - Serverless application: S3/CloudFront frontend + API Gateway/Lambda backend.
-   - Buyna long-running service: deploy only to the verified existing Buyna
-     EC2 instance; do not force Django or a specific Node version.
-   - Structured data: PostgreSQL on RDS by default; keep it private and reachable only by the backend.
-   - Files/images: S3, not database blobs.
-5. Create a unique normalized project slug. Isolate buckets, distributions, stacks, databases, secrets, logs, and deployment records per project.
+4. For the default Buyna mode, preserve the inspected runtime stack and deploy only to the verified existing EC2 instance. Use the approved PostgreSQL database for structured data and approved S3 bucket for files/images; do not force Django or a specific Node version.
+5. Create a unique normalized project slug. Isolate application directories, processes, assigned ports, Nginx routes, database schema/ownership, S3 prefixes, secrets, logs, and deployment records inside the approved shared resources. Do not create per-project buckets or databases.
 6. Generate or update the deployment manifest and infrastructure template in the project. Keep environment-specific values parameterized.
 7. Build and test locally. For responsive sites, validate a real mobile viewport and no horizontal overflow.
 8. Present a deployment preview: verified existing instance, region, resource list, estimated cost drivers, destructive/replacement risks, domain changes, and rollback path. The preview must state `NEW_EC2_INSTANCES: 0`.

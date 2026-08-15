@@ -1,15 +1,8 @@
 # Website Skill Routing Map
 
-Use only the current approved phase:
+Use only the current gate or approved interaction slice.
 
-1. Customer information → `buyna-customer-intake`
-2. Design → `buyna-website-design`
-3. Page structure → `buyna-page-structure`
-4. Frontend and Dashboard UI → `buyna-frontend-builder` UI mode
-5. Dashboard functional integration → `buyai-dashboard-data-interaction`, which selects existing-resource, merchant file layout/lifecycle, product/service, and frontend integration Skills for one slice
-6. Checkout/payment → `buyai-checkout-address-ux`, `buyai-globepay-payment`, and `buyna-gmv-commerce`, or `NOT_APPLICABLE`
-7. Testing/upload gate → `buyna-testing-quality`
-8. AWS release → `buyna-aws-release`
+The authoritative eight-phase order is defined in `../SKILL.md`. Route only the current gate. Treat Phases 2 and 3 as one continuous design-and-structure gate with one approval after Phase 3. Phase 5 selects existing-resource, merchant-file, product/service, and frontend-integration Skills for one slice. Phase 6 may be `NOT_APPLICABLE`.
 
 Do not call every Skill. Code phases require real files, applicable verification, a delivery record, and explicit later approval.
 

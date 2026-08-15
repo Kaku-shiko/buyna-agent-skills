@@ -13,7 +13,7 @@ For every supplied website screenshot or full-page reference image:
 5. Mark text or elements that cannot be read as `unreadable`; mark interpretation as `inferred`. Never invent missing information.
 6. Compare the extracted sections with the proposed design and record `keep`, `adapt`, `remove`, or `add`, with a short reason for every difference.
 
-Output one audit row per visible section. Confirm the audit with the user before treating the reference composition as approved. Preserve design inspiration without copying protected text, branding, imagery, or proprietary assets.
+Output one audit row per visible section and carry it into the combined design-and-structure package. Do not create a separate confirmation gate. Preserve design inspiration without copying protected text, branding, imagery, or proprietary assets.
 
 ## Frontend Framework
 

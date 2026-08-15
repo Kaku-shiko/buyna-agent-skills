@@ -18,6 +18,7 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 `sellers`:
 
 - `id`
+- `project_id`
 - `account` or `username`
 - `name`
 - `email`
@@ -29,6 +30,7 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 `products`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `name`
 - `description`
@@ -47,6 +49,7 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 `product_variants` when SKUs exist:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `product_id`
 - `sku_code`
@@ -60,6 +63,7 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 `product_images`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `product_id`
 - `storage_path`
@@ -73,6 +77,7 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 `orders`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `product_id`
 - `variant_id`
@@ -131,6 +136,7 @@ Checkout form rules:
 `payments`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `order_id`
 - `provider`
@@ -148,6 +154,7 @@ Checkout form rules:
 `paid_customers`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `order_id`
 - customer name/email/phone
@@ -164,6 +171,7 @@ Checkout form rules:
 
 `site_settings` or `merchant_profile`:
 
+- `project_id`
 - `seller_id`
 - `brand_name`
 - `brand_story_heading`

@@ -53,7 +53,7 @@ Create the booking with the complete safe customer submission snapshot defined b
 
 ## Validate
 
-Check build, UTF-8, login, service CRUD sync, capacity editor, complete customer snapshot storage and booking-detail rendering, reserve/release, verified paid/deposit once, paid booking visibility, CSV, email, and mobile backend.
+Check build, UTF-8, login, mandatory `project_id + seller_id` ownership on every record/query/constraint/index, cross-merchant denial, service CRUD sync, capacity editor, complete customer snapshot storage and booking-detail rendering, reserve/release, verified paid/deposit once, paid booking visibility, CSV, email, and mobile backend.
 
 ## Code Delivery
 

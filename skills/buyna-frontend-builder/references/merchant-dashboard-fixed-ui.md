@@ -1,13 +1,13 @@
 # Merchant Dashboard Fixed UI
 
 Use `packages/buyna-merchant-dashboard-ui` as the product-merchant Dashboard
-baseline. Do not regenerate its shell, six-page navigation, common table,
+baseline. Do not regenerate its shell, canonical navigation, common table,
 pagination, status, dialog, or responsive-state components.
 
 ## Fixed Content
 
-Keep these routes in order: 仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置.
-Use the package table schemas and `DASHBOARD_PAGES` declarations for required
+Use the navigation contract in `product-merchant-dashboard-ui.md` and the
+package table schemas and `DASHBOARD_PAGES` declarations for required
 columns, filters, actions, and loading/empty/ready/error/permission states.
 
 Use `MerchantDashboardShell`, `DashboardPage`, `DashboardPageHeader`,

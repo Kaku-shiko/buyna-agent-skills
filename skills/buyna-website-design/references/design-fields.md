@@ -1,6 +1,6 @@
 # Skill 2 Written Design Record
 
-Ask and confirm one section at a time.
+Generate the complete record without a separate section-by-section confirmation.
 
 ## Output Template
 

@@ -44,7 +44,7 @@ For the current page only:
 7. Verify persistence, refresh, permission, error, mobile, and public-site synchronization.
 8. Return the delivery record and stop for approval.
 
-Recommended product order: 仪表盘、商品管理、分类管理、订单、付费客户、支付设置.
+Use the approved canonical Dashboard contract from `buyna-frontend-builder`; do not maintain a competing page order in this Skill.
 
 For the 订单/预约 slice, require the approved detail UI and API contract to render the complete safe customer submission snapshot returned by the backend. Do not silently omit custom, unknown, or legacy fields; keep list rows concise and show the full snapshot in the authorized detail view.
 
