@@ -43,8 +43,15 @@ storage:
   prefix: projects/asuka-shop/
   allow_create_bucket: false
 deployment:
+  instance_id: confirmed-existing-instance-id
   instance_ip: 35.73.127.215
   allow_create_instance: false
+  allow_create_port: false
+release_limits:
+  new_ec2_instances: 0
+  new_databases: 0
+  new_buckets: 0
+  new_ports: 0
 ```
 
 ## Code Delivery
@@ -64,6 +71,7 @@ project integration.
 - Preserve the project's approved backend framework; do not require Django.
 - Use canonical `project_id` and `seller_id` on every owned record, query, constraint, and index. Never query an owned entity by its id alone.
 - Reuse the approved connection and migration system. Never issue `CREATE DATABASE`, provision RDS/Aurora/DynamoDB, or create a local SQLite fallback. An approved onboarding/migration may create a merchant schema and tables only inside the registered existing database, after backup, reversible migration validation, explicit approval, and `schema_change_mode: approved_reversible_migration`; this is not permission to create RDS or another database.
+- Reject blank, `unknown`, `unverified`, `pending`, `placeholder`, `tbd`, `todo`, and `n/a` required resource values. A non-empty placeholder is not evidence.
 - Add schema changes only as reversible migrations in the existing project and database.
 - Store files as S3 object metadata, not database blobs.
 - Store credentials only in server-side secret configuration.

@@ -18,9 +18,12 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 ## Resource Mode
 
 - Run `buyna-project-resource-registry` first. Default every task to `existing_buyna_resources` and preserve its registered architecture: shared EC2/PostgreSQL, AWS serverless, AWS static, or external legacy.
+- Treat a request to build, publish, migrate, onboard, upload, or connect a new website as authorization to add only logical project/seller records, exact host mappings, approved storage prefixes, and application configuration. It is never authorization to create AWS infrastructure.
 - For a new shared merchant, reuse the verified EC2 instance, approved PostgreSQL connection, approved S3 bucket, project prefix, and existing network/domain boundary. For a registered serverless/static project, reuse its recorded CloudFront, Lambda/API, DynamoDB, and S3 resources; do not force it onto EC2/RDS.
 - Never infer permission to create a bucket, database, RDS/Aurora/DynamoDB resource, CloudFront distribution, Lambda/API stack, compute host, or extra port from a normal build, publish, storage, or database request.
+- Stop with `BLOCKED: EXISTING_RESOURCES_NOT_CONFIRMED` when the resource record is absent, contains placeholders, conflicts with AWS inspection, or does not explicitly keep every create counter at zero. Never create a substitute resource to clear the blocker.
 - Enter `new_infrastructure` only when the user explicitly requests new infrastructure, names the required resource class, and approves the cost/risk preview. This mode is outside `buyna-website-builder` and `buyna-aws-release`.
+- Require a separate confirmation immediately before an approved `new_infrastructure` mutation. A website-build or deployment approval is not infrastructure approval.
 
 ## Fixed Buyna server
 
@@ -50,7 +53,17 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 5. Create a unique normalized project slug. Isolate application directories, processes, assigned ports, Nginx routes, database schema/ownership, S3 prefixes, secrets, logs, and deployment records inside the approved shared resources. Do not create per-project buckets or databases.
 6. Generate or update the deployment manifest and infrastructure template in the project. Keep environment-specific values parameterized.
 7. Build and test locally. For responsive sites, validate a real mobile viewport and no horizontal overflow.
-8. Present a deployment preview: verified existing instance, region, resource list, estimated cost drivers, destructive/replacement risks, domain changes, and rollback path. The preview must state `NEW_EC2_INSTANCES: 0`.
+8. Present the deployment preview and require:
+
+   ```text
+   RESOURCE_MODE: existing_buyna_resources
+   NEW_EC2_INSTANCES: 0
+   NEW_DATABASES: 0
+   NEW_BUCKETS: 0
+   NEW_PORTS: 0
+   ```
+
+   Stop if a CloudFormation change set, CDK diff, Terraform plan, shell script, or SDK call proposes a non-zero value.
 9. After required confirmation, deploy using `--profile codex-deploy --region ap-northeast-1`.
 10. Verify the live URL, HTTPS, client-side routes, API health, database migrations, uploads, logs, target instance identity, and rollback state. Report exact verified outcomes; distinguish created resources from planned ones.
 
