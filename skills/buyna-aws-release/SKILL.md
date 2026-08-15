@@ -13,7 +13,7 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 2. Verify the exact registered target through `aws-project-deployer`. For `shared_ec2_postgresql`, require the existing Buyna EC2 at `35.73.127.215`. For `aws_serverless` or `aws_static`, require the recorded distributions/functions/tables/buckets and do not introduce EC2. Stop on mismatch and never create a replacement resource.
 3. Run `buyna-testing-quality`, including its pre-upload package gate, before
    release.
-4. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path. State `NEW_EC2_INSTANCES: 0`.
+4. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path. State `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
 5. Use `aws-project-deployer` for live AWS inspection or deployment operations on the verified existing instance.
 6. Verify HTTPS, routes, API health, migrations, uploads, logs, target instance identity, and critical user journeys.
 
@@ -23,6 +23,7 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 - Reuse only the database, bucket, region, project prefix, and connection sources recorded for this project. Stop if the record is missing or conflicts with AWS inspection.
 - Never create a database, RDS/Aurora resource, DynamoDB table, SQLite fallback, S3 bucket, or replacement storage resource during release.
 - Require `aws-project-deployer` mode `existing_buyna_resources`; stop if it proposes `new_infrastructure`, changes architecture type, or introduces any unrecorded persistent resource.
+- Treat missing, placeholder, `unknown`, `unverified`, `pending`, or `tbd` evidence as a blocker. Stop before applying any plan that creates an EC2 instance, database, bucket, permanent application port, NAT Gateway, or load balancer.
 - Never create paid persistent AWS resources without confirmation.
 - Never create, clone, replace, or terminate an EC2 instance during a release. Shared EC2 projects use only `35.73.127.215`; registered serverless/static projects use no EC2 target.
 - For shared-EC2 projects, keep each website isolated by application directory,
@@ -40,7 +41,7 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 
 ## Output
 
-Report the release version, environment, architecture type, verified target identifiers, `NEW_EC2_INSTANCES: 0`, uploaded artifact path and size,
+Report the release version, environment, architecture type, verified target identifiers, all four zero-create counters, uploaded artifact path and size,
 verified URLs, migration result, health result, rollback location, and
 unresolved risks.
 

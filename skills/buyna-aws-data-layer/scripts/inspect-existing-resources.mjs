@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 function valueOf(raw){
   const value=raw.trim();
   if(value==='true')return true;if(value==='false')return false;if(value==='null')return null;
+  if(/^-?\d+(?:\.\d+)?$/.test(value))return Number(value);
   if(/^['"].*['"]$/.test(value))return value.slice(1,-1);
   if(/^\{.*\}$/.test(value))return Object.fromEntries(value.slice(1,-1).split(',').filter(Boolean).map(part=>{const [key,...rest]=part.split(':');return[key.trim(),valueOf(rest.join(':'))]}));
   return value;
@@ -26,22 +27,31 @@ export function parseSimpleYaml(text){
 }
 
 export function validateResourceRecord(record={}){
-  const errors=[],project=record.project??{},database=record.database??{},storage=record.storage??{},deployment=record.deployment??{};
-  if(!project.id)errors.push('PROJECT_ID_MISSING');
-  if(!project.seller_id)errors.push('SELLER_ID_MISSING');
+  const errors=[],project=record.project??{},database=record.database??{},storage=record.storage??{},deployment=record.deployment??{},limits=record.release_limits??{};
+  const placeholder=/^(unknown|unverified|pending|placeholder|tbd|todo|n\/a)$/i;
+  const confirmed=value=>typeof value==='string'&&value.trim()!==''&&!placeholder.test(value.trim());
+  if(!confirmed(project.id))errors.push('PROJECT_ID_MISSING_OR_UNCONFIRMED');
+  if(!confirmed(project.seller_id))errors.push('SELLER_ID_MISSING_OR_UNCONFIRMED');
   if(database.mode!=='existing')errors.push('DATABASE_NOT_EXISTING');
   if(String(database.engine??'').toLowerCase()!=='postgresql')errors.push('POSTGRESQL_REQUIRED');
-  if(!database.connection_source)errors.push('DATABASE_CONNECTION_SOURCE_MISSING');
-  if(!database.instance_identifier)errors.push('RDS_IDENTIFIER_MISSING');
-  if(!database.name)errors.push('DATABASE_NAME_MISSING');
+  if(!confirmed(database.connection_source))errors.push('DATABASE_CONNECTION_SOURCE_MISSING_OR_UNCONFIRMED');
+  if(!confirmed(database.instance_identifier))errors.push('RDS_IDENTIFIER_MISSING_OR_UNCONFIRMED');
+  if(!confirmed(database.name))errors.push('DATABASE_NAME_MISSING_OR_UNCONFIRMED');
   if(database.instance_identifier&&database.name===database.instance_identifier)errors.push('RDS_IDENTIFIER_USED_AS_DATABASE_NAME');
-  if(!database.schema)errors.push('DATABASE_SCHEMA_MISSING');
+  if(!confirmed(database.schema))errors.push('DATABASE_SCHEMA_MISSING_OR_UNCONFIRMED');
   if(database.allow_create_rds!==false)errors.push('RDS_CREATION_NOT_DISABLED');
   if(database.allow_create_database!==false)errors.push('DATABASE_CREATION_NOT_DISABLED');
+  if(database.allow_create_schema!==false&&!(database.allow_create_schema===true&&database.schema_change_mode==='approved_reversible_migration'))errors.push('SCHEMA_CREATION_NOT_APPROVED');
   if(storage.mode!=='existing')errors.push('STORAGE_NOT_EXISTING');
-  if(!storage.bucket_source)errors.push('STORAGE_BUCKET_SOURCE_MISSING');
+  if(!confirmed(storage.bucket_source))errors.push('STORAGE_BUCKET_SOURCE_MISSING_OR_UNCONFIRMED');
+  if(!confirmed(storage.region))errors.push('STORAGE_REGION_MISSING_OR_UNCONFIRMED');
+  if(!confirmed(storage.prefix))errors.push('STORAGE_PREFIX_MISSING_OR_UNCONFIRMED');
   if(storage.allow_create_bucket!==false)errors.push('BUCKET_CREATION_NOT_DISABLED');
+  if(!confirmed(deployment.instance_id))errors.push('INSTANCE_ID_MISSING_OR_UNCONFIRMED');
+  if(deployment.instance_ip!=='35.73.127.215')errors.push('APPROVED_INSTANCE_IP_REQUIRED');
   if(deployment.allow_create_instance!==false)errors.push('INSTANCE_CREATION_NOT_DISABLED');
+  if(deployment.allow_create_port!==false)errors.push('PORT_CREATION_NOT_DISABLED');
+  for(const [key,code] of Object.entries({new_ec2_instances:'NEW_EC2_INSTANCES_NOT_ZERO',new_databases:'NEW_DATABASES_NOT_ZERO',new_buckets:'NEW_BUCKETS_NOT_ZERO',new_ports:'NEW_PORTS_NOT_ZERO'})){if(limits[key]!==0)errors.push(code)}
   return{status:errors.length?'blocked':'pass',code:errors.length?'EXISTING_RESOURCES_NOT_CONFIRMED':'EXISTING_RESOURCES_CONFIRMED',projectId:project.id??null,sellerId:project.seller_id??null,database:{engine:database.engine??null,instanceIdentifier:database.instance_identifier??null,name:database.name??null,schema:database.schema??null,connectionSource:database.connection_source??null},errors};
 }
 

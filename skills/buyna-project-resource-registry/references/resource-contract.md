@@ -14,6 +14,11 @@ architecture:
   type: shared_ec2_postgresql
 domains:
   primary: shop.example.com
+release_limits:
+  new_ec2_instances: 0
+  new_databases: 0
+  new_buckets: 0
+  new_ports: 0
 ```
 
 Use environment-variable, Secrets Manager, or service configuration names as sources. Never record their values.
@@ -104,4 +109,5 @@ Use `architecture.type: aws_static` with existing S3 and CloudFront routing when
 - Wildcard DNS does not prove a project exists.
 - A running service without production routing is candidate/dormant, not live.
 - Existing serverless resources remain valid architecture; normal release work must not replace them.
-- `unknown`, `unverified`, and `tbd` values document gaps but never satisfy validation.
+- `unknown`, `unverified`, `pending`, `placeholder`, `tbd`, `todo`, and `n/a` values document gaps but never satisfy validation.
+- Every existing-resource record requires all four `release_limits` values to be numeric zero. A normal website request never authorizes a non-zero value.

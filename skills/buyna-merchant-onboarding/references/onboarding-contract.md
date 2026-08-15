@@ -22,10 +22,17 @@ resources:
   compute: approved-existing-instance
   process: approved-existing-process
   port: approved-existing-port
+  allow_create_rds: false
   allow_create_database: false
+  allow_create_schema: false
   allow_create_bucket: false
   allow_create_instance: false
   allow_create_port: false
+release_limits:
+  new_ec2_instances: 0
+  new_databases: 0
+  new_buckets: 0
+  new_ports: 0
 ```
 
 Store no secrets in this record.
