@@ -15,7 +15,7 @@ Act only as a narrow router for one merchant and one primary merchant administra
 2. Confirm product, booking/service, or mixed scope; languages; currency; runtime; and existing data.
 3. For adding one merchant to an already verified multi-tenant backend, route directly to `buyna-merchant-onboarding`; do not require a new frontend before its intake and preflight steps.
 4. Before other backend work, require the approved Phase 4 frontend/Dashboard code record and API contract. Otherwise route only to `buyna-frontend-builder`.
-5. Before persistence/storage, require the `buyna-aws-data-layer` Existing Resource Gate and approved `projects/<project_id>/resources.yaml` equivalent. Stop rather than create replacements.
+5. Before persistence/storage, run `buyna-project-resource-registry`; route `shared_ec2_postgresql` to `buyna-aws-data-layer` and preserve registered serverless/static/external architecture unless a separate migration is approved. Stop rather than create replacements.
 6. Route only the user's current function and stop after its validation.
 
 ## Routing
@@ -30,6 +30,7 @@ Act only as a narrow router for one merchant and one primary merchant administra
 - GlobePay → `buyai-globepay-payment`
 - Merchant and project GMV linked to CRM → `buyna-gmv-commerce`
 - Structured data → `buyna-aws-data-layer`
+- Project resource inventory/classification → `buyna-project-resource-registry`
 - Files/images and fixed lifecycle → `buyna-s3-storage`
 - Storefront UI → `buyai-storefront-layout-ux`
 - AWS release → `buyna-aws-release`

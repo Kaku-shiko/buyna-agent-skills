@@ -33,3 +33,6 @@ jobs:
             npm test --prefix $_.FullName
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+      - name: Test project resource registry
+        shell: pwsh
+        run: node --test skills/buyna-project-resource-registry/scripts/validate-resource-record.test.mjs

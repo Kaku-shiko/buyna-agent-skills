@@ -9,7 +9,7 @@ Own structured business data and its safe evolution without forcing a backend fr
 
 ## Steps
 
-1. Read `projects/<project_id>/resources.yaml`, or locate the equivalent approved resource record.
+1. Require `buyna-project-resource-registry` to classify and validate `projects/<project_id>/resources.yaml` first. This Skill accepts only a registered `shared_ec2_postgresql` project.
 2. Run `node scripts/inspect-existing-resources.mjs --resource <path>` and stop unless it returns `pass`.
 3. Report the existing database engine, connection source, database/schema name, framework, migration system, S3 bucket, region, and project prefix.
 4. Use `packages/buyna-postgres-merchant-core`; select its existing `node-postgres` adapter when the project uses `pg`.
@@ -27,11 +27,15 @@ Require a secret-free project resource record:
 project: {id: asuka-shop, seller_id: seller_asuka}
 database:
   mode: existing
+  provider: aws_rds
   engine: postgresql
+  instance_identifier: confirmed-rds-identifier
   connection_source: DATABASE_URL
   name: confirmed-database-name
   schema: asuka_shop
   allow_create_database: false
+  allow_create_rds: false
+  allow_create_schema: false
 storage:
   mode: existing
   bucket_source: AWS_STORAGE_BUCKET_NAME
@@ -59,7 +63,7 @@ project integration.
 - Keep production databases private.
 - Preserve the project's approved backend framework; do not require Django.
 - Use canonical `project_id` and `seller_id` on every owned record, query, constraint, and index. Never query an owned entity by its id alone.
-- Reuse the approved connection and migration system. Never issue `CREATE DATABASE`, provision RDS/Aurora/DynamoDB, or create a local SQLite fallback.
+- Reuse the approved connection and migration system. Never issue `CREATE DATABASE`, provision RDS/Aurora/DynamoDB, or create a local SQLite fallback. An approved onboarding/migration may create a merchant schema and tables only inside the registered existing database, after backup, reversible migration validation, explicit approval, and `schema_change_mode: approved_reversible_migration`; this is not permission to create RDS or another database.
 - Add schema changes only as reversible migrations in the existing project and database.
 - Store files as S3 object metadata, not database blobs.
 - Store credentials only in server-side secret configuration.

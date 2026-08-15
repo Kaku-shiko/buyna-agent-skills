@@ -53,6 +53,10 @@ Use `$buyai-merchant-builder` as the merchant/seller backend entrypoint. It
 routes product, booking, database, S3, checkout, storefront, testing, payment,
 and AWS release work without loading every rule at once.
 
+Use `$buyna-project-resource-registry` before database, storage, onboarding,
+migration, or release work to classify and verify the project's existing
+shared-EC2, serverless, static, or external architecture.
+
 ## Diagnose missing Skills
 
 1. Confirm the complete folder exists under the intended Skill root.

@@ -17,13 +17,14 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 
 ## Resource Mode
 
-- Default every Buyna website task to `existing_buyna_resources`: reuse the verified EC2 instance, approved PostgreSQL connection, approved S3 bucket, project prefix, and existing network/domain boundary.
+- Run `buyna-project-resource-registry` first. Default every task to `existing_buyna_resources` and preserve its registered architecture: shared EC2/PostgreSQL, AWS serverless, AWS static, or external legacy.
+- For a new shared merchant, reuse the verified EC2 instance, approved PostgreSQL connection, approved S3 bucket, project prefix, and existing network/domain boundary. For a registered serverless/static project, reuse its recorded CloudFront, Lambda/API, DynamoDB, and S3 resources; do not force it onto EC2/RDS.
 - Never infer permission to create a bucket, database, RDS/Aurora/DynamoDB resource, CloudFront distribution, Lambda/API stack, compute host, or extra port from a normal build, publish, storage, or database request.
 - Enter `new_infrastructure` only when the user explicitly requests new infrastructure, names the required resource class, and approves the cost/risk preview. This mode is outside `buyna-website-builder` and `buyna-aws-release`.
 
 ## Fixed Buyna server
 
-- Deploy Buyna websites and long-running Buyna backends only to the existing
+- Deploy new shared Buyna merchant websites and long-running Buyna backends only to the existing
   Buyna EC2 instance whose public IPv4 address is `35.73.127.215`.
 - Never create, clone, replace, terminate, or automatically provision
   another EC2 instance for a Buyna deployment. Do not substitute ECS, App
@@ -42,10 +43,10 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 
 1. Inspect the real project: framework, build command, output directory, API/runtime needs, database use, uploads, domains, and environment variables.
 2. Run `scripts/verify-connection.ps1`. If it fails, diagnose the exact credential/profile/permission cause without exposing secrets.
-3. Resolve and verify the fixed Buyna EC2 target at `35.73.127.215`. Record the
+3. Match the live architecture to the validated resource record. For `shared_ec2_postgresql`, resolve and verify the fixed Buyna EC2 target at `35.73.127.215`. Record the
    verified instance id, region, state, public IPv4 address, and existing
    runtime layout. Stop on any mismatch; never provision another instance.
-4. For the default Buyna mode, preserve the inspected runtime stack and deploy only to the verified existing EC2 instance. Use the approved PostgreSQL database for structured data and approved S3 bucket for files/images; do not force Django or a specific Node version.
+4. Preserve the inspected runtime stack. For shared merchants, deploy only to the verified existing EC2 and use the approved PostgreSQL/S3 resources. For registered serverless/static projects, update only their recorded existing resources. Do not force Django, EC2, RDS, or a specific Node version across architectures.
 5. Create a unique normalized project slug. Isolate application directories, processes, assigned ports, Nginx routes, database schema/ownership, S3 prefixes, secrets, logs, and deployment records inside the approved shared resources. Do not create per-project buckets or databases.
 6. Generate or update the deployment manifest and infrastructure template in the project. Keep environment-specific values parameterized.
 7. Build and test locally. For responsive sites, validate a real mobile viewport and no horizontal overflow.
