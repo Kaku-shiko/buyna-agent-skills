@@ -1,13 +1,11 @@
 ---
 name: buyna-customer-intake
-description: "Collect the basic customer information needed to begin a website project. Use as Skill 1 to identify the requested website type, primary language, company name and address, whether pages display prices and their source, and materials already available or to be supplied later."
+description: "Create one concise customer-approved website project brief. Use as Skill 1 to collect website type, commerce or service branch, company information, language, price display, currency, and available or deferred materials in one grouped submission."
 ---
 
 # Buyna.ai Customer Intake
 
-Collect customer information before design or development.
-
-Read `references/intake-fields.md` and ask one section at a time in plain Chinese.
+Collect customer information before design or development. Read `references/intake-fields.md` and ask all fields once in one compact Chinese form.
 
 ## Scope
 
@@ -21,10 +19,8 @@ Collect only these basic categories:
 
 ## Conversation Rules
 
-- Ask one short question or one closely related section at a time.
-- Accept incomplete answers.
-- After each answer, show the accepted item and the next missing item briefly.
-- Keep the phase open while a required item has no answer.
+- Accept partial information and record non-blocking omissions as `待补全`.
+- Ask at most one follow-up only when website type, commerce/service branch, primary language, or public price-display decision cannot be determined.
 - When no Logo or specific images are supplied, automatically mark them `之后补全`; do not ask for confirmation or block completion.
 - For other unavailable materials, accept `之后补全` as a valid answer.
 - Treat `之后补全` as a valid collection answer, not as a received material.
@@ -33,4 +29,4 @@ Collect only these basic categories:
 
 ## Completion
 
-Output the Chinese customer-information record defined in the reference. Ask the team member to confirm or correct it, then stop.
+Output the Chinese customer-information record defined in the reference. Ask for one correction or approval, then stop. Do not repeat accepted answers.

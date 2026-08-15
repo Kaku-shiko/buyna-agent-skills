@@ -5,7 +5,7 @@ description: "Plan and confirm a customer website's desktop and mobile pages and
 
 # Buyna.ai Page Structure
 
-Turn the approved customer information and design direction into a confirmed website page and content plan. Do not write production code or final legal text.
+Turn the customer information and completed Skill 2 design record into one combined design-and-structure package. Do not write production code or final legal text.
 
 ## Workflow
 
@@ -19,8 +19,7 @@ Turn the approved customer information and design direction into a confirmed web
    For merchant projects, separately list Dashboard navigation, screens,
    visible fields, actions, and states as UI requirements. Record data and API
    needs as contracts only; do not design their backend implementation here.
-   For the product branch, use this six-page composition:
-   仪表盘, 商品管理, 分类管理, 订单, 付费客户, 支付设置.
+   For the product branch, consume the canonical Dashboard navigation and page composition from `buyna-frontend-builder/references/product-merchant-dashboard-ui.md`; do not restate or fork it here.
 8. Add the privacy-policy requirement using `references/privacy-policy-checklist.md` and identify any conditional commerce, booking, account, cookie, or legal pages.
    For product commerce, record the fixed MEDINANCE flow as UI structure:
    right-side cart drawer → buyer form → order review → payment → verified
@@ -30,7 +29,7 @@ Turn the approved customer information and design direction into a confirmed web
 
 ## Rules
 
-- Ask one section at a time in plain Chinese.
+- Use defaults and present one combined package; ask only when a choice changes business behavior or conflicts with supplied information.
 - Keep only pages that support the website's audience and purpose.
 - Treat mobile as an explicit structure, not a smaller desktop layout.
 - Include responsive header behavior, mobile navigation, section order, touch actions, forms, carousels, and safe-area considerations.

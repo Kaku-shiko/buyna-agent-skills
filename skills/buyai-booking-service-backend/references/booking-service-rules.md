@@ -17,6 +17,7 @@ For the current application and AWS backend, keep these responsibilities in sepa
 `services`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `name`
 - `description`
@@ -43,6 +44,7 @@ For the current application and AWS backend, keep these responsibilities in sepa
 `service_slots`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `service_id`
 - `starts_at`
@@ -56,6 +58,7 @@ For the current application and AWS backend, keep these responsibilities in sepa
 `bookings`:
 
 - `id`
+- `project_id`
 - `seller_id`
 - `service_id`
 - `slot_id`
@@ -78,10 +81,11 @@ For the current application and AWS backend, keep these responsibilities in sepa
 
 `payments`:
 
-- use the same payment ledger pattern as product commerce
+- use the same `project_id + seller_id` payment ledger pattern as product commerce
 
 `paid_customers` or `paid_bookings`:
 
+- project id
 - seller id
 - booking id
 - customer details
@@ -95,6 +99,7 @@ For the current application and AWS backend, keep these responsibilities in sepa
 
 `site_settings` or `merchant_profile`:
 
+- `project_id`
 - `seller_id`
 - `brand_name`
 - `brand_story_heading`

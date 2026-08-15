@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DASHBOARD_NAVIGATION,DASHBOARD_PAGES,DASHBOARD_TABLES,createTableView} from '../src/dashboard-model.mjs';
-test('product merchant navigation contains exactly the approved six pages in order',()=>{
+test('product merchant navigation contains exactly the approved seven pages in order',()=>{
   assert.deepEqual(DASHBOARD_NAVIGATION.map(item=>[item.key,item.label,item.href]),[
-    ['dashboard','仪表盘','/seller'],['products','商品管理','/seller/products'],['categories','分类管理','/seller/categories'],['orders','订单','/seller/orders'],['paidCustomers','付费客户','/seller/paid-customers'],['paymentSettings','支付/订阅设置','/seller/settings/payment'],
+    ['dashboard','仪表盘','/seller'],['products','商品管理','/seller/products'],['categories','分类管理','/seller/categories'],['coupons','优惠券管理','/seller/coupons'],['orders','订单','/seller/orders'],['paidCustomers','付费客户','/seller/paid-customers'],['paymentSettings','支付/订阅设置','/seller/settings/payment'],
   ]);
 });
 test('fixed tables preserve the fields used by existing merchant cases',()=>{
   assert.deepEqual(DASHBOARD_TABLES.products.columns.map(column=>column.key),['sortOrder','image','name','category','price','stock','visibility','actions']);
+  assert.deepEqual(DASHBOARD_TABLES.coupons.columns.map(column=>column.key),['code','type','discount','threshold','validity','status','usageCount','actions']);
   assert.deepEqual(DASHBOARD_TABLES.orders.columns.map(column=>column.key),['orderNumber','customer','amount','paymentMethod','status','createdAt','actions']);
   assert.deepEqual(DASHBOARD_TABLES.paidCustomers.columns.map(column=>column.key),['customer','contact','orderNumber','amount','paidAt','actions']);
 });

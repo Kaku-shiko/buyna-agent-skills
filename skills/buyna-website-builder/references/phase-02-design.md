@@ -1,3 +1,3 @@
 # Phase 2: Website Design
 
-Require one frontend framework, visual direction, colors, typography, UI/UX feeling, motion decision, reference/template direction, and a written design record. Produce the approved design-system board image or record an explicit postponement. Do not write production code.
+Require one frontend framework, visual direction, colors, typography, UI/UX feeling, motion decision, user-supplied reference/template analysis when present, and a written design record. Produce the design-system board image or record an explicit postponement, then continue directly into Phase 3 without an intermediate approval. Do not write production code.

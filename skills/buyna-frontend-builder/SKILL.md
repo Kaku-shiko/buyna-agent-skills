@@ -21,17 +21,15 @@ core.
    `references/product-merchant-dashboard-ui.md` and
    `references/merchant-dashboard-fixed-ui.md`.
 2. Inspect existing routes/components and preserve approved project patterns.
-3. Before Dashboard coding, present its navigation, page composition,
-   desktop/mobile behavior, and inherited design system for explicit approval.
-4. Implement the public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope.
+3. Implement the approved public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope. Do not add another pre-code approval when the combined design-and-structure package already contains the Dashboard composition.
    For product commerce, include the approved cart presentation and connect it
    to a mock Adapter matching `buyna-cart-core`. Use its fixed right-side
    `CartButton` and `CartDrawer` components as the default MEDINANCE behavior;
    do not implement cart pricing rules in components.
-5. Implement all approved desktop and mobile interactions with clearly marked mock data.
-6. Record the fields, operations, validation, ownership, and response states required from the later API.
-7. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
-8. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
+4. Implement all approved desktop and mobile interactions with clearly marked mock data.
+5. Record the fields, operations, validation, ownership, and response states required from the later API.
+6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
+7. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
 
 For a product merchant Dashboard, use
 `packages/buyna-merchant-dashboard-ui` instead of regenerating its shell,

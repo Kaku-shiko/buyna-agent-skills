@@ -48,9 +48,9 @@ redesign Dashboard navigation, layouts, forms, visible fields, or interactions.
 If backend correctness requires an interface change, stop and return a focused
 change request to `buyna-frontend-builder` for user approval.
 
-Require the approved product Dashboard UI to contain exactly these default
-top-level pages: 仪表盘、商品管理、分类管理、订单、付费客户、支付设置. Treat these
-as frontend routes; this Skill implements their server-side behavior only.
+Require the approved product Dashboard UI to follow the canonical contract in
+`buyna-frontend-builder/references/product-merchant-dashboard-ui.md`. Treat its
+navigation as frontend-owned; this Skill implements server behavior only.
 
 ## Combine Skills
 
@@ -67,7 +67,7 @@ Checkout requires buyer/shipping form and local `pending_payment` before GlobePa
 
 ## MVP
 
-Single-merchant backend: one merchant administrator, login, session, product CRUD/archive, images/main image, categories, stock/variants, drag sorting, orders, paid customers, CSV, email, payment settings, and GlobePay portal. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
+Single-merchant backend: one merchant administrator, login, session, product CRUD/archive, images/main image, categories, coupons, stock/variants, drag sorting, orders, paid customers, CSV, email, payment/subscription settings, and GlobePay portal. Route coupon rules to `buyai-coupon-commerce`; keep subscription status read-only and sourced server-to-server. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
 
 Public site: backend list, category tabs, detail, checkout, payment methods, verified success, shared footer settings.
 
@@ -81,7 +81,7 @@ Create the pending order with the complete safe customer submission snapshot def
 
 ## Validate
 
-Check build, UTF-8, login, `seller_id`, product/category/stock/SKU/image/sort sync, complete customer snapshot storage and order-detail rendering, verified paid once, refund sync, CSV, cleanup, mobile backend.
+Check build, UTF-8, login, mandatory `project_id + seller_id` ownership on every record/query/constraint/index, cross-merchant denial, product/category/stock/SKU/image/sort sync, complete customer snapshot storage and order-detail rendering, verified paid once, refund sync, CSV, cleanup, and mobile backend.
 
 When catalog behavior is in scope, run
 `npm test --prefix packages/buyna-merchant-catalog-core` before project tests.

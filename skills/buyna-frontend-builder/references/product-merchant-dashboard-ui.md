@@ -5,14 +5,15 @@ approved and the merchant branch is confirmed as `product`.
 
 ## Required Navigation
 
-Keep these six top-level pages in this order:
+This file is the canonical product-merchant Dashboard contract. Keep these seven top-level pages in this order:
 
 1. `仪表盘`
 2. `商品管理`
 3. `分类管理`
-4. `订单`
-5. `付费客户`
-6. `支付设置`
+4. `优惠券管理`
+5. `订单`
+6. `付费客户`
+7. `支付/订阅设置`
 
 Do not add platform administration, merchant switching, multi-merchant
 management, ERP, CRM, reports, or other navigation unless the user explicitly
@@ -40,6 +41,15 @@ changes the approved scope.
 - Create, edit, archive, visibility, and sorting UI.
 - Loading, empty, validation, success, error, and permission presentation.
 
+### 优惠券管理
+
+- Coupon list with code/type, discount, quantity/amount thresholds, validity,
+  status, usage count, and order.
+- Create, edit, activate/deactivate, archive, and issue/claim presentation.
+- Keep calculation, reservation, redemption, release, and payment amount logic
+  in `buyai-coupon-commerce` and the fixed coupon core.
+- Loading, empty, validation, success, error, and permission presentation.
+
 ### 订单
 
 - Order list with order number, customer, amount, payment status, and time.
@@ -55,19 +65,21 @@ changes the approved scope.
 - Search, approved filters, detail, CSV action, and contact action.
 - Loading, empty, error, and permission presentation.
 
-### 支付设置
+### 支付/订阅设置
 
 - GlobePay connection/status presentation.
 - Merchant portal shortcut.
 - Public display of supported payment methods when approved.
 - Never expose credentials or imply that a local input activates production
   payment.
+- Add a separate read-only Buyna.ai subscription card showing only the current
+  merchant's plan, status, start date, and bound domain.
 - Loading, unconfigured, configured, error, and permission presentation.
 
 ## Responsive Structure
 
 - Desktop: persistent sidebar and content workspace.
-- Mobile: sidebar becomes an accessible drawer; keep the same six-page order.
+- Mobile: sidebar becomes an accessible drawer; keep the same seven-page order.
 - Convert wide tables to approved card/list or controlled horizontal layouts.
 - Keep primary actions reachable without horizontal page overflow.
 
@@ -81,14 +93,9 @@ Do not implement login services, authorization decisions, database writes,
 inventory mutations, order transitions, payment verification, S3 ownership, or
 production APIs in this UI step.
 
-## Approval Gate
+## Delivery Gate
 
-Before writing Dashboard UI code:
-
-1. present the six-page navigation and page-composition record;
-2. confirm that it inherits the approved website design system;
-3. confirm desktop and mobile navigation behavior;
-4. ask for explicit approval.
-
-After approval, deliver runnable Dashboard UI source code and verification
-evidence. Do not start backend logic in the same phase.
+Require the approved combined design-and-structure package to contain the
+canonical navigation, page composition, inherited design system, and desktop/
+mobile behavior. Then deliver runnable Dashboard UI source and verification
+without another pre-code approval. Do not start backend logic in the same phase.
