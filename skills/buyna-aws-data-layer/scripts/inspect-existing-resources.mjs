@@ -32,14 +32,17 @@ export function validateResourceRecord(record={}){
   if(database.mode!=='existing')errors.push('DATABASE_NOT_EXISTING');
   if(String(database.engine??'').toLowerCase()!=='postgresql')errors.push('POSTGRESQL_REQUIRED');
   if(!database.connection_source)errors.push('DATABASE_CONNECTION_SOURCE_MISSING');
+  if(!database.instance_identifier)errors.push('RDS_IDENTIFIER_MISSING');
   if(!database.name)errors.push('DATABASE_NAME_MISSING');
+  if(database.instance_identifier&&database.name===database.instance_identifier)errors.push('RDS_IDENTIFIER_USED_AS_DATABASE_NAME');
   if(!database.schema)errors.push('DATABASE_SCHEMA_MISSING');
+  if(database.allow_create_rds!==false)errors.push('RDS_CREATION_NOT_DISABLED');
   if(database.allow_create_database!==false)errors.push('DATABASE_CREATION_NOT_DISABLED');
   if(storage.mode!=='existing')errors.push('STORAGE_NOT_EXISTING');
   if(!storage.bucket_source)errors.push('STORAGE_BUCKET_SOURCE_MISSING');
   if(storage.allow_create_bucket!==false)errors.push('BUCKET_CREATION_NOT_DISABLED');
   if(deployment.allow_create_instance!==false)errors.push('INSTANCE_CREATION_NOT_DISABLED');
-  return{status:errors.length?'blocked':'pass',code:errors.length?'EXISTING_RESOURCES_NOT_CONFIRMED':'EXISTING_RESOURCES_CONFIRMED',projectId:project.id??null,sellerId:project.seller_id??null,database:{engine:database.engine??null,name:database.name??null,schema:database.schema??null,connectionSource:database.connection_source??null},errors};
+  return{status:errors.length?'blocked':'pass',code:errors.length?'EXISTING_RESOURCES_NOT_CONFIRMED':'EXISTING_RESOURCES_CONFIRMED',projectId:project.id??null,sellerId:project.seller_id??null,database:{engine:database.engine??null,instanceIdentifier:database.instance_identifier??null,name:database.name??null,schema:database.schema??null,connectionSource:database.connection_source??null},errors};
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href){

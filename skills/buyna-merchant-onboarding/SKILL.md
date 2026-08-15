@@ -10,7 +10,7 @@ Add one merchant without changing existing merchants or creating infrastructure.
 ## First Move
 
 1. Inspect the real application, tenant model, authentication, host routing, database, S3 key builder, deployment target, and rollback method.
-2. Read the approved `projects/<project_id>/resources.yaml` or equivalent.
+2. Use `buyna-project-resource-registry` to validate the approved `projects/<project_id>/resources.yaml`; require `shared_ec2_postgresql` for this onboarding path.
 3. Require evidence that multi-tenant isolation and the existing merchant regression checks are already implemented and verified.
 4. Read [references/onboarding-contract.md](references/onboarding-contract.md).
 5. Stop with `BLOCKED: MULTITENANT_FOUNDATION_NOT_VERIFIED` when either prerequisite is missing.
@@ -41,7 +41,7 @@ Complete exactly one numbered step, validate it, report its evidence, and stop
 for explicit approval before continuing.
 
 1. **Preflight** — Verify the fixed existing resources, current release, backup method, unique identifiers, exact host, and `NEW_EC2_INSTANCES: 0`.
-2. **Staging copy** — Back up the database and run registration plus migrations on a disposable copy. Do not alter production data.
+2. **Staging copy** — Back up the database and run registration plus reversible schema/table migrations on a disposable copy. Do not alter production data.
 3. **Pending registration** — Create the merchant identity as inactive or pending in the existing database. Do not expose its domain yet.
 4. **Project file layout** — For a new local project directory only, call
    `packages/buyna-merchant-file-core` `scaffoldMerchantProject` with the
@@ -74,7 +74,7 @@ configuration.
 ## Boundaries
 
 - Reuse the approved database, S3 bucket, EC2 instance, application process, and port.
-- Never create a database, SQLite fallback, RDS/Aurora/DynamoDB resource, Bucket, EC2 instance, service, or extra port to bypass missing configuration.
+- Never create a database, SQLite fallback, RDS/Aurora/DynamoDB resource, Bucket, EC2 instance, service, or extra port to bypass missing configuration. A new isolated merchant schema inside the registered existing PostgreSQL database is allowed only in the approved staging/pending-registration sequence with backup, reversible migration, and explicit approval.
 - Never move or rewrite another merchant's rows, objects, domain, login, or payment settings.
 - Never accept `project_id`, `seller_id`, owner paths, prices, or paid status from an untrusted browser as authority.
 - Do not create a platform administrator, merchant switcher, or cross-merchant console.
