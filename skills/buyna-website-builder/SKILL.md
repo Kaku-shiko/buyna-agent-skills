@@ -5,17 +5,16 @@ description: "Guide a Buyna.ai team member through one approved website gate at 
 
 # Buyna.ai Website Builder
 
-Act as a compact state machine. Execute only the current gate or approved interaction slice and stop.
+Use the fixed `packages/buyna-workflow-state-core` state machine. Execute only the current gate or approved interaction slice and stop.
 
 ## Method
 
-1. Determine the current phase from its approved record; start at Phase 1 when none exists.
-2. Read only `references/phase-0N-*.md` for the current phase. Do not preload later phase files.
-3. Use the current phase's defaults. Ask only one grouped request or one blocking question.
-4. Show only `已完成` and the next `待补充`; do not repeat accepted answers.
-5. Deliver the smallest valid result in real project files when the phase requires code.
-6. Report verification and remaining mock/deferred behavior.
-7. Stop with the approval block below.
+1. Resolve `buyna-workflow-state-core` from the project installation, then the user installation. Stop with `BLOCKED: WORKFLOW_STATE_CORE_NOT_INSTALLED` when absent.
+2. Load `workflow/workflow-state.json`. Once `project_id` is known, initialize it when absent. For an existing project, initialize only from verified records; never infer approval from chat.
+3. Treat `currentGate` as authoritative. Never edit state JSON directly; call module transitions and persist every event.
+4. Read only `references/phase-0N-*.md` for the current phase and [the state contract](references/workflow-state-contract.md).
+5. Deliver the smallest valid result, then record its evidence and request approval.
+6. Stop. Approve and unlock the next gate only after the user's explicit later confirmation.
 
 ## Eight Phases
 

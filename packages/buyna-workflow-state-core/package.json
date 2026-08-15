@@ -1,0 +1,12 @@
+{
+  "name": "@buyna/workflow-state-core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./file-store": "./src/file-store.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/workflow-state.test.mjs"
+  }
+}

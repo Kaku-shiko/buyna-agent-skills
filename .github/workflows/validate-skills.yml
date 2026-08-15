@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "skills/**"
+      - "packages/**"
       - "scripts/validate.ps1"
       - ".github/workflows/validate-skills.yml"
   push:
     branches: [main]
     paths:
       - "skills/**"
+      - "packages/**"
       - "scripts/validate.ps1"
 
 permissions:
@@ -24,3 +26,10 @@ jobs:
       - name: Validate repository Skills
         shell: pwsh
         run: ./scripts/validate.ps1
+      - name: Test fixed modules
+        shell: pwsh
+        run: |
+          Get-ChildItem packages -Directory | ForEach-Object {
+            npm test --prefix $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
