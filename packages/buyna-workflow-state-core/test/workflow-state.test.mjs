@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {approveGate,blockGate,createWorkflow,markNotApplicable,recordDelivery,rejectGate,requestApproval,resumeGate,setInteractionMode,startGate} from '../src/index.mjs';
+import {approveGate,blockGate,createWorkflow,getInteractionPolicy,markNotApplicable,recordDelivery,rejectGate,requestApproval,resumeGate,setInteractionMode,startGate} from '../src/index.mjs';
 import {initializeWorkflow,loadWorkflow,saveTransition} from '../src/file-store.mjs';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -23,6 +23,33 @@ test('initial interaction mode is validated and later changes are recorded',()=>
   assert.equal(changed.event.event,'interaction_mode_selected');
   assert.equal(changed.event.previousMode,'developer');
   assert.throws(()=>createWorkflow({projectId:'invalid-shop',interactionMode:'expert'}),/INTERACTION_MODE_INVALID/);
+});
+
+test('team interaction policy hides implementation detail without weakening gates',()=>{
+  const policy=getInteractionPolicy({state:createWorkflow({projectId:'team-shop'})});
+  assert.equal(policy.mode,'team');
+  assert.equal(policy.showTechnicalEvidence,false);
+  assert.equal(policy.showResourceIdentifiers,false);
+  assert.equal(policy.maxActionQuestionsPerTurn,1);
+  assert.equal(policy.canBypassApproval,false);
+  assert.equal(policy.canCreateInfrastructure,false);
+  assert.equal(policy.canExposeSecrets,false);
+});
+
+test('developer interaction policy adds sanitized evidence but no extra authority',()=>{
+  const policy=getInteractionPolicy({state:createWorkflow({projectId:'dev-shop',interactionMode:'developer'})});
+  assert.equal(policy.showInternalStatusCodes,true);
+  assert.equal(policy.showRawCommands,true);
+  assert.equal(policy.showTechnicalEvidence,true);
+  assert.equal(policy.canBypassApproval,false);
+  assert.equal(policy.canCreateInfrastructure,false);
+  assert.equal(policy.canExposeSecrets,false);
+});
+
+test('legacy workflow without an interaction mode safely renders as team mode',()=>{
+  const state=createWorkflow({projectId:'legacy-shop'});
+  delete state.configuration.interactionMode;
+  assert.equal(getInteractionPolicy({state}).mode,'team');
 });
 
 test('a gate advances only through start delivery approval request and explicit approval',()=>{

@@ -25,10 +25,11 @@ Do not ask customer requirements in the same response. After the explicit choice
 
 1. Resolve `buyna-workflow-state-core` from the project installation, then the user installation. Stop with `BLOCKED: WORKFLOW_STATE_CORE_NOT_INSTALLED` when absent.
 2. Load `workflow/workflow-state.json`. Once `project_id` is known, initialize it with the explicitly selected interaction mode when absent. For an existing project, initialize only from verified records; never infer approval from chat.
-3. Treat `currentGate` as authoritative. Never edit state JSON directly; call module transitions and persist every event.
-4. Read only `references/phase-0N-*.md` for the current phase and [the state contract](references/workflow-state-contract.md).
-5. Deliver the smallest valid result, then record its evidence and request approval.
-6. Stop. Approve and unlock the next gate only after the user's explicit later confirmation.
+3. Call `getInteractionPolicy({state})` after every load or mode change. Use it to render the response and pass `interactionMode` to every child Skill. Child Skills return structured evidence; they do not choose what the user sees.
+4. Treat `currentGate` as authoritative. Never edit state JSON directly; call module transitions and persist every event.
+5. Read only `references/phase-0N-*.md` for the current phase and [the state contract](references/workflow-state-contract.md).
+6. Deliver the smallest valid result, then record its evidence and request approval.
+7. Stop. Approve and unlock the next gate only after the user's explicit later confirmation.
 
 ## Eight Phases
 
