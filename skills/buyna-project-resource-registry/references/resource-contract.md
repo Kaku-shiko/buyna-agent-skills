@@ -35,6 +35,13 @@ database:
   connection_source: DATABASE_URL
   name: confirmed-database-name
   schema: confirmed-project-schema
+  resource_tags:
+    Name: confirmed-rds-identifier
+    Project: shared-workload-name
+    Environment: production
+    DatabaseName: confirmed-database-name
+    TenantModel: independent-schema-project-id-seller-id
+    ResourceMode: existing-buyna-resources
   allow_create_rds: false
   allow_create_database: false
   allow_create_schema: false
@@ -60,6 +67,8 @@ routing:
 ```
 
 `allow_create_schema: true` is valid only in an already approved onboarding/migration candidate record. It does not authorize execution and must include `schema_change_mode: approved_reversible_migration`.
+
+`database.resource_tags` is secret-free operational metadata. When present, `Name` must equal `database.instance_identifier` and `DatabaseName` must equal the database that applications actually connect to. If the RDS console retains an immutable initial database name after PostgreSQL `ALTER DATABASE ... RENAME`, record it only as `LegacyProvisionedDbName`; do not treat it as the active database.
 
 When a verified legacy EC2/PostgreSQL project uses local/EBS files instead of S3, record `storage.provider: local_ebs`, `storage.root_source`, and `storage.migration_status`; do not invent a bucket. New shared merchants continue to use the approved existing S3 bucket.
 
@@ -104,6 +113,7 @@ Use `architecture.type: aws_static` with existing S3 and CloudFront routing when
 ## Conflict rules
 
 - `database.instance_identifier` is an AWS RDS resource; `database.name` is inside PostgreSQL.
+- Renaming an RDS identifier changes the endpoint and restarts the instance. Renaming a PostgreSQL database changes every consumer connection string. Neither operation creates a database, but both require an explicit maintenance-window migration and complete consumer inventory.
 - Every merchant-owned PostgreSQL operation remains scoped by server-derived `project_id + seller_id`, even with a dedicated schema.
 - S3 prefixes are server generated and ownership scoped.
 - Wildcard DNS does not prove a project exists.

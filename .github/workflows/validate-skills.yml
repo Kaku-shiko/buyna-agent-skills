@@ -36,3 +36,6 @@ jobs:
       - name: Test project resource registry
         shell: pwsh
         run: node --test skills/buyna-project-resource-registry/scripts/validate-resource-record.test.mjs
+      - name: Test RDS resource identity migration guard
+        shell: pwsh
+        run: node --test skills/buyna-unified-merchant-architecture/scripts/validate-resource-identity-migration.test.mjs

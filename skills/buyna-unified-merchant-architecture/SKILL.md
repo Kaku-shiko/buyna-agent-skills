@@ -13,8 +13,9 @@ Migrate one merchant at a time. Standardize ownership and interfaces without mer
 2. Inspect the live database, runtime, exact host route, S3 prefix, order/payment path, backup state, and current source code read-only.
 3. Select only the first incomplete slice from [migration phases](references/migration-phases.md). If the user explicitly approved the complete bounded plan, continue across slices only after each automated gate passes; otherwise stop for approval.
 4. For a shared-RDS schema migration, call `@buyna/postgres-merchant-core/schema-migration` before producing SQL. Use the source-only online pattern in [schema migration contract](references/schema-migration-contract.md).
-5. Deliver code/configuration and evidence for the active slice. Roll back automatically when a gate fails.
-6. Finish only after [acceptance checklist](references/acceptance-checklist.md) passes on every in-scope real domain.
+5. For an approved RDS identifier or PostgreSQL database-name correction, use [resource identity migration](references/resource-identity-migration.md) and run `node scripts/validate-resource-identity-migration.mjs --before <before.yaml> --after <after.yaml>` before mutation.
+6. Deliver code/configuration and evidence for the active slice. Roll back automatically when a gate fails.
+7. Finish only after [acceptance checklist](references/acceptance-checklist.md) passes on every in-scope real domain.
 
 ## Hard boundaries
 
@@ -25,6 +26,7 @@ Migrate one merchant at a time. Standardize ownership and interfaces without mer
 - Use Nginx on `80/443`. Reuse an approved shared API listener or a permission-restricted merchant Unix Socket; never allocate a new merchant TCP port implicitly.
 - Never place credentials, connection URLs, customer data, payment payloads, or backup contents in Git, Skill files, or reports.
 - Preserve the previous release, environment backup, source copy, and database backup until the stability window and explicit retirement approval pass.
+- An RDS identifier/database-name correction must update every live consumer, scheduled job, backup job, ORM, secret source, and resource record. It must not change public API, payment Notify/Return, order-status, or S3 object paths.
 
 ## Routing
 

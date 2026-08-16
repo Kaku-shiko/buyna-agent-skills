@@ -19,3 +19,7 @@ Stop the source writer, replay to zero lag, atomically switch release/environmen
 ## 5. Stabilize and retire
 
 Remove change capture after acceptance. Keep source tables, old release, environment backup, and logical/PITR recovery during the stability window. Delete only with separate explicit approval.
+
+## Resource identity correction track
+
+Use the dedicated [resource identity migration](resource-identity-migration.md) track when data and Schemas stay in place but the RDS identifier, PostgreSQL database name, or both must be corrected. Do not run the Schema-copy phases for a name-only correction.
