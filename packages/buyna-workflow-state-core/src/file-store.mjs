@@ -18,5 +18,5 @@ export async function saveTransition({projectRoot,transition}={}){
   return transition.state;
 }
 export async function initializeWorkflow({projectRoot,state,now=new Date().toISOString()}={}){
-  return saveTransition({projectRoot,transition:{state,event:{event:'workflow_initialized',gate:state?.currentGate,at:now}}});
+  return saveTransition({projectRoot,transition:{state,event:{event:'workflow_initialized',gate:state?.currentGate,interactionMode:state?.configuration?.interactionMode??'team',at:now}}});
 }

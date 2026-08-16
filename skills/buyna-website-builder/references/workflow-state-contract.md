@@ -10,6 +10,8 @@
 
 Never store credentials, payment secrets, personal form values, or environment variables here.
 
+Store `configuration.interactionMode` as `team` or `developer`. The mode controls presentation only; gate status, delivery evidence, and approval transitions remain identical. Persist later mode changes through `setInteractionMode`, never by editing JSON.
+
 ## Gate mapping
 
 | Phase | Gate | Completion evidence |

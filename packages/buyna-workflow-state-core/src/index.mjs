@@ -7,6 +7,7 @@ const gateOrder=Object.freeze([
   'testing_upload_gate',
   'aws_release',
 ]);
+const interactionModes=Object.freeze(['team','developer']);
 
 function requiredText(value,code){
   const result=String(value??'').trim();
@@ -14,13 +15,20 @@ function requiredText(value,code){
   return result;
 }
 
-export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.0.0',dashboardSlices=[]}={}){
+function normalizeInteractionMode(value){
+  const mode=String(value??'team').trim().toLowerCase();
+  if(!interactionModes.includes(mode))throw new Error('INTERACTION_MODE_INVALID');
+  return mode;
+}
+
+export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.1.0',dashboardSlices=[],interactionMode='team'}={}){
   const id=requiredText(projectId,'PROJECT_ID_REQUIRED');
   const gates=Object.fromEntries(gateOrder.map((gate,index)=>[gate,{status:index===0?'ready':'locked'}]));
-  return{schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{dashboardSlices:[...new Set(dashboardSlices.map(value=>requiredText(value,'INVALID_DASHBOARD_SLICE')))]},deferredMaterials:[]};
+  return{schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[...new Set(dashboardSlices.map(value=>requiredText(value,'INVALID_DASHBOARD_SLICE')))]},deferredMaterials:[]};
 }
 
 export const WORKFLOW_GATES=gateOrder;
+export const INTERACTION_MODES=interactionModes;
 
 function copyState(state){return structuredClone(state)}
 function gateState(state,gate){
@@ -29,6 +37,13 @@ function gateState(state,gate){
   return state.gates[gate];
 }
 function result(state,event){return{state,event}}
+export function setInteractionMode({state,mode,selectedBy='user',now=new Date().toISOString()}={}){
+  const next=copyState(state),selected=normalizeInteractionMode(mode),actor=requiredText(selectedBy,'MODE_SELECTOR_REQUIRED');
+  next.configuration??={};
+  const previous=next.configuration.interactionMode??'team';
+  next.configuration.interactionMode=selected;next.configuration.interactionModeSelectedBy=actor;next.configuration.interactionModeSelectedAt=now;next.updatedAt=now;
+  return result(next,{event:'interaction_mode_selected',mode:selected,previousMode:previous,selectedBy:actor,at:now});
+}
 function unlockFollowing(state,gate){
   const following=gateOrder[gateOrder.indexOf(gate)+1];
   if(following){state.gates[following].status='ready';state.currentGate=following}else{state.currentGate=null;state.status='complete'}

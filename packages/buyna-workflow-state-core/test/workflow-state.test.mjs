@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {approveGate,blockGate,createWorkflow,markNotApplicable,recordDelivery,rejectGate,requestApproval,resumeGate,startGate} from '../src/index.mjs';
+import {approveGate,blockGate,createWorkflow,markNotApplicable,recordDelivery,rejectGate,requestApproval,resumeGate,setInteractionMode,startGate} from '../src/index.mjs';
 import {initializeWorkflow,loadWorkflow,saveTransition} from '../src/file-store.mjs';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -12,6 +12,17 @@ test('a new website workflow starts only at customer intake',()=>{
   assert.equal(state.gates.customer_intake.status,'ready');
   assert.equal(state.gates.design_and_structure.status,'locked');
   assert.equal(state.gates.aws_release.status,'locked');
+  assert.equal(state.configuration.interactionMode,'team');
+});
+
+test('initial interaction mode is validated and later changes are recorded',()=>{
+  const developer=createWorkflow({projectId:'developer-shop',interactionMode:'developer'});
+  assert.equal(developer.configuration.interactionMode,'developer');
+  const changed=setInteractionMode({state:developer,mode:'team',selectedBy:'colleague',now:'2026-08-15T00:05:00.000Z'});
+  assert.equal(changed.state.configuration.interactionMode,'team');
+  assert.equal(changed.event.event,'interaction_mode_selected');
+  assert.equal(changed.event.previousMode,'developer');
+  assert.throws(()=>createWorkflow({projectId:'invalid-shop',interactionMode:'expert'}),/INTERACTION_MODE_INVALID/);
 });
 
 test('a gate advances only through start delivery approval request and explicit approval',()=>{
