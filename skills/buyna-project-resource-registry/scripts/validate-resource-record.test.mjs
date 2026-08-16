@@ -43,3 +43,13 @@ test('blocks placeholders and every non-zero infrastructure counter',()=>{
   assert.ok(result.errors.includes('NEW_EC2_INSTANCES_NOT_ZERO'));
   assert.ok(result.errors.includes('NEW_PORTS_NOT_ZERO'));
 });
+
+test('validates optional RDS resource tags against active identifiers',()=>{
+  const base={record:evidence,project:{id:'shop',seller_id:'seller'},architecture:{type:'shared_ec2_postgresql'},domains:{primary:'shop.example'},database:{mode:'existing',engine:'postgresql',instance_identifier:'shared-prod-postgres',name:'commerce',schema:'shop',connection_source:'DATABASE_URL',allow_create_rds:false,allow_create_database:false,allow_create_schema:false},storage:{mode:'existing',provider:'s3',bucket:'shared-assets',prefix:'projects/shop/sellers/seller/',allow_create_bucket:false},deployment:{mode:'existing',provider:'ec2',instance_id:'i-existing',allow_create_instance:false,allow_create_port:false},release_limits:zeroLimits};
+  const pass=validateResourceRecord({...base,database:{...base.database,resource_tags:{Name:'shared-prod-postgres',Project:'shared-merchants',Environment:'production',DatabaseName:'commerce'}}});
+  assert.equal(pass.status,'pass');
+  const blocked=validateResourceRecord({...base,database:{...base.database,resource_tags:{Name:'old-rds',Project:'shared-merchants',Environment:'production',DatabaseName:'old_database'}}});
+  assert.equal(blocked.status,'blocked');
+  assert.ok(blocked.errors.includes('RDS_NAME_TAG_MISMATCH'));
+  assert.ok(blocked.errors.includes('RDS_DATABASE_NAME_TAG_MISMATCH'));
+});

@@ -11,3 +11,5 @@
 - Build, typecheck, automated tests, candidate checks, and real HTTPS checks pass.
 - RDS PITR/logical backup, old release, environment/routing backups, and rollback commands remain available.
 - No EC2, RDS, database, bucket, or TCP port was created.
+- The active RDS identifier, endpoint, PostgreSQL `current_database()`, resource tags, every consumer configuration, and every `resources.yaml` agree.
+- Old endpoint/database-name references remain only in protected rollback artifacts. Public order, payment Notify/Return, status, and S3 paths are unchanged.
