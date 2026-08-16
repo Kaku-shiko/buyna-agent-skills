@@ -17,9 +17,14 @@ Add one merchant without changing existing merchants or creating infrastructure.
 
 ## Intake Gate
 
-Collect only:
+Resolve identity before asking intake questions:
 
-- `project_id` and `seller_id`;
+1. Run `node scripts/resolve-merchant-identity.mjs --primary-host <host> --registry-root projects`, adding explicitly supplied IDs when present.
+2. Reuse an exact registered pair. For a new merchant, use the generated candidate in the intake record and verify uniqueness; do not ask the user to invent IDs.
+3. Ask one ID question only when the script returns `PROJECT_ID_SOURCE_REQUIRED`, `*_INVALID`, or `MERCHANT_IDENTITY_COLLISION`.
+
+Then collect only:
+
 - legal/display name and exact primary domain;
 - merchant type: product, service, or mixed;
 - primary language and currency;
