@@ -47,14 +47,15 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 3. `buyai-dashboard-data-interaction`：逐页连接 Dashboard、API、数据库和 S3。
 4. `buyna-aws-data-layer`：不绑定框架的 AWS 数据库与迁移规则。
 5. `buyna-project-resource-registry`：登记并核验共享EC2/RDS、Serverless、CloudFront静态或外部遗留项目资源。
-6. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
-7. `buyai-product-merchant-backend`：单一商家登录、商品、SKU、库存、订单和客户。
-8. `buyai-booking-service-backend`：单一商家的服务、预约、容量、记录和后台。
-9. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
-10. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
-11. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
-12. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
-13. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
+6. `buyna-unified-merchant-architecture`：在现有RDS数据库内按商家独立Schema进行在线迁移、隔离、切换和回滚。
+7. `buyna-s3-storage`：S3 图片和文件上传、权限及清理规则。
+8. `buyai-product-merchant-backend`：单一商家登录、商品、SKU、库存、订单和客户。
+9. `buyai-booking-service-backend`：单一商家的服务、预约、容量、记录和后台。
+10. `buyai-checkout-address-ux`：购买人、地址、邮编和表单数据同步。
+11. `buyai-storefront-layout-ux`：商城结构、商家入口、分类、页脚和移动端。
+12. `buyna-testing-quality`：后台、API、权限、支付和移动端质量验证。
+13. `buyna-aws-release`：AWS 发布准备、迁移、验证和回滚。
+14. `aws-project-deployer`：AWS 身份检查、架构选择和实际部署操作。
 
 ### GlobePay 支付分支
 
@@ -71,7 +72,7 @@ GMV 只能在 `admin.buyna.ai` 的 Buyna.ai CRM 管理员界面查看；商家�
 
 ## 标准调用顺序
 
-安装顺序不影响 Codex 行为。项目执行必须遵循以下逻辑顺序，并在每个阶段等待明确确认：
+安装顺序不影响 Codex 行为。项目执行必须遵循以下逻辑顺序，并在每个阶段通过验证门禁。默认等待明确确认；用户明确批准一个完整且有边界的计划时，可以在每个自动门禁通过后继续：
 
 ```text
 1 客户需求
@@ -102,6 +103,7 @@ skills/buyna-merchant-onboarding
 skills/buyai-dashboard-data-interaction
 skills/buyna-aws-data-layer
 skills/buyna-project-resource-registry
+skills/buyna-unified-merchant-architecture
 skills/buyna-s3-storage
 skills/buyai-product-merchant-backend
 skills/buyai-booking-service-backend

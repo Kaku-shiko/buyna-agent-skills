@@ -38,7 +38,9 @@ merchant during the intake step.
 ## Workflow
 
 Complete exactly one numbered step, validate it, report its evidence, and stop
-for explicit approval before continuing.
+for explicit approval before continuing. If the user explicitly approves the
+complete bounded onboarding plan, continue only after each automated gate
+passes and stop immediately on the first failed gate.
 
 1. **Preflight** — Run the Existing Resource Gate; verify the fixed existing resources, current release, backup method, unique identifiers, and exact host. Require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
 2. **Staging copy** — Back up the database and run registration plus reversible schema/table migrations on a disposable copy. Do not alter production data.
@@ -75,6 +77,7 @@ configuration.
 
 - Reuse the approved database, S3 bucket, EC2 instance, application process, and port.
 - Never create a database, SQLite fallback, RDS/Aurora/DynamoDB resource, Bucket, EC2 instance, service, or extra port to bypass missing configuration. A new isolated merchant schema inside the registered existing PostgreSQL database is allowed only in the approved staging/pending-registration sequence with backup, reversible migration, and explicit approval.
+- Call `@buyna/postgres-merchant-core/schema-migration` before an approved isolated-Schema candidate; keep the existing database name unchanged.
 - Stop with `BLOCKED: EXISTING_RESOURCES_NOT_CONFIRMED` when a required resource is missing, unverified, or a placeholder. Do not recommend replacement infrastructure as the next step.
 - Never move or rewrite another merchant's rows, objects, domain, login, or payment settings.
 - Never accept `project_id`, `seller_id`, owner paths, prices, or paid status from an untrusted browser as authority.

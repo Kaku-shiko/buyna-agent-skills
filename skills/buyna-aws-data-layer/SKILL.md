@@ -12,7 +12,7 @@ Own structured business data and its safe evolution without forcing a backend fr
 1. Require `buyna-project-resource-registry` to classify and validate `projects/<project_id>/resources.yaml` first. This Skill accepts only a registered `shared_ec2_postgresql` project.
 2. Run `node scripts/inspect-existing-resources.mjs --resource <path>` and stop unless it returns `pass`.
 3. Report the existing database engine, connection source, database/schema name, framework, migration system, S3 bucket, region, and project prefix.
-4. Use `packages/buyna-postgres-merchant-core`; select its existing `node-postgres` adapter when the project uses `pg`.
+4. Use `packages/buyna-postgres-merchant-core`; select its existing `node-postgres` adapter when the project uses `pg`. For an approved same-database Schema migration, call its `schema-migration` export and route execution to `buyna-unified-merchant-architecture`.
 5. Read `references/orm-adapter-contract.md` and generate only an adapter when the approved ORM is not already supported.
 6. Run `node scripts/validate-migration.mjs --up <path> --down <path>` before any migration execution and stop unless it returns `pass`.
 7. Validate project/seller isolation on development or staging.
@@ -73,6 +73,7 @@ project integration.
 - Reuse the approved connection and migration system. Never issue `CREATE DATABASE`, provision RDS/Aurora/DynamoDB, or create a local SQLite fallback. An approved onboarding/migration may create a merchant schema and tables only inside the registered existing database, after backup, reversible migration validation, explicit approval, and `schema_change_mode: approved_reversible_migration`; this is not permission to create RDS or another database.
 - Reject blank, `unknown`, `unverified`, `pending`, `placeholder`, `tbd`, `todo`, and `n/a` required resource values. A non-empty placeholder is not evidence.
 - Add schema changes only as reversible migrations in the existing project and database.
+- Keep ORM Schema metadata, PostgreSQL `search_path`, copied enum types, and the application role aligned. A copied table may still reference an enum type in the source Schema; verify types before cutover.
 - Store files as S3 object metadata, not database blobs.
 - Store credentials only in server-side secret configuration.
 - Require backups and rollback planning before destructive changes.
@@ -81,4 +82,4 @@ project integration.
 
 ## Handoff
 
-Use the selected project or merchant backend skill for APIs and `buyna-aws-release` for production migration execution.
+Use the selected project or merchant backend Skill for APIs, `buyna-unified-merchant-architecture` for existing-merchant Schema migration, and `buyna-aws-release` for production release execution.

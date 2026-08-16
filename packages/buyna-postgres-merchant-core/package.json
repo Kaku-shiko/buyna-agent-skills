@@ -4,10 +4,11 @@
   "type": "module",
   "exports": {
     ".": "./src/merchant-core.mjs",
-    "./node-postgres": "./adapters/node-postgres.mjs"
+    "./node-postgres": "./adapters/node-postgres.mjs",
+    "./schema-migration": "./src/schema-migration-core.mjs"
   },
   "scripts": {
-    "test": "node --test test/merchant-core.test.mjs test/node-postgres.test.mjs"
+    "test": "node --test test/merchant-core.test.mjs test/node-postgres.test.mjs test/schema-migration-core.test.mjs"
   },
   "peerDependencies": {
     "pg": ">=8"
