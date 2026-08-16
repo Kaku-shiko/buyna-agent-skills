@@ -1,4 +1,4 @@
 interface:
   display_name: "Buyna.ai 建站引导助手"
-  short_description: "按八个阶段逐步完成网站"
-  default_prompt: "Use $buyna-website-builder to execute only my current approved phase, load only that phase reference, and stop for explicit approval."
+  short_description: "先选择团队或开发者模式，再按阶段完成网站"
+  default_prompt: "Use $buyna-website-builder. On first use, ask only whether I want team mode or developer mode and stop. Then execute only the current approved phase and stop for explicit approval."
