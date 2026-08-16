@@ -30,6 +30,27 @@ export function createWorkflow({projectId,now=new Date().toISOString(),workflowV
 export const WORKFLOW_GATES=gateOrder;
 export const INTERACTION_MODES=interactionModes;
 
+const commonInteractionPolicy=Object.freeze({
+  maxActionQuestionsPerTurn:1,
+  approvalChoices:Object.freeze(['确认并进入下一步','需要修改','暂停当前项目']),
+  canBypassApproval:false,
+  canCreateInfrastructure:false,
+  canExposeSecrets:false,
+});
+
+export function getInteractionPolicy({state}={}){
+  const mode=normalizeInteractionMode(state?.configuration?.interactionMode??'team');
+  return Object.freeze({
+    ...commonInteractionPolicy,
+    mode,
+    requiredSections:Object.freeze(['当前步骤','状态','已经完成','需要你操作','下一步']),
+    showInternalStatusCodes:mode==='developer',
+    showResourceIdentifiers:mode==='developer',
+    showRawCommands:mode==='developer',
+    showTechnicalEvidence:mode==='developer',
+  });
+}
+
 function copyState(state){return structuredClone(state)}
 function gateState(state,gate){
   if(!gateOrder.includes(gate))throw new Error('UNKNOWN_GATE');

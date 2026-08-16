@@ -12,6 +12,8 @@ Never store credentials, payment secrets, personal form values, or environment v
 
 Store `configuration.interactionMode` as `team` or `developer`. The mode controls presentation only; gate status, delivery evidence, and approval transitions remain identical. Persist later mode changes through `setInteractionMode`, never by editing JSON.
 
+After loading state, call `getInteractionPolicy({state})`. This is the canonical presentation contract. A child Skill returns structured evidence to the Builder; it must not bypass the policy by printing raw technical output directly to a team-mode user.
+
 ## Gate mapping
 
 | Phase | Gate | Completion evidence |
