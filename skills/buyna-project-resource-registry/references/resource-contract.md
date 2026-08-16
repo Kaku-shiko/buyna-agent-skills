@@ -21,11 +21,7 @@ release_limits:
   new_ports: 0
 ```
 
-Treat these values as field-shape examples, not reusable identities. Record the
-verified canonical values exactly. `project.id` and `project.seller_id` accept
-lowercase ASCII letters or digits followed by lowercase letters, digits, `-`,
-or `_` (maximum 80 characters). Do not replace underscores, derive either value
-from a Schema/domain/display name, or copy another merchant's identifier.
+Record both IDs exactly as verified; accept `^[a-z0-9][a-z0-9_-]{0,79}$` and never derive or copy them.
 
 Use environment-variable, Secrets Manager, or service configuration names as sources. Never record their values.
 

@@ -54,13 +54,6 @@ release_limits:
   new_ports: 0
 ```
 
-The values above illustrate field shape only. Replace every identity and resource
-value with the exact verified resource-registry value; never copy an example
-merchant identity into a project. Canonical `project_id` and `seller_id` use
-lowercase ASCII letters or digits followed by lowercase letters, digits, `-`,
-or `_` (maximum 80 characters). PostgreSQL Schema names remain separate SQL
-identifiers and must not be substituted for either owner id.
-
 ## Code Delivery
 
 Deliver schema/ORM/query-layer files, reversible migrations, and applicable
@@ -77,6 +70,7 @@ project integration.
 - Keep production databases private.
 - Preserve the project's approved backend framework; do not require Django.
 - Use canonical `project_id` and `seller_id` on every owned record, query, constraint, and index. Never query an owned entity by its id alone.
+- Read `project_id` and `seller_id` exactly from the verified resource record; accept `^[a-z0-9][a-z0-9_-]{0,79}$`, never copy example IDs, and keep Schema names separate.
 - Reuse the approved connection and migration system. Never issue `CREATE DATABASE`, provision RDS/Aurora/DynamoDB, or create a local SQLite fallback. An approved onboarding/migration may create a merchant schema and tables only inside the registered existing database, after backup, reversible migration validation, explicit approval, and `schema_change_mode: approved_reversible_migration`; this is not permission to create RDS or another database.
 - Reject blank, `unknown`, `unverified`, `pending`, `placeholder`, `tbd`, `todo`, and `n/a` required resource values. A non-empty placeholder is not evidence.
 - Add schema changes only as reversible migrations in the existing project and database.

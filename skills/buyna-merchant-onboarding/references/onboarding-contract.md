@@ -40,11 +40,7 @@ Store no secrets in this record.
 ## Canonical ownership
 
 - Treat `project_id + seller_id` as the owner identity.
-- Read both identifiers from the approved resource registry. Never derive them
-  from a display name, domain, Schema, or copied example. Both accept lowercase
-  ASCII letters or digits followed by lowercase letters, digits, `-`, or `_`
-  (maximum 80 characters); for example, a registered `seller_chameleon` remains
-  exactly `seller_chameleon` in every fixed module and server configuration.
+- Read both IDs exactly from the approved resource registry; accept `^[a-z0-9][a-z0-9_-]{0,79}$` and never derive or copy them.
 - Register the same canonical identifiers in Buyna.ai CRM. Add the new
   `seller_id` to `CRM_MERCHANT_SUBSCRIPTION_SELLERS` through the approved
   server configuration and verify the read-only subscription response contains
