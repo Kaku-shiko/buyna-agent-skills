@@ -1,5 +1,5 @@
 const identifier=/^[a-z_][a-z0-9_]{0,62}$/;
-const owner=/^[a-z0-9][a-z0-9-]{0,79}$/;
+const owner=/^[a-z0-9][a-z0-9_-]{0,79}$/;
 const placeholder=/^(unknown|unverified|pending|placeholder|tbd|todo|n\/a)$/i;
 
 function confirmed(value,code,pattern){const text=String(value??'').trim();if(!text||placeholder.test(text)||!pattern.test(text))throw new Error(code);return text}

@@ -9,7 +9,7 @@ record:
   evidence_source: aws-and-runtime-inspection
 project:
   id: project-slug
-  seller_id: seller-id
+  seller_id: merchant_seller
 architecture:
   type: shared_ec2_postgresql
 domains:
@@ -20,6 +20,12 @@ release_limits:
   new_buckets: 0
   new_ports: 0
 ```
+
+Treat these values as field-shape examples, not reusable identities. Record the
+verified canonical values exactly. `project.id` and `project.seller_id` accept
+lowercase ASCII letters or digits followed by lowercase letters, digits, `-`,
+or `_` (maximum 80 characters). Do not replace underscores, derive either value
+from a Schema/domain/display name, or copy another merchant's identifier.
 
 Use environment-variable, Secrets Manager, or service configuration names as sources. Never record their values.
 

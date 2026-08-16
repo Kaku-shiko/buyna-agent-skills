@@ -4,3 +4,9 @@ test('accepts an approved same-database schema migration',()=>assert.equal(valid
 test('rejects new infrastructure and cross-database moves',()=>{assert.throws(()=>validateExistingSchemaMigration({...plan,newDatabases:1}),/MUST_BE_ZERO/);assert.throws(()=>validateExistingSchemaMigration({...plan,targetDatabase:'other'}),/CROSS_DATABASE/)});
 test('blocks placeholder evidence and lag',()=>{assert.throws(()=>assertCutoverEvidence({backupChecksum:'unknown'}),/MISSING/);assert.throws(()=>assertCutoverEvidence({backupChecksum:'x',sourceDigest:'a',targetDigest:'a',changeLogMaxSeq:2,replayedSeq:1,candidateHealth:'pass'}),/NOT_CAUGHT_UP/)});
 test('accepts complete evidence and rejects cross-owner rows',()=>{assert.equal(assertCutoverEvidence({backupChecksum:'x',sourceDigest:'a',targetDigest:'a',changeLogMaxSeq:2,replayedSeq:2,candidateHealth:'pass'}).status,'ready');assert.throws(()=>assertOwnedRows([{project_id:'a',seller_id:'b'}],{projectId:'a',sellerId:'a'}),/CROSS_MERCHANT/)})
+
+test('accepts registered seller ids containing underscores',()=>{
+  const result=validateExistingSchemaMigration({...plan,projectId:'chameleon_shop',sellerId:'seller_chameleon',targetSchema:'chameleon_shop'});
+  assert.equal(result.projectId,'chameleon_shop');
+  assert.equal(result.sellerId,'seller_chameleon');
+});

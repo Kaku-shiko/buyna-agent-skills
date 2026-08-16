@@ -24,7 +24,7 @@ Stop with `BLOCKED: EXISTING_RESOURCES_NOT_CONFIRMED` when the approved database
 Require a secret-free project resource record:
 
 ```yaml
-project: {id: asuka-shop, seller_id: seller_asuka}
+project: {id: merchant-project, seller_id: merchant_seller}
 database:
   mode: existing
   provider: aws_rds
@@ -32,7 +32,7 @@ database:
   instance_identifier: confirmed-rds-identifier
   connection_source: DATABASE_URL
   name: confirmed-database-name
-  schema: asuka_shop
+  schema: merchant_project
   allow_create_database: false
   allow_create_rds: false
   allow_create_schema: false
@@ -40,7 +40,7 @@ storage:
   mode: existing
   bucket_source: AWS_STORAGE_BUCKET_NAME
   region: ap-northeast-1
-  prefix: projects/asuka-shop/
+  prefix: projects/merchant-project/sellers/merchant_seller/
   allow_create_bucket: false
 deployment:
   instance_id: confirmed-existing-instance-id
@@ -53,6 +53,13 @@ release_limits:
   new_buckets: 0
   new_ports: 0
 ```
+
+The values above illustrate field shape only. Replace every identity and resource
+value with the exact verified resource-registry value; never copy an example
+merchant identity into a project. Canonical `project_id` and `seller_id` use
+lowercase ASCII letters or digits followed by lowercase letters, digits, `-`,
+or `_` (maximum 80 characters). PostgreSQL Schema names remain separate SQL
+identifiers and must not be substituted for either owner id.
 
 ## Code Delivery
 
