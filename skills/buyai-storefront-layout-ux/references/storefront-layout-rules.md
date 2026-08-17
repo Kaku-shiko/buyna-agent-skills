@@ -4,7 +4,7 @@ Use these detailed layout rules when building or repairing Buyai public merchant
 
 ## Header And Navigation
 
-Every public storefront should have a clear brand/header, primary navigation, and visible seller login/admin entry. The login entry should link to `/seller/login` or the project's actual seller route. Do not hide seller login only in tiny footer text.
+Every public storefront should have a clear brand/header, primary navigation, and visible login/admin entry. The visible button label is `登录`, not `商户登录` or `商家登录`, unless the user explicitly approves different copy. The entry should link to `/seller/login` or the project's actual seller route. Do not hide it only in tiny footer text.
 
 On mobile, buyer-facing navigation buttons should be easier to tap than seller/admin controls. Merchant login remains visible but should not compete with the main buying flow.
 

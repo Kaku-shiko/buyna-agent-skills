@@ -25,7 +25,7 @@ Check the real system and report evidence, not assumptions.
 
 ## Pre-Upload Package Gate
 
-Before any Git handoff, archive delivery, or AWS upload:
+Before any archive delivery or AWS upload:
 
 1. Identify whether the target is a source package or a runtime deployment
    artifact. Never combine them by default.

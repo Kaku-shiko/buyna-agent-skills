@@ -34,13 +34,14 @@ core.
 For a product merchant Dashboard, use
 `packages/buyna-merchant-dashboard-ui` instead of regenerating its shell,
 navigation, table, status, pagination, dialog, and responsive-state code.
-Configure the approved design tokens and project API/router adapters. Generate
-new UI only for an explicitly approved requirement not covered by the fixed
-package.
+This is a fixed functional scaffold, not a fixed visual design. Configure it
+with the approved project design tokens and API/router adapters. Generate the
+project presentation from the approved design; add new behavior only for an
+explicitly approved requirement not covered by the fixed package.
 
 ## Dashboard UI Boundary
 
-Phase 4 owns Dashboard presentation only: layout, navigation, components,
+Phase 4 owns Dashboard presentation only: project-specific layout, navigation, components,
 tables, forms, visible actions, responsive behavior, accessibility, and
 loading/empty/success/error/permission UI states. Simulate actions through a
 mock repository or adapter boundary.

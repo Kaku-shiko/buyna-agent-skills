@@ -5,7 +5,7 @@ description: "Standardize Buyna.ai storefront UX: header, navigation, seller log
 
 # Buyai Storefront Layout UX
 
-Use for public storefront structure and usability. Owns header, nav, category tabs, seller login entry, footer, policy links, empty states, contrast, grid readability, and mobile layout. Does not own CRUD, booking, payment, or order sync.
+Use for public storefront structure and usability. Owns header, nav, category tabs, login entry, footer, policy links, empty states, contrast, grid readability, and mobile layout. Does not own CRUD, booking, payment, or order sync.
 
 ## First Move
 
@@ -21,7 +21,7 @@ Use `impeccable` for visual critique, polish, layout, color, type, responsive, m
 
 Readable beats decorative. Do not ship pale text, hidden seller login, giant blanks, hard-coded categories after backend categories exist, or inconsistent footers.
 
-Storefront needs brand/header, visible seller login/admin entry, meaningful nav, backend-driven categories when available, product/service grid or useful empty state, tappable links, shared footer/legal links, and mobile layout without clipped actions.
+Storefront needs brand/header, visible login/admin entry, meaningful nav, backend-driven categories when available, product/service grid or useful empty state, tappable links, shared footer/legal links, and mobile layout without clipped actions. Label the public login button `登录`; do not display `商户登录` or `商家登录` unless the user explicitly approves that wording.
 
 For product commerce, default to the MEDINANCE cart interaction: “加入购物车”
 opens a right-side drawer with item count, image/details, quantity controls,

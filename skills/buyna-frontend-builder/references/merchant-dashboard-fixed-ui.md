@@ -1,8 +1,10 @@
-# Merchant Dashboard Fixed UI
+# Merchant Dashboard Fixed Functional Scaffold
 
 Use `packages/buyna-merchant-dashboard-ui` as the product-merchant Dashboard
-baseline. Do not regenerate its shell, canonical navigation, common table,
-pagination, status, dialog, or responsive-state components.
+functional baseline. It fixes reusable behavior and state handling, not the
+project's visual design. Do not regenerate its shell behavior, canonical
+functional navigation, common table behavior, pagination, status, dialog, or
+responsive-state handling.
 
 ## Fixed Content
 
@@ -23,21 +25,13 @@ renderers, and explicitly approved business-specific additions. Map existing
 project fields to the fixed table keys; do not move backend rules into cell
 renderers.
 
-Override these CSS variables from the approved website design system:
+Set the package background, surface, sidebar, text, muted text, border, accent,
+body-font, and heading-font CSS variables from the approved website design
+system. The package defaults are implementation fallbacks and are not an
+approved design.
 
-```css
-:root {
-  --buyna-admin-bg: #f6f4ef;
-  --buyna-admin-surface: #ffffff;
-  --buyna-admin-sidebar: #090909;
-  --buyna-admin-text: #171717;
-  --buyna-admin-muted: #6c6a66;
-  --buyna-admin-border: #d9d5cc;
-  --buyna-admin-accent: #a65b00;
-  --buyna-admin-font: system-ui, sans-serif;
-  --buyna-admin-heading: Georgia, serif;
-}
-```
+Do not use the package defaults as a design decision and do not make this
+package choose colors, fonts, spacing style, imagery, or brand expression.
 
 Do not copy legacy Supabase, SQLite, payment, authentication, or persistence
 code from visual cases. Phase 4 uses mock repositories through the project's

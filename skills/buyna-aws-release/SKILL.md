@@ -19,7 +19,7 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 
 ## Rules
 
-- Never ask for secrets in chat or commit them to source.
+- Never ask for secrets in chat or store them in project files.
 - Reuse only the database, bucket, region, project prefix, and connection sources recorded for this project. Stop if the record is missing or conflicts with AWS inspection.
 - Never create a database, RDS/Aurora resource, DynamoDB table, SQLite fallback, S3 bucket, or replacement storage resource during release.
 - Require `aws-project-deployer` mode `existing_buyna_resources`; stop if it proposes `new_infrastructure`, changes architecture type, or introduces any unrecorded persistent resource.

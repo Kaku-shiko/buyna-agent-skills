@@ -61,7 +61,7 @@ In `team` mode, show `当前步骤`, `状态`, `已经完成`, `需要你操作`
 
 ## Delivery Record
 
-For code phases 4-8, report `DELIVERED_FILES`, `IMPLEMENTED_SCOPE`, `VERIFICATION`, `NOT_CONNECTED`, and `PHASE_RESULT`. A plan, screenshot, prompt, or chat-only code is not delivery. Do not require Git unless requested.
+For code phases 4-8, report `DELIVERED_FILES`, `IMPLEMENTED_SCOPE`, `VERIFICATION`, `NOT_CONNECTED`, and `PHASE_RESULT`. A plan, screenshot, prompt, or chat-only code is not delivery.
 
 ## Guardrails
 
@@ -69,6 +69,6 @@ For code phases 4-8, report `DELIVERED_FILES`, `IMPLEMENTED_SCOPE`, `VERIFICATIO
 - Do not mix requirement, design, implementation, testing, or release phases.
 - Do not proceed automatically or recommend optional features.
 - Mention only immediate security, data-loss, payment, or execution blockers.
-- Keep secrets out of chat, frontend code, Git, and Skill files.
+- Keep secrets out of chat, frontend code, project files, and Skill files.
 - Do not treat local preview as production delivery.
 - Interaction mode changes presentation only. It never changes required evidence, approval, security, payment, database, or release gates.
