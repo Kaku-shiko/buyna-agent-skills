@@ -5,7 +5,11 @@ approved and the merchant branch is confirmed as `product`.
 
 ## Required Navigation
 
-This file is the canonical product-merchant Dashboard contract. Keep these seven top-level pages in this order:
+This file is the canonical product-merchant Dashboard functional contract, not
+a visual-design specification. It fixes required capabilities, fields,
+actions, states, and ownership boundaries. Colors, typography, component
+appearance, spacing style, and brand expression come from the approved project
+design. Keep these seven top-level functions accessible in this order:
 
 1. `仪表盘`
 2. `商品管理`

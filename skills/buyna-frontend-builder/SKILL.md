@@ -24,7 +24,7 @@ core.
 3. Implement the approved public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope. Do not add another pre-code approval when the combined design-and-structure package already contains the Dashboard composition.
    For product commerce, include the approved cart presentation and connect it
    to a mock Adapter matching `buyna-cart-core`. Use its fixed right-side
-   `CartButton` and `CartDrawer` components as the default MEDINANCE behavior;
+   `CartButton` and `CartDrawer` components as the default commerce behavior;
    do not implement cart pricing rules in components.
 4. Implement all approved desktop and mobile interactions with clearly marked mock data.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.
@@ -34,13 +34,14 @@ core.
 For a product merchant Dashboard, use
 `packages/buyna-merchant-dashboard-ui` instead of regenerating its shell,
 navigation, table, status, pagination, dialog, and responsive-state code.
-Configure the approved design tokens and project API/router adapters. Generate
-new UI only for an explicitly approved requirement not covered by the fixed
-package.
+This is a fixed functional scaffold, not a fixed visual design. Configure it
+with the approved project design tokens and API/router adapters. Generate the
+project presentation from the approved design; add new behavior only for an
+explicitly approved requirement not covered by the fixed package.
 
 ## Dashboard UI Boundary
 
-Phase 4 owns Dashboard presentation only: layout, navigation, components,
+Phase 4 owns Dashboard presentation only: project-specific layout, navigation, components,
 tables, forms, visible actions, responsive behavior, accessibility, and
 loading/empty/success/error/permission UI states. Simulate actions through a
 mock repository or adapter boundary.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCartService,MEDINANCE_CART_FLOW} from '../src/cart-core.mjs';
+import {createCartService,DEFAULT_COMMERCE_CART_FLOW} from '../src/cart-core.mjs';
 import {createLocalStorageCartStore} from '../adapters/local-storage.mjs';
 
 function fixture(){
@@ -44,9 +44,9 @@ test('local storage adapter persists only product, variant, and quantity',async(
   assert.doesNotMatch([...memory.values()][0],/unitPrice|untrusted/);
 });
 
-test('MEDINANCE defaults limit quantity and cart lines',async()=>{
+test('default commerce policy limits quantity and cart lines',async()=>{
   const {store,catalog}=fixture();
-  const cart=createCartService({store,catalog,projectId:'shop',sellerId:'seller',cartId:'medinance-default'});
+  const cart=createCartService({store,catalog,projectId:'shop',sellerId:'seller',cartId:'commerce-default'});
   await assert.rejects(()=>cart.addItem({productId:'p1',quantity:11}),/INVALID_CART_QUANTITY/);
   for(let index=1;index<=20;index++)await cart.addItem({productId:`p${index}`,quantity:1});
   await assert.rejects(()=>cart.addItem({productId:'p21',quantity:1}),/CART_LINE_LIMIT_EXCEEDED/);
@@ -62,8 +62,8 @@ test('cart clears only after verified payment or explicit reset',async()=>{
   assert.equal((await cart.getCart()).itemCount,0);
 });
 
-test('the fixed storefront flow matches the MEDINANCE cart sequence',()=>{
-  assert.equal(MEDINANCE_CART_FLOW.presentation,'right_drawer');
-  assert.deepEqual(MEDINANCE_CART_FLOW.steps,['cart','buyer_form','order_review','provider_payment','server_verified_result']);
-  assert.equal(MEDINANCE_CART_FLOW.checkoutMode,'all_items_once');
+test('the fixed storefront flow matches the default commerce sequence',()=>{
+  assert.equal(DEFAULT_COMMERCE_CART_FLOW.presentation,'right_drawer');
+  assert.deepEqual(DEFAULT_COMMERCE_CART_FLOW.steps,['cart','buyer_form','order_review','provider_payment','server_verified_result']);
+  assert.equal(DEFAULT_COMMERCE_CART_FLOW.checkoutMode,'all_items_once');
 });

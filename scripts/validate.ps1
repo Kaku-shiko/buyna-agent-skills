@@ -2,7 +2,9 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $skillsRoot = Join-Path $repositoryRoot 'skills'
 $packagesRoot = Join-Path $repositoryRoot 'packages'
+$manifestPath = Join-Path $repositoryRoot 'repository-manifest.json'
 $failed = @()
+$manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
 
 Get-ChildItem -Directory -LiteralPath $skillsRoot | ForEach-Object {
     $skillFile = Join-Path $_.FullName 'SKILL.md'
@@ -26,22 +28,20 @@ Get-ChildItem -Directory -LiteralPath $skillsRoot | ForEach-Object {
     }
 }
 
-$requiredPackages = @(
-    'buyna-merchant-dashboard-ui',
-    'buyna-merchant-catalog-core',
-    'buyna-cart-core',
-    'buyna-order-core',
-    'buyna-postgres-merchant-core',
-    'buyna-merchant-file-core',
-    'buyna-gmv-core',
-    'buyna-workflow-state-core'
-)
+$actualSkills = @(Get-ChildItem -Directory -LiteralPath $skillsRoot | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } | ForEach-Object Name | Sort-Object)
+$manifestSkills = @($manifest.skills | Sort-Object)
+if (Compare-Object $actualSkills $manifestSkills) { $failed += 'repository-manifest skill inventory mismatch' }
+
+$requiredPackages = @($manifest.packages)
 foreach ($packageName in $requiredPackages) {
     $packageRoot = Join-Path $packagesRoot $packageName
     if (-not (Test-Path -LiteralPath (Join-Path $packageRoot 'package.json'))) {
         $failed += "$packageName`: missing fixed module package.json"
     }
 }
+$actualPackages = @(Get-ChildItem -Directory -LiteralPath $packagesRoot | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'package.json') } | ForEach-Object Name | Sort-Object)
+$manifestPackages = @($manifest.packages | Sort-Object)
+if (Compare-Object $actualPackages $manifestPackages) { $failed += 'repository-manifest package inventory mismatch' }
 
 if ($failed.Count -gt 0) {
     $failed | ForEach-Object { Write-Error $_ }

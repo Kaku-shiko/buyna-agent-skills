@@ -30,6 +30,10 @@ must not duplicate status, transaction, or idempotency orchestration.
 ## Required Flow
 
 Notify and return query call one idempotent writer. It finds local order by provider id, sets paid/refunded status, stores raw data, creates paid record once, updates stock/capacity once, and logs write failures.
+For product commerce, implement this writer through
+`packages/buyna-commerce-settlement-core`; provider and PostgreSQL code are
+Adapters. Do not re-orchestrate order, payment, inventory, paid-customer, refund,
+and GMV Outbox effects in each merchant project.
 
 `paid_at` uses provider/local payment time when available, not refresh time. Expiration must not override verified success.
 

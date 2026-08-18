@@ -5,23 +5,41 @@ description: "Register, inspect, normalize, or repair one Buyna project resource
 
 # Buyna Project Resource Registry
 
-Create one secret-free `projects/<project_id>/resources.yaml` that describes the verified live architecture. Registration is evidence, not authorization to provision, migrate, restart, or switch traffic.
+Create one secret-free `projects/<project_id>/resources.yaml`. Existing projects
+describe verified live architecture. New independent projects may start with a
+`candidate` record that separates verified shared resources from proposed
+project-owned identities. Registration is evidence, not authorization to
+provision, migrate, restart, or switch traffic.
+
+Use `packages/buyna-resource-evidence-core` for evidence receipts and escalation
+decisions. Never reproduce its placeholder, lifecycle, expiry, shared/project
+classification, or automatic-inspection rules in prose.
 
 ## Workflow
 
-1. Verify AWS identity when AWS resources are in scope. Inspect live DNS, routing, compute, database, storage, processes, ports, and payment/GMV event paths read-only.
-2. Classify exactly one architecture from [the resource contract](references/resource-contract.md): `shared_ec2_postgresql`, `aws_serverless`, `aws_static`, or `external_legacy`.
-3. Reconcile live evidence with the existing resource file. Use `unknown` for unverified fields; validation must remain blocked until required values are verified. Never copy a value from another merchant or guess from a domain name.
-4. Save identifiers and secret *sources*, never credentials or complete connection URLs.
-5. Run `node scripts/validate-resource-record.mjs --resource projects/<project_id>/resources.yaml` and stop unless it returns `pass`.
-6. Report verified, recorded-only, conflicting, and blocked fields. Stop after registration; route later work separately.
+1. Classify the request as `new_independent`, `existing_alias`, or
+   `existing_migration` before selecting a route. Honor the user's explicit
+   classification after identity-collision checks.
+2. Verify AWS identity when AWS resources are in scope. Inspect live DNS, routing, compute, database, storage, processes, ports, and payment/GMV event paths read-only. Record AWS, runtime, and DNS Adapter attempts, then call `decideHumanEscalation`. Ask a person only when it returns `AUTOMATIC_INSPECTION_EXHAUSTED`.
+3. Classify exactly one architecture from [the resource contract](references/resource-contract.md): `shared_ec2_postgresql`, `aws_serverless`, `aws_static`, or `external_legacy`.
+4. Reconcile live evidence with the resource file. Shared EC2/RDS/database/bucket
+   identifiers may legitimately repeat. Never copy project-owned Schema,
+   process, environment source, S3 prefix, credential, or data.
+5. Save identifiers and secret *sources*, never credentials or complete connection URLs.
+6. Run `node scripts/validate-resource-record.mjs --resource projects/<project_id>/resources.yaml` and stop unless it returns `pass`.
+7. Create and assess the fixed evidence receipt. Report verified, candidate,
+   conflicting, expired, and blocked fields. Stop after registration; route
+   later work separately.
 
 ## Boundaries
 
 - Keep `allow_create_rds`, `allow_create_database`, `allow_create_bucket`, `allow_create_instance`, and `allow_create_distribution` false for existing projects.
+- Repeated shared-resource identifiers are not cross-project ownership. Isolation
+  applies to Schema, `project_id + seller_id`, runtime identity, environment
+  source, S3 prefix, logs, credentials, and business data.
 - Distinguish RDS instance identifier, PostgreSQL database name, and schema. Never place the RDS identifier in `database.name`.
 - An approved new merchant may create an isolated schema and tables inside the recorded existing PostgreSQL database only through `buyna-merchant-onboarding` plus `buyna-aws-data-layer`, after backup, reversible migration validation, and explicit approval. The resource record alone cannot authorize it.
-- Preserve registered DynamoDB/Lambda/CloudFront projects such as BlueSequoia. Do not force them onto EC2/RDS during normal build or release work.
+- Preserve registered DynamoDB/Lambda/CloudFront projects. Do not force them onto EC2/RDS during normal build or release work.
 - A DNS record alone is not a deployment. Require matching routing and runtime/storage evidence.
 - Do not store secrets, personal data, database URLs, payment credentials, or raw environment values.
 

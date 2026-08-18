@@ -4,6 +4,10 @@ Require the approved Phase 4 code record and API contract. Use `buyai-dashboard-
 
 Before backend integration, require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`. Missing or placeholder resource evidence blocks the slice; never provision a replacement to continue.
 
+Create one foundation receipt with `packages/buyna-integration-receipt-core`.
+Later Dashboard slices reuse it while its resource evidence and expiry remain
+valid; do not repeat the complete foundation inspection for every page.
+
 When the current slice creates a new merchant project directory, route its file
 layout to `buyna-merchant-onboarding`, which must call
 `packages/buyna-merchant-file-core` `scaffoldMerchantProject` after preflight.

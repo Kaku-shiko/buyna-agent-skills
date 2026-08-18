@@ -39,7 +39,7 @@ frontend checks, and user approval are complete.
 - Do not mark payment paid from the browser or redirect alone.
 - Do not expose CRM credentials, other merchants, GMV, or subscription write
   controls in a merchant Dashboard.
-- Do not use MEDINANCE or any other case project as a default identity. Case
+- Do not use any case project as a default identity. Case
   projects are fixtures only; the same contract must work for every onboarded
   merchant.
 

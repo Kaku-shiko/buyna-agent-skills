@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $sourceRoot = Join-Path $repositoryRoot 'skills'
 $moduleSourceRoot = Join-Path $repositoryRoot 'packages'
+$manifest = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'repository-manifest.json') | ConvertFrom-Json
 
 if ($Scope -eq 'User') {
     $destinationRoot = Join-Path $env:USERPROFILE '.codex\skills'
@@ -36,9 +37,9 @@ foreach ($obsoleteSkill in $obsoleteSkills) {
     }
 }
 
-Get-ChildItem -Directory -LiteralPath $sourceRoot | ForEach-Object {
-    $skillName = $_.Name
-    $source = $_.FullName
+@($manifest.skills) | ForEach-Object {
+    $skillName = [string]$_
+    $source = Join-Path $sourceRoot $skillName
     $destination = Join-Path $destinationRoot $skillName
 
     if (-not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) {
@@ -64,9 +65,9 @@ Get-ChildItem -Directory -LiteralPath $sourceRoot | ForEach-Object {
     Write-Host "Installed: $skillName"
 }
 
-Get-ChildItem -Directory -LiteralPath $moduleSourceRoot | ForEach-Object {
-    $moduleName = $_.Name
-    $source = $_.FullName
+@($manifest.packages) | ForEach-Object {
+    $moduleName = [string]$_
+    $source = Join-Path $moduleSourceRoot $moduleName
     $destination = Join-Path $moduleDestinationRoot $moduleName
 
     if (-not (Test-Path -LiteralPath (Join-Path $source 'package.json'))) {

@@ -1,5 +1,9 @@
 # Buyna.ai Agent Skills
 
+The machine-readable inventory is `repository-manifest.json`. Installation and
+repository validation consume that manifest; do not maintain separate manual
+Skill or fixed-Module counts.
+
 Buyna.ai 团队网站开发 Skill 仓库。仓库中的每个 `skills/<skill-name>/` 都是一个可以被 Codex 独立安装和调用的标准 Skill。
 
 公开仓库：[https://github.com/Kaku-shiko/buyna-agent-skills](https://github.com/Kaku-shiko/buyna-agent-skills)
