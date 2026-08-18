@@ -55,7 +55,7 @@ test('legacy workflow without an interaction mode safely renders as team mode',(
 test('a gate advances only through start delivery approval request and explicit approval',()=>{
   let state=createWorkflow({projectId:'shop-one',now:'2026-08-15T00:00:00.000Z'});
   state=startGate({state,gate:'customer_intake',now:'2026-08-15T00:01:00.000Z'}).state;
-  state=recordDelivery({state,gate:'customer_intake',delivery:{record:'workflow/records/customer-intake.json'},now:'2026-08-15T00:02:00.000Z'}).state;
+  state=recordDelivery({state,gate:'customer_intake',delivery:{record:'workflow/records/customer-intake.json',capabilities:{siteType:'content',requiresDashboard:false,requiresCart:false,requiresCheckout:false,requiresPayment:false,requiresBooking:false}},now:'2026-08-15T00:02:00.000Z'}).state;
   state=requestApproval({state,gate:'customer_intake',now:'2026-08-15T00:03:00.000Z'}).state;
   state=approveGate({state,gate:'customer_intake',approvedBy:'user',now:'2026-08-15T00:04:00.000Z'}).state;
   assert.equal(state.gates.customer_intake.status,'approved');
@@ -70,9 +70,13 @@ function completeGate(state,gate,delivery){
   return approveGate({state,gate,approvedBy:'user'}).state;
 }
 
+const contentCapabilities={siteType:'content',requiresDashboard:false,requiresCart:false,requiresCheckout:false,requiresPayment:false,requiresBooking:false};
+const commerceCapabilities={siteType:'commerce',requiresDashboard:true,requiresCart:true,requiresCheckout:true,requiresPayment:true,requiresBooking:false};
+const intake=(capabilities=contentCapabilities)=>({record:'workflow/records/customer-intake.json',capabilities});
+
 test('frontend code cannot request approval without files passing checks and an interface contract',()=>{
   let state=createWorkflow({projectId:'shop-two'});
-  state=completeGate(state,'customer_intake',{record:'workflow/records/customer-intake.json'});
+  state=completeGate(state,'customer_intake',intake());
   state=completeGate(state,'design_and_structure',{designRecord:'workflow/records/design.json',pageStructure:'workflow/records/page-structure.json',boardStatus:'delivered'});
   state=startGate({state,gate:'frontend_code'}).state;
   state=recordDelivery({state,gate:'frontend_code',delivery:{deliveredFiles:[],verification:[],interfaceContract:''}}).state;
@@ -81,7 +85,7 @@ test('frontend code cannot request approval without files passing checks and an 
 
 test('dashboard integration stays incomplete until every required slice has code and passing verification',()=>{
   let state=createWorkflow({projectId:'shop-three',dashboardSlices:['merchant_identity','products','orders']});
-  state=completeGate(state,'customer_intake',{record:'workflow/records/customer-intake.json'});
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities));
   state=completeGate(state,'design_and_structure',{designRecord:'workflow/records/design.json',pageStructure:'workflow/records/page-structure.json',boardStatus:'delivered'});
   state=completeGate(state,'frontend_code',{deliveredFiles:['src/index.tsx'],verification:[{status:'passed'}],interfaceContract:'workflow/records/frontend-contract.json'});
   state=startGate({state,gate:'dashboard_integration'}).state;
@@ -91,7 +95,7 @@ test('dashboard integration stays incomplete until every required slice has code
 
 test('only dashboard and payment gates may be marked not applicable with a reason',()=>{
   let state=createWorkflow({projectId:'static-site'});
-  state=completeGate(state,'customer_intake',{record:'workflow/records/customer-intake.json'});
+  state=completeGate(state,'customer_intake',intake());
   assert.throws(()=>markNotApplicable({state,gate:'design_and_structure',reason:'skip'}),/GATE_NOT_OPTIONAL/);
   state=completeGate(state,'design_and_structure',{designRecord:'workflow/records/design.json',pageStructure:'workflow/records/page-structure.json',boardStatus:'postponed'});
   state=completeGate(state,'frontend_code',{deliveredFiles:['index.html'],verification:[{status:'passed'}],interfaceContract:'workflow/records/frontend-contract.json'});
@@ -105,10 +109,45 @@ test('a blocked gate resumes and a rejected approval returns to work',()=>{
   state=blockGate({state,gate:'customer_intake',code:'MATERIALS',message:'waiting'}).state;
   assert.equal(state.gates.customer_intake.status,'blocked');
   state=resumeGate({state,gate:'customer_intake'}).state;
-  state=recordDelivery({state,gate:'customer_intake',delivery:{record:'brief.md'}}).state;
+  state=recordDelivery({state,gate:'customer_intake',delivery:{record:'brief.md',capabilities:contentCapabilities}}).state;
   state=requestApproval({state,gate:'customer_intake'}).state;
   state=rejectGate({state,gate:'customer_intake',feedback:'fix address',rejectedBy:'customer'}).state;
   assert.equal(state.gates.customer_intake.status,'in_progress');
+});
+
+test('one passing check cannot hide a failed check',()=>{
+  let state=createWorkflow({projectId:'strict-checks'});
+  state=completeGate(state,'customer_intake',intake());
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  state=startGate({state,gate:'frontend_code'}).state;
+  state=recordDelivery({state,gate:'frontend_code',delivery:{deliveredFiles:['index.html'],interfaceContract:'contract.json',verification:[{status:'PASS'},{status:'FAIL'}]}}).state;
+  assert.throws(()=>requestApproval({state,gate:'frontend_code'}),/FRONTEND_DELIVERY_EVIDENCE_MISSING/);
+});
+
+test('capabilities prevent skipping required commerce gates',()=>{
+  let state=createWorkflow({projectId:'commerce-shop'});
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities));
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  state=completeGate(state,'frontend_code',{deliveredFiles:['app.tsx'],verification:['PASS'],interfaceContract:'contract.json'});
+  assert.throws(()=>markNotApplicable({state,gate:'dashboard_integration',reason:'skip'}),/DASHBOARD_REQUIRED/);
+});
+
+test('release evidence follows architecture and requires all zero-create counters',()=>{
+  const base={releaseVersion:'v1',newEc2Instances:0,newDatabases:0,newBuckets:0,newPorts:0,verifiedUrls:['https://example.com'],health:'passed',rollback:'s3://rollback'};
+  for(const delivery of [
+    {...base,architectureType:'shared_ec2_postgresql',targetInstance:'i-existing',runtimeRoute:'unix:/run/shop.sock'},
+    {...base,architectureType:'aws_serverless',distributionId:'E123',functionOrApiIds:['fn'],dataStoreIds:['table']},
+    {...base,architectureType:'aws_static',distributionId:'E456',bucketName:'existing-bucket'},
+  ]){
+    let state=createWorkflow({projectId:`release-${delivery.architectureType}`});
+    state.gates.aws_release.status='in_progress';state.currentGate='aws_release';
+    state=recordDelivery({state,gate:'aws_release',delivery}).state;
+    assert.equal(requestApproval({state,gate:'aws_release'}).state.gates.aws_release.status,'waiting_for_approval');
+  }
+  let state=createWorkflow({projectId:'bad-release'});
+  state.gates.aws_release.status='in_progress';state.currentGate='aws_release';
+  state=recordDelivery({state,gate:'aws_release',delivery:{...base,newBuckets:1,architectureType:'aws_static',distributionId:'E456',bucketName:'existing-bucket'}}).state;
+  assert.throws(()=>requestApproval({state,gate:'aws_release'}),/RELEASE_DELIVERY_EVIDENCE_MISSING/);
 });
 
 test('state is atomic and transition history is append only',async()=>{

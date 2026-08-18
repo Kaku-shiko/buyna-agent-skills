@@ -24,9 +24,18 @@ After loading state, call `getInteractionPolicy({state})`. This is the canonical
 | 5 | `dashboard_integration` | every configured slice, frontend/backend files, passing checks |
 | 6 | `checkout_payment` | pending order, responsive routing, verified status sync, idempotency, GMV Outbox, tests |
 | 7 | `testing_upload_gate` | PASS and passing checks |
-| 8 | `aws_release` | version, approved instance, zero new EC2, URLs, health, rollback |
+| 8 | `aws_release` | version, architecture-specific target, all four zero-create counters, URLs, health, rollback |
 
-Only Dashboard and checkout/payment may be `not_applicable`, with a reason. Child Skills return evidence; only `buyna-website-builder` persists transitions.
+The intake delivery stores `siteType` and all five capability booleans. Only
+Dashboard and checkout/payment may be `not_applicable`, and only when those
+stored capabilities say they are unnecessary. Every verification entry must
+pass; one passing result cannot hide a failure. Child Skills return evidence;
+only `buyna-website-builder` persists transitions.
+
+Release target evidence is architecture-specific: EC2 runtime and route for
+`shared_ec2_postgresql`; distribution, function/API, and data store identifiers
+for `aws_serverless`; distribution and Bucket for `aws_static`; verified target
+for retained `external_legacy`.
 
 ## Future Skills
 

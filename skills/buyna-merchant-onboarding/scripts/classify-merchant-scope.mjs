@@ -15,10 +15,12 @@ function validHost(value){const host=required(value,'PRIMARY_HOST_REQUIRED');if(
 export function classifyMerchantScope({intent,primaryHost,projectId,sellerId}={}){
   const normalizedIntent=required(intent,'MERCHANT_INTENT_REQUIRED'),classification=intents.get(normalizedIntent);
   if(!classification)throw new Error('MERCHANT_INTENT_INVALID');
-  const host=validHost(primaryHost),project=required(projectId,'PROJECT_ID_REQUIRED'),seller=required(sellerId,'SELLER_ID_REQUIRED');
-  if(!idPattern.test(project))throw new Error('PROJECT_ID_INVALID');
-  if(!idPattern.test(seller))throw new Error('SELLER_ID_INVALID');
-  return{status:'pass',intent:normalizedIntent,primaryHost:host,projectId:project,sellerId:seller,...classification,reuseSharedFoundation:true,mayCreateSchemaAfterApproval:normalizedIntent==='new_independent'};
+  const host=validHost(primaryHost);
+  const project=String(projectId??'').trim().toLowerCase()||null;
+  const seller=String(sellerId??'').trim().toLowerCase()||null;
+  if(project&&!idPattern.test(project))throw new Error('PROJECT_ID_INVALID');
+  if(seller&&!idPattern.test(seller))throw new Error('SELLER_ID_INVALID');
+  return{status:'pass',intent:normalizedIntent,primaryHost:host,projectId:project,sellerId:seller,identityResolutionRequired:!project||!seller,...classification,reuseSharedFoundation:true,mayCreateSchemaAfterApproval:normalizedIntent==='new_independent'};
 }
 
 function arg(name){const index=process.argv.indexOf(name);return index<0?undefined:process.argv[index+1]}

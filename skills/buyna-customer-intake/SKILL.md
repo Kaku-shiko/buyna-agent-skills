@@ -11,7 +11,9 @@ Collect customer information before design or development. Read `references/inta
 
 Collect only these basic categories:
 
-1. Website type.
+1. Website type. Record `siteType` and the five booleans
+   `requiresDashboard`, `requiresCart`, `requiresCheckout`,
+   `requiresPayment`, and `requiresBooking`.
 2. Primary language and any additional languages.
 3. Company name and address information.
 4. Whether prices appear on the website and the currency. Use supplied product prices when present; otherwise default price maintenance to the merchant Dashboard without asking.
@@ -30,3 +32,5 @@ Collect only these basic categories:
 ## Completion
 
 Output the Chinese customer-information record defined in the reference. Ask for one correction or approval, then stop. Do not repeat accepted answers.
+Include the machine-readable capability decision so code, not free-form AI
+judgment, controls later optional gates.

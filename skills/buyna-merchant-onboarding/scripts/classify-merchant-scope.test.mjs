@@ -12,6 +12,14 @@ test('routes an explicitly independent project to onboarding',()=>{
   assert.equal(result.mayCreateSchemaAfterApproval,true);
 });
 
+test('routes before a new merchant identity is generated',()=>{
+  const result=classifyMerchantScope({intent:'new_independent',primaryHost:'new.example.com'});
+  assert.equal(result.route,'buyna-merchant-onboarding');
+  assert.equal(result.projectId,null);
+  assert.equal(result.sellerId,null);
+  assert.equal(result.identityResolutionRequired,true);
+});
+
 test('routes only an existing migration to unified architecture',()=>{
   assert.equal(classifyMerchantScope({...identity,intent:'existing_migration'}).route,'buyna-unified-merchant-architecture');
   assert.equal(classifyMerchantScope({...identity,intent:'existing_alias'}).route,'buyna-project-resource-registry');

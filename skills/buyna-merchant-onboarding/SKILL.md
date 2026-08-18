@@ -14,7 +14,8 @@ edit lifecycle state directly or infer a transition from prose.
 
 ## First Move
 
-1. Run `scripts/classify-merchant-scope.mjs` first. Continue only when it returns
+1. Run `scripts/classify-merchant-scope.mjs` with intent and primary host first;
+   IDs are optional at this routing step. Continue only when it returns
    `buyna-merchant-onboarding`; never reinterpret an explicitly declared
    `new_independent` project as an alias or migration merely because its host
    resembles an existing merchant.
@@ -43,6 +44,10 @@ Resolve identity before asking intake questions:
 2. Reuse an exact registered pair. For a new merchant, use the generated candidate in the intake record and verify uniqueness; do not ask the user to invent IDs.
 3. Ask one ID question only when the script returns `PROJECT_ID_SOURCE_REQUIRED`, `*_INVALID`, or `MERCHANT_IDENTITY_COLLISION`.
 
+Do not require `project_id` or `seller_id` before classifying the host and
+intent. Classify first, then resolve/reuse or generate the identity, validate
+it, and only then create the resource record.
+
 Then collect only:
 
 - legal/display name and exact primary domain;
@@ -69,7 +74,7 @@ for explicit approval before continuing. If the user explicitly approves the
 complete bounded onboarding plan, continue only after each automated gate
 passes and stop immediately on the first failed gate.
 
-1. **Preflight** — Run the Existing Resource Gate; verify the fixed existing resources, current release, backup method, unique identifiers, and exact host. Require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
+1. **Preflight** — Run the Existing Resource Gate; verify the fixed existing resources, current release, backup method, unique identifiers, and exact host. Require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`. When only Schema availability remains unknown, use the server's existing secret source for a read-only `pg_namespace`, database-name, current-role-permission, and target-owner query. Do not read secret values, create a backup, run Migration, or request approval for a writable migration merely to perform this read-only check.
 2. **Approval** — Call `approveCandidate` only with explicit approval, a backup
    plan, validated reversible migration, and
    `approved_reversible_migration`.

@@ -12,10 +12,14 @@ Act only as a narrow router for one merchant and one primary merchant administra
 1. Classify the request before loading a database or migration Skill. Resolve
    `buyna-merchant-onboarding/scripts/classify-merchant-scope.mjs` from the
    project installation, then the user installation, and run it with the
-   user's explicit intent, host, `project_id`, and `seller_id`.
+   user's explicit intent and host. Supply `project_id` and `seller_id` only
+   when already known; never ask for them merely to classify the request.
    `new_independent` routes only to `buyna-merchant-onboarding`;
    `existing_alias` routes to resource reconciliation; and only
    `existing_migration` routes to `buyna-unified-merchant-architecture`.
+   After routing, run the onboarding identity resolver: reuse an exact
+   registered identity or generate and validate a new pair before resource
+   registration.
 2. Inspect the real repository and environment.
    Resolve fixed modules from project `packages/` or
    `$env:USERPROFILE/.codex/packages/`; never regenerate a missing fixed core.

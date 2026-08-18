@@ -21,7 +21,20 @@ function normalizeInteractionMode(value){
   return mode;
 }
 
-export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.1.0',dashboardSlices=[],interactionMode='team'}={}){
+const siteTypes=Object.freeze(['content','commerce','service','mixed']);
+function normalizeCapabilities(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('SITE_CAPABILITIES_REQUIRED');
+  const siteType=requiredText(value.siteType,'SITE_TYPE_REQUIRED').toLowerCase();
+  if(!siteTypes.includes(siteType))throw new Error('SITE_TYPE_INVALID');
+  const keys=['requiresDashboard','requiresCart','requiresCheckout','requiresPayment','requiresBooking'];
+  const result={siteType};
+  for(const key of keys){if(typeof value[key]!=='boolean')throw new Error('SITE_CAPABILITIES_REQUIRED');result[key]=value[key]}
+  if(result.requiresPayment&&!result.requiresCheckout)throw new Error('PAYMENT_REQUIRES_CHECKOUT');
+  if(result.requiresCart&&!result.requiresCheckout)throw new Error('CART_REQUIRES_CHECKOUT');
+  return Object.freeze(result);
+}
+
+export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.2.0',dashboardSlices=[],interactionMode='team'}={}){
   const id=requiredText(projectId,'PROJECT_ID_REQUIRED');
   const gates=Object.fromEntries(gateOrder.map((gate,index)=>[gate,{status:index===0?'ready':'locked'}]));
   return{schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[...new Set(dashboardSlices.map(value=>requiredText(value,'INVALID_DASHBOARD_SLICE')))]},deferredMaterials:[]};
@@ -70,19 +83,35 @@ function unlockFollowing(state,gate){
   if(following){state.gates[following].status='ready';state.currentGate=following}else{state.currentGate=null;state.status='complete'}
 }
 function nonEmptyArray(value){return Array.isArray(value)&&value.length>0}
-function hasPassedCheck(value){return nonEmptyArray(value)&&value.some(item=>item?.status==='passed'||item?.status==='PASS'||item==='PASS')}
+function allChecksPassed(value){
+  return nonEmptyArray(value)&&value.every(item=>{
+    const status=typeof item==='string'?item:item?.status;
+    return String(status??'').toUpperCase()==='PASS'||String(status??'').toLowerCase()==='passed';
+  });
+}
 function validateDelivery(state,gate,delivery){
-  if(gate==='customer_intake'&&!requiredText(delivery.record,'CUSTOMER_RECORD_REQUIRED'))return;
+  if(gate==='customer_intake'&&(!requiredText(delivery.record,'CUSTOMER_RECORD_REQUIRED')||!state.configuration?.capabilities))throw new Error('CUSTOMER_RECORD_REQUIRED');
   if(gate==='design_and_structure'&&(!requiredText(delivery.designRecord,'DESIGN_RECORD_REQUIRED')||!requiredText(delivery.pageStructure,'PAGE_STRUCTURE_REQUIRED')||!['delivered','postponed'].includes(delivery.boardStatus)))throw new Error('DESIGN_STRUCTURE_EVIDENCE_MISSING');
-  if(gate==='frontend_code'&&(!nonEmptyArray(delivery.deliveredFiles)||!hasPassedCheck(delivery.verification)||!requiredText(delivery.interfaceContract,'FRONTEND_DELIVERY_EVIDENCE_MISSING')))throw new Error('FRONTEND_DELIVERY_EVIDENCE_MISSING');
+  if(gate==='frontend_code'&&(!nonEmptyArray(delivery.deliveredFiles)||!allChecksPassed(delivery.verification)||!requiredText(delivery.interfaceContract,'FRONTEND_DELIVERY_EVIDENCE_MISSING')))throw new Error('FRONTEND_DELIVERY_EVIDENCE_MISSING');
   if(gate==='dashboard_integration'){
     const completed=new Set(delivery.completedSlices??[]),required=state.configuration?.dashboardSlices??[];
     if(required.some(slice=>!completed.has(slice)))throw new Error('DASHBOARD_SLICES_INCOMPLETE');
-    if(!nonEmptyArray(delivery.frontendFiles)||!nonEmptyArray(delivery.backendFiles)||!hasPassedCheck(delivery.verification))throw new Error('DASHBOARD_DELIVERY_EVIDENCE_MISSING');
+    if(!nonEmptyArray(delivery.frontendFiles)||!nonEmptyArray(delivery.backendFiles)||!allChecksPassed(delivery.verification))throw new Error('DASHBOARD_DELIVERY_EVIDENCE_MISSING');
   }
-  if(gate==='checkout_payment'&&(!delivery.pendingOrder||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified||!hasPassedCheck(delivery.verification)))throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
-  if(gate==='testing_upload_gate'&&(delivery.result!=='PASS'||!hasPassedCheck(delivery.verification)))throw new Error('TESTING_DELIVERY_EVIDENCE_MISSING');
-  if(gate==='aws_release'&&(!requiredText(delivery.releaseVersion,'RELEASE_VERSION_REQUIRED')||!requiredText(delivery.targetInstance,'TARGET_INSTANCE_REQUIRED')||delivery.newEc2Instances!==0||!nonEmptyArray(delivery.verifiedUrls)||delivery.health!=='passed'||!requiredText(delivery.rollback,'ROLLBACK_EVIDENCE_REQUIRED')))throw new Error('RELEASE_DELIVERY_EVIDENCE_MISSING');
+  if(gate==='checkout_payment'&&(!delivery.pendingOrder||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified||!allChecksPassed(delivery.verification)))throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
+  if(gate==='testing_upload_gate'&&(delivery.result!=='PASS'||!allChecksPassed(delivery.verification)))throw new Error('TESTING_DELIVERY_EVIDENCE_MISSING');
+  if(gate==='aws_release'){
+    const architecture=requiredText(delivery.architectureType,'ARCHITECTURE_TYPE_REQUIRED');
+    const zeroCreate=delivery.newEc2Instances===0&&delivery.newDatabases===0&&delivery.newBuckets===0&&delivery.newPorts===0;
+    const targetValid=architecture==='shared_ec2_postgresql'
+      ? Boolean(requiredText(delivery.targetInstance,'TARGET_INSTANCE_REQUIRED')&&requiredText(delivery.runtimeRoute,'RUNTIME_ROUTE_REQUIRED'))
+      : architecture==='aws_serverless'
+        ? Boolean(requiredText(delivery.distributionId,'DISTRIBUTION_REQUIRED')&&nonEmptyArray(delivery.functionOrApiIds)&&nonEmptyArray(delivery.dataStoreIds))
+        : architecture==='aws_static'
+          ? Boolean(requiredText(delivery.distributionId,'DISTRIBUTION_REQUIRED')&&requiredText(delivery.bucketName,'BUCKET_REQUIRED'))
+          : architecture==='external_legacy'&&Boolean(requiredText(delivery.verifiedTarget,'VERIFIED_TARGET_REQUIRED'));
+    if(!requiredText(delivery.releaseVersion,'RELEASE_VERSION_REQUIRED')||!zeroCreate||!targetValid||!nonEmptyArray(delivery.verifiedUrls)||delivery.health!=='passed'||!requiredText(delivery.rollback,'ROLLBACK_EVIDENCE_REQUIRED'))throw new Error('RELEASE_DELIVERY_EVIDENCE_MISSING');
+  }
 }
 
 export function startGate({state,gate,now=new Date().toISOString()}={}){
@@ -96,7 +125,9 @@ export function recordDelivery({state,gate,delivery,now=new Date().toISOString()
   const next=copyState(state),current=gateState(next,gate);
   if(current.status!=='in_progress')throw new Error('GATE_NOT_IN_PROGRESS');
   if(!delivery||typeof delivery!=='object'||Array.isArray(delivery))throw new Error('DELIVERY_REQUIRED');
-  current.delivery=structuredClone(delivery);current.deliveryRecordedAt=now;next.updatedAt=now;
+  current.delivery=structuredClone(delivery);
+  if(gate==='customer_intake')next.configuration.capabilities=normalizeCapabilities(delivery.capabilities);
+  current.deliveryRecordedAt=now;next.updatedAt=now;
   return result(next,{event:'delivery_recorded',gate,at:now});
 }
 
@@ -122,6 +153,10 @@ export function approveGate({state,gate,approvedBy,now=new Date().toISOString()}
 export function markNotApplicable({state,gate,reason,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate);
   if(!['dashboard_integration','checkout_payment'].includes(gate))throw new Error('GATE_NOT_OPTIONAL');
+  const capabilities=next.configuration?.capabilities;
+  if(!capabilities)throw new Error('SITE_CAPABILITIES_REQUIRED');
+  if(gate==='dashboard_integration'&&capabilities.requiresDashboard)throw new Error('DASHBOARD_REQUIRED');
+  if(gate==='checkout_payment'&&(capabilities.requiresCheckout||capabilities.requiresPayment))throw new Error('CHECKOUT_PAYMENT_REQUIRED');
   if(!['ready','in_progress'].includes(current.status))throw new Error('GATE_CANNOT_BE_SKIPPED');
   current.status='not_applicable';current.reason=requiredText(reason,'NOT_APPLICABLE_REASON_REQUIRED');current.completedAt=now;
   unlockFollowing(next,gate);next.updatedAt=now;
