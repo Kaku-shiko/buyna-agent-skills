@@ -24,7 +24,7 @@ core.
 3. Implement the approved public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope. Do not add another pre-code approval when the combined design-and-structure package already contains the Dashboard composition.
    For product commerce, include the approved cart presentation and connect it
    to a mock Adapter matching `buyna-cart-core`. Use its fixed right-side
-   `CartButton` and `CartDrawer` components as the default MEDINANCE behavior;
+   `CartButton` and `CartDrawer` components as the default commerce behavior;
    do not implement cart pricing rules in components.
 4. Implement all approved desktop and mobile interactions with clearly marked mock data.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.

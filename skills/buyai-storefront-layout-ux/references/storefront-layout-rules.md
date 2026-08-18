@@ -42,7 +42,7 @@ Product descriptions on detail pages must allow long text. Use proper wrapping, 
 
 ## Cart And Order Review
 
-Use the fixed MEDINANCE sequence: cart drawer, buyer form, order review,
+Use the fixed commerce sequence: cart drawer, buyer form, order review,
 provider payment, server-verified result. The right-side drawer contains every
 selected item and one checkout action for the whole cart. The order-review page
 shows product images/details, quantities, buyer/address fields, totals, selected

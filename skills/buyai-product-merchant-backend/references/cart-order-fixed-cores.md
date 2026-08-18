@@ -7,7 +7,7 @@ Use these packages instead of regenerating cart and order business rules:
 
 ## Cart composition
 
-Use the MEDINANCE flow as the default storefront behavior:
+Use the fixed commerce flow as the default storefront behavior:
 
 ```text
 加入购物车 → 右侧购物车抽屉 → 买家资料 → 订单确认 → 支付 → 服务端验证结果

@@ -29,7 +29,7 @@ the form schema/field mapping, persistence Adapter, routes, and approved
 shipping/discount/tax configuration. Do not regenerate cart totals or order
 snapshot logic.
 
-Preserve the MEDINANCE sequence: right-side cart → buyer form → order review →
+Preserve the fixed commerce sequence: right-side cart → buyer form → order review →
 provider payment → server-verified result. The review step must show all items,
 quantities, buyer/address information, totals, payment method, and one payment
 button. Do not clear cart/form state on provider redirect or error.

@@ -10,7 +10,7 @@ test('accepts an existing shared RDS project',()=>{
   assert.equal(result.status,'pass');
 });
 
-test('accepts a BlueSequoia-like serverless project without forcing RDS or EC2',()=>{
+test('accepts a registered serverless project without forcing RDS or EC2',()=>{
   const result=validateResourceRecord({record:evidence,project:{id:'blue',seller_id:'blue'},architecture:{type:'aws_serverless'},domains:{primary:'blue.example'},database:{mode:'existing',engine:'dynamodb',region:'ap-northeast-1',table_names:'commerce,cache',allow_create_database:false},storage:{mode:'existing',provider:'s3',region:'ap-northeast-1',bucket_names:'assets,images',allow_create_bucket:false},deployment:{mode:'existing',provider:'lambda_open_next',region:'ap-northeast-1',function_names:'server,image',allow_create_instance:false},routing:{provider:'cloudfront',distribution_id:'E123',origin_evidence:'distribution-export',function_association_evidence:'behavior-export',allow_create_distribution:false},release_limits:zeroLimits});
   assert.equal(result.status,'pass');
 });

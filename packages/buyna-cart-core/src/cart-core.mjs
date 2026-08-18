@@ -5,7 +5,7 @@ function method(owner,name){if(typeof owner?.[name]!=='function')fail(`MISSING_A
 function lineKey(productId,variantId){return`${productId}:${variantId??''}`}
 function money(value,code){const number=Number(value??0);if(!Number.isSafeInteger(number)||number<0)fail(code);return number}
 
-export const MEDINANCE_CART_FLOW=Object.freeze({
+export const DEFAULT_COMMERCE_CART_FLOW=Object.freeze({
   presentation:'right_drawer',
   steps:Object.freeze(['cart','buyer_form','order_review','provider_payment','server_verified_result']),
   checkoutMode:'all_items_once',

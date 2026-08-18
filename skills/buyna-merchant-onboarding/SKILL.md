@@ -1,19 +1,39 @@
 ---
 name: buyna-merchant-onboarding
-description: "Safely register and activate one new merchant in an already approved Buyna multi-tenant backend. Use when a developer asks to add, onboard, register, configure, or validate a new merchant on existing database, S3, compute, port, and domain-routing resources without provisioning replacements."
+description: "Safely register and activate one new independent merchant in an already approved Buyna multi-tenant backend. Use when a developer asks to add, onboard, register, configure, or validate a new merchant on verified shared database, storage, compute, and ingress resources without provisioning replacement cloud resources."
 ---
 
 # Buyna Merchant Onboarding
 
-Add one merchant without changing existing merchants or creating infrastructure.
+Add one merchant without changing existing merchants or creating cloud infrastructure.
+
+Use `packages/buyna-merchant-provisioning-core` as the authoritative lifecycle
+Module. Resolve it from the project installation, then the user installation;
+stop with `BLOCKED: MERCHANT_PROVISIONING_CORE_NOT_INSTALLED` when absent. Never
+edit lifecycle state directly or infer a transition from prose.
 
 ## First Move
 
-1. Inspect the real application, tenant model, authentication, host routing, database, S3 key builder, deployment target, and rollback method.
-2. Use `buyna-project-resource-registry` to validate the approved `projects/<project_id>/resources.yaml`; require `shared_ec2_postgresql` for this onboarding path.
-3. Require evidence that multi-tenant isolation and the existing merchant regression checks are already implemented and verified.
-4. Read [references/onboarding-contract.md](references/onboarding-contract.md).
-5. Stop with `BLOCKED: MULTITENANT_FOUNDATION_NOT_VERIFIED` when either prerequisite is missing.
+1. Run `scripts/classify-merchant-scope.mjs` first. Continue only when it returns
+   `buyna-merchant-onboarding`; never reinterpret an explicitly declared
+   `new_independent` project as an alias or migration merely because its host
+   resembles an existing merchant.
+2. Inspect the real application, tenant model, authentication, host routing,
+   shared database, shared storage, shared compute, and rollback method
+   read-only. Use `aws-project-deployer` before asking a person for resource
+   information. Ask for help only after an attempted inspection reports the
+   exact unavailable evidence; never ask for a credential value.
+3. Use `buyna-project-resource-registry` to create or validate
+   `projects/<project_id>/resources.yaml`. A new project starts as a candidate:
+   shared EC2/RDS/database/storage identifiers must be verified, while its
+   Schema, runtime slot, and route remain candidate values until their approved
+   onboarding steps complete.
+4. Require evidence that multi-tenant isolation and the existing merchant regression checks are already implemented and verified.
+5. Read [references/onboarding-contract.md](references/onboarding-contract.md).
+6. Stop with `BLOCKED: MULTITENANT_FOUNDATION_NOT_VERIFIED` only when the shared
+   foundation cannot be verified after automatic read-only inspection.
+7. Create the candidate through `createCandidate` and persist its event with the
+   fixed Module file store.
 
 ## Intake Gate
 
@@ -30,7 +50,9 @@ Then collect only:
 - primary language and currency;
 - administrator username or email;
 - whether checkout/payment is required now;
-- approved existing database, S3 bucket/region, compute target, application process, and port.
+- verified shared database, S3 bucket/region, compute target, and the candidate
+  project runtime model. Do not require an existing merchant's process, port,
+  environment file, or credential source.
 
 Allow customer materials and catalog content to remain pending. Never request or
 print a plaintext password, password hash, AWS key, database URL, or payment
@@ -48,8 +70,12 @@ complete bounded onboarding plan, continue only after each automated gate
 passes and stop immediately on the first failed gate.
 
 1. **Preflight** — Run the Existing Resource Gate; verify the fixed existing resources, current release, backup method, unique identifiers, and exact host. Require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
-2. **Staging copy** — Back up the database and run registration plus reversible schema/table migrations on a disposable copy. Do not alter production data.
-3. **Pending registration** — Create the merchant identity as inactive or pending in the existing database. Do not expose its domain yet.
+2. **Approval** — Call `approveCandidate` only with explicit approval, a backup
+   plan, validated reversible migration, and
+   `approved_reversible_migration`.
+3. **Staging and provisioning** — Back up the database, validate on a disposable
+   copy, create the inactive merchant identity and approved project-owned
+   resources, then call `recordProvisioned`. Do not expose its domain yet.
 4. **Project file layout** — For a new local project directory only, call
    `packages/buyna-merchant-file-core` `scaffoldMerchantProject` with the
    approved `project_id`, `seller_id`, and merchant type. Stop if the target
@@ -58,9 +84,17 @@ passes and stop immediately on the first failed gate.
    route file lifecycle work to `buyna-s3-storage`, which uses the fixed file
    core, while retaining only required legacy reads.
 6. **Administrator scope** — Configure one merchant administrator and prove its session cannot be reused for another seller.
-7. **Application route** — Add the exact hostname to the existing application and Nginx route. Reuse the approved process and port; do not use a wildcard domain as a shortcut.
+7. **Application runtime and route** — On the verified shared EC2, give the new
+   project its own application directory, environment-source name, logs, and
+   approved systemd process or permission-restricted Unix Socket. Add the exact
+   hostname to Nginx on existing `80/443`; do not allocate a merchant TCP port
+   or use a wildcard domain as a shortcut.
+   Call `packages/buyna-runtime-slot-core`; do not construct paths, process
+   names, Socket names, or collision checks independently.
 8. **Functional validation** — Validate login, category/product or service CRUD, image upload/display/replacement/deletion, order detail with the complete customer submission, payment/subscription settings, refresh persistence, and cross-merchant denial.
-9. **Activation** — Activate only this merchant after all applicable checks pass. Verify the live hostname and preserve the backup and previous release.
+9. **Verification and activation** — Call `recordVerified` only when every named
+   required check passes. Call `activateMerchant` only after the exact hostname,
+   release, and rollback evidence are verified.
 
 Register every merchant identity in CRM with `project_id + seller_id`, add its
 `seller_id` to the server-side subscription-read allowlist, and verify that the
@@ -80,8 +114,14 @@ configuration.
 
 ## Boundaries
 
-- Reuse the approved database, S3 bucket, EC2 instance, application process, and port.
-- Never create a database, SQLite fallback, RDS/Aurora/DynamoDB resource, Bucket, EC2 instance, service, or extra port to bypass missing configuration. A new isolated merchant schema inside the registered existing PostgreSQL database is allowed only in the approved staging/pending-registration sequence with backup, reversible migration, and explicit approval.
+- Reuse the approved database, S3 bucket, EC2 instance, and ingress ports. Shared
+  EC2/RDS identifiers are expected to repeat across project records and are not
+  copied merchant configuration.
+- Give each independent project its own runtime identity. Creating its approved
+  application directory, systemd process or Unix Socket, environment-source
+  name, and logs on the existing EC2 is application onboarding, not new AWS
+  infrastructure.
+- Never create a database, SQLite fallback, RDS/Aurora/DynamoDB resource, Bucket, EC2 instance, or extra TCP port to bypass missing configuration. A new isolated merchant schema inside the registered existing PostgreSQL database is allowed only in the approved staging/pending-registration sequence with backup, reversible migration, and explicit approval.
 - Call `@buyna/postgres-merchant-core/schema-migration` before an approved isolated-Schema candidate; keep the existing database name unchanged.
 - Stop with `BLOCKED: EXISTING_RESOURCES_NOT_CONFIRMED` when a required resource is missing, unverified, or a placeholder. Do not recommend replacement infrastructure as the next step.
 - Never move or rewrite another merchant's rows, objects, domain, login, or payment settings.

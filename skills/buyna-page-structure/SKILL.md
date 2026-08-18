@@ -21,7 +21,7 @@ Turn the customer information and completed Skill 2 design record into one combi
    needs as contracts only; do not design their backend implementation here.
    For the product branch, consume the canonical Dashboard navigation and page composition from `buyna-frontend-builder/references/product-merchant-dashboard-ui.md`; do not restate or fork it here.
 8. Add the privacy-policy requirement using `references/privacy-policy-checklist.md` and identify any conditional commerce, booking, account, cookie, or legal pages.
-   For product commerce, record the fixed MEDINANCE flow as UI structure:
+   For product commerce, record the fixed commerce flow as UI structure:
    right-side cart drawer → buyer form → order review → payment → verified
    result. Do not collapse the order-review page into the cart or payment page.
 9. Record missing copy, images, translations, links, SEO metadata, legal details, and other customer materials as `待补充`.

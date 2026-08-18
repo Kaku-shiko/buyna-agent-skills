@@ -7,15 +7,22 @@ description: "Audit, standardize, or migrate existing Buyna merchant sites insid
 
 Migrate one merchant at a time. Standardize ownership and interfaces without merging merchant data or redesigning the storefront.
 
+Do not use this Skill for an explicitly declared new independent project with no
+legacy data to move. Route that case to `buyna-merchant-onboarding`. Similar
+merchant names or domains are not migration evidence.
+
 ## Workflow
 
-1. Read the project's verified `resources.yaml` and [architecture contract](references/architecture-contract.md). Stop on missing or placeholder evidence.
-2. Inspect the live database, runtime, exact host route, S3 prefix, order/payment path, backup state, and current source code read-only.
-3. Select only the first incomplete slice from [migration phases](references/migration-phases.md). If the user explicitly approved the complete bounded plan, continue across slices only after each automated gate passes; otherwise stop for approval.
-4. For a shared-RDS schema migration, call `@buyna/postgres-merchant-core/schema-migration` before producing SQL. Use the source-only online pattern in [schema migration contract](references/schema-migration-contract.md).
-5. For an approved RDS identifier or PostgreSQL database-name correction, use [resource identity migration](references/resource-identity-migration.md) and run `node scripts/validate-resource-identity-migration.mjs --before <before.yaml> --after <after.yaml>` before mutation.
-6. Deliver code/configuration and evidence for the active slice. Roll back automatically when a gate fails.
-7. Finish only after [acceptance checklist](references/acceptance-checklist.md) passes on every in-scope real domain.
+1. Require evidence of an existing source runtime, source data, or an approved
+   resource-identity correction. Without an existing source, stop this Skill
+   and route to `buyna-merchant-onboarding` rather than inventing a migration.
+2. Read the project's verified `resources.yaml` and [architecture contract](references/architecture-contract.md). Stop on missing or placeholder evidence.
+3. Inspect the live database, runtime, exact host route, S3 prefix, order/payment path, backup state, and current source code read-only.
+4. Select only the first incomplete slice from [migration phases](references/migration-phases.md). If the user explicitly approved the complete bounded plan, continue across slices only after each automated gate passes; otherwise stop for approval.
+5. For a shared-RDS schema migration, call `@buyna/postgres-merchant-core/schema-migration` before producing SQL. Use the source-only online pattern in [schema migration contract](references/schema-migration-contract.md).
+6. For an approved RDS identifier or PostgreSQL database-name correction, use [resource identity migration](references/resource-identity-migration.md) and run `node scripts/validate-resource-identity-migration.mjs --before <before.yaml> --after <after.yaml>` before mutation.
+7. Deliver code/configuration and evidence for the active slice. Roll back automatically when a gate fails.
+8. Finish only after [acceptance checklist](references/acceptance-checklist.md) passes on every in-scope real domain.
 
 ## Hard boundaries
 

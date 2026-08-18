@@ -5,6 +5,7 @@ Every record starts with:
 ```yaml
 record:
   version: 1
+  lifecycle: verified
   checked_at: 2026-08-15T00:00:00Z
   evidence_source: aws-and-runtime-inspection
 project:
@@ -22,6 +23,12 @@ release_limits:
 ```
 
 Record both IDs exactly as verified; accept `^[a-z0-9][a-z0-9_-]{0,79}$` and never derive or copy them.
+
+Use lifecycle `candidate` for a new independent project, then
+`approved -> provisioned -> verified -> active`. A candidate may name a proposed
+Schema, runtime identity, route, and S3 prefix, but must clearly mark them as
+candidate and cannot authorize their creation. Shared foundation identifiers
+must already be verified.
 
 Use environment-variable, Secrets Manager, or service configuration names as sources. Never record their values.
 
@@ -70,13 +77,19 @@ routing:
 
 `allow_create_schema: true` is valid only in an already approved onboarding/migration candidate record. It does not authorize execution and must include `schema_change_mode: approved_reversible_migration`.
 
+The same existing EC2 instance, RDS instance, PostgreSQL database, and approved
+shared bucket may appear in multiple project records. This is expected shared
+foundation evidence, not copied merchant configuration. Never reuse another
+project's Schema, process, Unix Socket, environment source, S3 prefix, logs,
+credential, or business data.
+
 `database.resource_tags` is secret-free operational metadata. When present, `Name` must equal `database.instance_identifier` and `DatabaseName` must equal the database that applications actually connect to. If the RDS console retains an immutable initial database name after PostgreSQL `ALTER DATABASE ... RENAME`, record it only as `LegacyProvisionedDbName`; do not treat it as the active database.
 
 When a verified legacy EC2/PostgreSQL project uses local/EBS files instead of S3, record `storage.provider: local_ebs`, `storage.root_source`, and `storage.migration_status`; do not invent a bucket. New shared merchants continue to use the approved existing S3 bucket.
 
 ## AWS serverless
 
-Use for BlueSequoia-like projects:
+Use for registered AWS serverless projects:
 
 ```yaml
 architecture:

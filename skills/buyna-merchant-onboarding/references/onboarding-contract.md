@@ -14,14 +14,17 @@ merchant:
   admin_username: customer-admin
   payment_required_now: false
 resources:
+  lifecycle: candidate
   database_mode: existing
   database_connection_source: DATABASE_URL_OR_APPROVED_RUNTIME_PATH
+  database_name: approved-existing-database
+  schema_candidate: customer_project
   storage_mode: existing
   bucket: approved-existing-bucket
   region: ap-northeast-1
   compute: approved-existing-instance
-  process: approved-existing-process
-  port: approved-existing-port
+  runtime_identity: candidate-project-process-or-unix-socket
+  ingress_ports: 80/443
   allow_create_rds: false
   allow_create_database: false
   allow_create_schema: false
@@ -36,6 +39,12 @@ release_limits:
 ```
 
 Store no secrets in this record.
+
+For a new independent merchant, shared EC2, RDS, database, and approved bucket
+identifiers may match other project records. Project-owned Schema, runtime
+identity, environment source, S3 prefix, logs, credentials, and business data
+must be unique. Do not require or copy another merchant's process or environment
+file.
 
 ## Canonical ownership
 
@@ -61,7 +70,11 @@ projects/{project_id}/sellers/{seller_id}/{entity_type}/{entity_id}/{uuid}.{ext}
 
 ## Registration states
 
-Use `pending` or inactive while preparing the merchant. An inactive merchant
+Use `candidate -> approved -> provisioned -> verified -> active`. `candidate`
+records verified shared resources plus proposed project-owned identities;
+`approved` records explicit authorization for the bounded Schema/runtime
+changes; `provisioned` means those identities exist but receive no public
+traffic; `verified` means the validation matrix passed. An inactive merchant
 must not resolve from its public hostname. Change to `active` only after the
 validation matrix passes.
 
