@@ -1,4 +1,0 @@
-interface:
-  display_name: "Dashboard Data Interaction"
-  short_description: "Connect one Dashboard slice to real data"
-  default_prompt: "Use $buyai-dashboard-data-interaction to connect only the current approved Dashboard page or related slice to the existing API, AWS data, S3, and frontend adapter."

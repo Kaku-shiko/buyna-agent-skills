@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyai GlobePay Checkout"
-  short_description: "Build responsive one-time payment checkout"
-  default_prompt: "Use $buyai-globepay-checkout to implement a responsive one-time GlobePay checkout."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna.ai Product Merchant Backend"
-  short_description: "Build AWS product commerce seller backends"
-  default_prompt: "Use $buyai-product-merchant-backend to build or repair product, inventory, order, paid-customer, and CSV workflows on the current backend."

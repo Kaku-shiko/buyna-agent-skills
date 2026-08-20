@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna.ai AWS Data Layer"
-  short_description: "Design safe framework-neutral AWS data storage"
-  default_prompt: "Use $buyna-aws-data-layer to design or repair the AWS database schema, migrations, ownership, and data access for the project's approved backend framework."

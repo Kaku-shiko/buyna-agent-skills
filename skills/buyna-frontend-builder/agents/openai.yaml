@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna.ai Frontend Builder"
-  short_description: "Build clear responsive website frontends"
-  default_prompt: "Use $buyna-frontend-builder in Phase 4 UI mode or the current Phase 5 integration slice without mixing their completion claims."

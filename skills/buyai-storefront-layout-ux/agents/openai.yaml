@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna.ai Storefront Layout UX"
-  short_description: "Improve storefront structure and mobile usability"
-  default_prompt: "Use $buyai-storefront-layout-ux to improve storefront navigation, seller entry, categories, footer, policies, readability, empty states, and mobile layout."

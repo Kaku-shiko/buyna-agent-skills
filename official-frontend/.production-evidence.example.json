@@ -1,0 +1,102 @@
+{
+  "evidenceVersion": 1,
+  "updatedAt": "2026-07-10T00:00:00.000Z",
+  "github": {
+    "remoteUrl": "https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY",
+    "branch": "codex/official-frontend-source",
+    "commitSha": "0000000000000000000000000000000000000000",
+    "pushed": true,
+    "ciStatus": "success",
+    "ciRunUrl": "https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY/actions/runs/YOUR_RUN_ID"
+  },
+  "productionEnv": {
+    "checkedAt": "2026-07-10T00:00:00.000Z",
+    "command": "pnpm run check:prod-env -- --env-file .env.production",
+    "checkPassed": true,
+    "publicSiteUrl": "https://www.buyna.ai",
+    "appUrl": "https://www.buyna.ai",
+    "globepayMode": "live",
+    "aiGuideConfigured": true,
+    "serverOnlySecretNamesConfigured": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "GLOBEPAY_CREDENTIAL_CODE",
+      "BILLING_TOKEN_ENCRYPTION_KEY",
+      "OPENAI_API_KEY"
+    ]
+  },
+  "supabase": {
+    "stagingMigrationsApplied": true,
+    "productionMigrationsApplied": true,
+    "productionCheckedAt": "2026-07-10T00:00:00.000Z",
+    "appliedMigrationFiles": [
+      "20260530075402_42eebfa8-305b-405f-9036-c6ca239cece9.sql",
+      "20260530075422_cd8ac985-098a-48f9-b8aa-9a0acc998fce.sql",
+      "20260622010349_13cb0b4a-a6e0-496f-a9f3-b27c209b92fc.sql",
+      "20260622013920_6aadf463-f018-4a8d-9ca5-088e9141f78c.sql",
+      "20260629091253_f9b44e39-b3ab-4b8d-944f-acfb5c8d465f.sql",
+      "20260629094409_155f92fd-296e-44e2-824b-a95bff59eb51.sql",
+      "20260705045206_79b5ee25-fea2-42d5-a9dd-030c7648d9c8.sql",
+      "20260705045707_2f7cad2a-0ee1-4516-ab9e-c4729d4437e7.sql",
+      "20260705053004_617925fa-1701-4d69-b87d-9855ea157465.sql",
+      "20260705054409_7af34719-869f-4ec1-a904-1501a9cae90f.sql",
+      "20260705055106_0cc0eada-141a-4fac-9729-ce249749fd17.sql",
+      "20260705165500_e349695a-1d81-45b4-abc2-98b995675d4b.sql"
+    ],
+    "verifiedTables": [
+      "ai_guide_sources",
+      "ai_guide_conversations",
+      "subscription_plans",
+      "buyna_customers",
+      "buyna_subscriptions",
+      "buyna_subscription_charges",
+      "globepay_recurring_agreements"
+    ]
+  },
+  "globepayDashboard": {
+    "checkedAt": "2026-07-10T00:00:00.000Z",
+    "japanHostConfirmed": true,
+    "oneTimeNotifyUrl": "https://www.buyna.ai/api/public/globepay/notify",
+    "recurringNotifyUrl": "https://www.buyna.ai/api/public/globepay-recurring-notify",
+    "returnUrl": "https://www.buyna.ai/subscription/return",
+    "worldPayRecurringEnabled": true,
+    "threeDsEnabled": true
+  },
+  "productionDeployment": {
+    "provider": "cloudflare",
+    "workerName": "buyna-ai-official",
+    "deployedUrl": "https://www.buyna.ai/",
+    "deployedCommitSha": "0000000000000000000000000000000000000000",
+    "deploymentStatus": "success",
+    "deployCommand": "pnpm run cf:deploy",
+    "smokeCommand": "pnpm run smoke:url -- --base-url https://www.buyna.ai/",
+    "smokeUrlStatus": "passed",
+    "checkedAt": "2026-07-10T00:00:00.000Z"
+  },
+  "paymentVerification": {
+    "oneTime": {
+      "tested": true,
+      "checkedAt": "2026-07-10T00:00:00.000Z",
+      "amount": 100,
+      "currency": "JPY",
+      "providerOrderIdRef": "masked-or-dashboard-reference",
+      "resultCode": "PAY_SUCCESS",
+      "localStatus": "paid",
+      "notifyOrQueryVerified": true,
+      "paidRecordVisibleInAdmin": true,
+      "csvVerified": true
+    },
+    "recurring": {
+      "tested": true,
+      "checkedAt": "2026-07-10T00:00:00.000Z",
+      "amount": 100,
+      "currency": "JPY",
+      "agreementRef": "masked-or-dashboard-reference",
+      "hosted3dsCompleted": true,
+      "agreementStatus": "ACTIVE",
+      "firstChargeResultCode": "PAY_SUCCESS",
+      "recurringNotifyVerified": true,
+      "adminSubscriptionVisible": true,
+      "csvOrAdminTotalsVerified": true
+    }
+  }
+}

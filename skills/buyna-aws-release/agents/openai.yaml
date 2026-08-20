@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna.ai AWS Release"
-  short_description: "Prepare and verify safe AWS releases"
-  default_prompt: "Use $buyna-aws-release to prepare and verify this website release on the approved AWS environment."

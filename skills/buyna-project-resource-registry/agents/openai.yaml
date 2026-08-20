@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna Project Resource Registry"
-  short_description: "Register and verify existing AWS project resources"
-  default_prompt: "Use $buyna-project-resource-registry to register and verify this project's existing AWS resources."

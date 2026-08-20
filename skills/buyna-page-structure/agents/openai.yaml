@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna Page Structure"
-  short_description: "Plan website pages, sections, and required policy content"
-  default_prompt: "Use $buyna-page-structure to plan and confirm the pages and content sections for this website."

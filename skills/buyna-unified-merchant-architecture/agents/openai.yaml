@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna Unified Merchant Architecture"
-  short_description: "Migrate merchants safely inside existing AWS resources"
-  default_prompt: "Use $buyna-unified-merchant-architecture to migrate one merchant through the next verified architecture slice."

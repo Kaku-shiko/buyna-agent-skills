@@ -1,7 +1,0 @@
-interface:
-  display_name: "Buyna.ai Merchant Builder"
-  short_description: "Build AWS merchant backends and GlobePay flows"
-  default_prompt: "Use $buyai-merchant-builder to build or repair a Buyna.ai merchant backend on the current AWS database and storage environment."
-
-policy:
-  allow_implicit_invocation: true

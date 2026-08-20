@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyai GlobePay Payment"
-  short_description: "Route GlobePay Japan payment work safely"
-  default_prompt: "Use $buyai-globepay-payment to route this GlobePay Japan task to the correct payment subskill."

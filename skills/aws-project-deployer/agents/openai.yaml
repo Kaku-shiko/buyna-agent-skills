@@ -1,6 +1,0 @@
-interface:
-  display_name: "AWS 项目部署"
-  short_description: "连接个人 AWS 并安全部署网站、后端、数据库与支付服务"
-  default_prompt: "Use $aws-project-deployer to connect this project to my AWS and prepare a safe deployment."
-policy:
-  allow_implicit_invocation: true

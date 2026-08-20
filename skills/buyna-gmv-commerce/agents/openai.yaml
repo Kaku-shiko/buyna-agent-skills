@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyna GMV Commerce"
-  short_description: "Connect merchant payments and refunds to CRM GMV."
-  default_prompt: "Use $buyna-gmv-commerce to connect one merchant payment flow to Buyna.ai CRM GMV safely."

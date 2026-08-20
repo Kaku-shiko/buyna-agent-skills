@@ -1,0 +1,56 @@
+name: Official Frontend CI
+
+on:
+  push:
+    paths:
+      - "official-frontend/**"
+      - ".github/workflows/official-frontend-ci.yml"
+  pull_request:
+    paths:
+      - "official-frontend/**"
+      - ".github/workflows/official-frontend-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: official-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: official-frontend/.node-version
+          cache: pnpm
+          cache-dependency-path: official-frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify app
+        run: pnpm run verify
+
+      - name: Check Cloudflare output
+        run: pnpm run cf:check
+
+      - name: Check launch readiness
+        run: pnpm run check:launch
+
+      - name: Build update package
+        run: pnpm run package:update
+
+      - name: Check update package
+        run: pnpm run package:check
+
+      - name: Smoke local official site
+        run: pnpm run smoke:local

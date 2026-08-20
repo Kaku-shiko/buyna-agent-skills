@@ -1,0 +1,49 @@
+{
+  "ok": false,
+  "checkedAt": "2026-07-13T00:00:00.000Z",
+  "watch": true,
+  "deployWhenReady": false,
+  "baseUrl": "https://www.buyna.ai/",
+  "statusFile": ".resume-after-access-status.json",
+  "summary": {
+    "passed": 1,
+    "failed": 3,
+    "skipped": 2,
+    "deploymentPassed": 0,
+    "deploymentFailed": 0
+  },
+  "steps": [
+    {
+      "name": "GitHub source of truth",
+      "status": "failed",
+      "command": "pnpm run check:github-source"
+    },
+    {
+      "name": "Cloudflare account and Worker config",
+      "status": "failed",
+      "command": "pnpm run check:cloudflare-account"
+    },
+    {
+      "name": "Production environment",
+      "status": "skipped",
+      "message": ".env.production is missing. Copy .env.production.example to .env.production and fill production values outside Git."
+    },
+    {
+      "name": "Local release gate and Cloudflare dry-run",
+      "status": "skipped",
+      "message": ".env.production is missing, so deploy:preflight cannot validate production values."
+    },
+    {
+      "name": "Production evidence file",
+      "status": "failed",
+      "command": "pnpm run check:prod-evidence"
+    },
+    {
+      "name": "Full goal audit",
+      "status": "passed",
+      "command": "pnpm run audit:goal"
+    }
+  ],
+  "deployment": [],
+  "next": "Fix failed or skipped external items, then rerun pnpm run resume:after-access or keep pnpm run resume:watch running."
+}

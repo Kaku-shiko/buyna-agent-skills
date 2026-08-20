@@ -1,9 +1,0 @@
-{
-  "name": "@buyna/merchant-file-core",
-  "version": "0.1.0",
-  "type": "module",
-  "exports": "./src/file-core.mjs",
-  "scripts": {
-    "test": "node --test test/file-core.test.mjs"
-  }
-}

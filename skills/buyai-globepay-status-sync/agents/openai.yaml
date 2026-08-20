@@ -1,4 +1,0 @@
-interface:
-  display_name: "Buyai GlobePay Status Sync"
-  short_description: "Verify and synchronize payment status"
-  default_prompt: "Use $buyai-globepay-status-sync to verify and synchronize GlobePay payment and refund status."
