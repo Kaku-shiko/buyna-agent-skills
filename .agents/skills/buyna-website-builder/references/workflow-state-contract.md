@@ -21,15 +21,16 @@ After loading state, call `getInteractionPolicy({state})`. This is the canonical
 | 1 | `customer_intake` | intake record path |
 | 2-3 | `design_and_structure` | design record, page structure, board delivered/postponed |
 | 4 | `frontend_code` | files, passing checks, interface contract |
-| 5 | `dashboard_integration` | every configured slice, frontend/backend files, passing checks |
+| 5 | `dashboard_integration` | configured slices only; each slice is `DONE`/`SKIP` |
 | 6 | `checkout_payment` | pending order, responsive routing, verified status sync, idempotency, GMV Outbox, tests |
-| 7 | `testing_upload_gate` | PASS and passing checks |
-| 8 | `aws_release` | version, architecture-specific target, all four zero-create counters, URLs, health, rollback |
+| 7 | `testing_upload_gate` | required checks PASS and soft checks can be `DEFERRED` |
+| 8 | `aws_release` | version, architecture-specific target, required zero-create counters, URLs, health, rollback |
 
 The intake delivery stores `siteType` and all five capability booleans. Dashboard and
 checkout/payment may be `not_applicable` when capabilities are unnecessary; other
-gates can still continue with skip reasons that are capability-driven.  
-Every verification entry must pass; one passing result cannot hide a failure.  
+gates can continue with `SKIP` + `SKIP_REASON` when capability-driven.
+Hard checks (security, identity isolation, existing-resource verification, payment integrity, rollback availability, required infrastructure policy) must pass and cannot be deferred.
+Other checks may be `DEFERRED` only with explicit approval context.
 Child Skills return evidence; only `buyna-website-builder` persists transitions.
 
 Release target evidence is architecture-specific: EC2 runtime and route for

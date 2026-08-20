@@ -2,7 +2,10 @@
 
 Require the approved Phase 4 code record and API contract. Use `buyai-dashboard-data-interaction` to complete one page or related slice at a time: executable API foundation, merchant identity, `buyna-project-resource-registry`, the matching existing-resource gate, database/S3 when needed, domain endpoint/service, mock-adapter replacement, and persistence/error/public-site verification.
 
-Before backend integration, require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`. Missing or placeholder resource evidence blocks the slice; never provision a replacement to continue.
+Before backend integration, require existing-resource evidence matching the project architecture:
+- `RESOURCE_MODE: existing_buyna_resources` 时：必须为 `0` 的指标是 `NEW_EC2_INSTANCES`、`NEW_DATABASES`、`NEW_BUCKETS`、`NEW_PORTS`。  
+- `aws_serverless`/`aws_static` 时：按架构检查相应指标，不额外固定实例/端口指标。  
+Missing or placeholder resource evidence blocks the slice; never provision a replacement to continue.
 
 Create one foundation receipt with `packages/buyna-integration-receipt-core`.
 Later Dashboard slices reuse it while its resource evidence and expiry remain

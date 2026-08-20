@@ -4,6 +4,7 @@ Use only the current gate or approved interaction slice.
 
 The core route policy is defined in `../SKILL.md` and uses capability-driven flow control.  
 Route only the current gate by default, but do not force linear completion when capability can skip it.  
+Check [elastic thresholds](elastic-thresholds.md) first so hard gates are not confused with soft checkpoints.
 Design and page structure share one approval. Gate 4 selects existing-resource, merchant-file, product/service, and frontend-integration Skills for one slice.  
 Gates 4 and 5 may be `NOT_APPLICABLE` only when the intake capability record permits it.
 

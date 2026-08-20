@@ -1,6 +1,7 @@
 # Phase 6: Checkout And Payment
 
 Use `NOT_APPLICABLE` for non-commerce sites. Otherwise require approved buyer/customer fields, a local pending order/booking before provider payment, server-side payment creation, and paid/refund state written only after trusted notify/query verification. Deliver frontend form, server payment, persistence, mobile route/return behavior, and applicable tests.
+For capability-driven execution: when capability or user scope excludes checkout/payment, set this gate to `SKIP` with `SKIP_REASON` and continue.
 Every applicable Buyna payment flow must also call `buyna-gmv-commerce`, write
 the fixed GMV Outbox event in the same transaction, deliver it asynchronously
 to CRM, and verify that the CRM revenue/GMV page reflects one paid event and

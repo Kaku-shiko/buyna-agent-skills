@@ -12,6 +12,7 @@ Use `getInteractionPolicy({state})` from `buyna-workflow-state-core` as the exec
 - Do not recommend optional features unless the user asks.
 - Never reveal credentials, secrets, payment payloads, personal data, or environment values.
 - Never hide immediate cost, downtime, data-loss, security, or payment risk.
+- For soft checkpoints that are intentionally delayed, present `DEFERRED` instead of blocking.
 - Both modes require the same delivery evidence and explicit approval.
 - Both modes remain subject to existing-resource rules. A mode choice is not permission to create EC2, RDS, buckets, ports, DNS, or other infrastructure.
 

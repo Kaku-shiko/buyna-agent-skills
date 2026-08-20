@@ -8,6 +8,16 @@ description: "Guide a Buyna.ai team member through a fast, safe website workflow
 Use the fixed `packages/buyna-workflow-state-core` state machine. Execute only the current gate or approved interaction slice and stop.  
 Fast mode is default: group compatible tasks to reduce turns without reducing safety.
 
+## Elastic policy for all thresholds in this flow
+
+All gates are **classification-aware** and **scope-aware**.  
+- **Hard gates (must pass, cannot skip):** secret safety, existing-resource verification, tenant isolation, idempotent payment state, architecture compatibility, rollback availability, and explicit approval.  
+- **Capability gates (can be `SKIP`):** dashboard, commerce, checkout, payment, booking, extra UI modules, optional media polish, optional CRM reporting mode.  
+- **Quality gates (retryable):** full test coverage and non-required optimization checks; can be marked `DEFERRED` only when user approves an explicit next-step plan.
+
+Hard thresholds are not "always on"; they are chosen by architecture and scope. For example,  
+`NEW_EC2_INSTANCES/New databases/New buckets/New ports` must be 0 only when using `existing_buyna_resources`, and only when release target requires it.
+
 ## Interaction mode
 
 Default new and legacy workflows to `team` and begin customer intake in the
@@ -51,6 +61,10 @@ Build with a **mandatory core** + **capability-driven optional slices**.
 - 有可复用结果的阶段不重复确认（例如：用户资料中已确认了站点类型，则相关能力判定沿用到后续阶段）。
 - 仅在安全、数据、支付、环境、发布存在硬风险时阻塞；体验建议类不阻塞。
 - 任何阶段失败只回滚到该阶段，不回到项目起点。
+- 对于可选能力失败，要求提供 `SKIP_REASON`（例如 `not applicable for service-only`、`user-declared no-payment`），并生成 `NOT_APPLICABLE`。
+- 对于“尚可验证但暂不需要的非硬指标”，可标记为 `DEFERRED` 后进入下一步，但必须在一处交付记录中写明后续补齐条件。
+
+See also: [elastic thresholds](references/elastic-thresholds.md).
 
 1. 客户信息 + 网站定位（类型、功能）→ `buyna-customer-intake`
 2. 设计与页面结构一并确认（`buyna-website-design` + `buyna-page-structure`）  
