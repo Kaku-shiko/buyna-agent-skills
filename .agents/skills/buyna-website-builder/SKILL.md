@@ -7,6 +7,7 @@ description: "Guide a Buyna.ai team member through a fast, safe website workflow
 
 Use the fixed `packages/buyna-workflow-state-core` state machine. Execute only the current gate or approved interaction slice and stop.  
 Fast mode is default: group compatible tasks to reduce turns without reducing safety.
+For normal 建站 requests, use **Minimum Delivery Path** first and defer full coverage only after a quick sign-off.
 
 ## Elastic policy for all thresholds in this flow
 
@@ -38,7 +39,23 @@ evidence. Persist an explicit later switch through `setInteractionMode`. Read
 
 ## Elastic Workflow (preferred)
 
-Build with a **mandatory core** + **capability-driven optional slices**.  
+Build with a **mandatory core** + **capability-driven optional slices**.
+
+### Non-linear execution rule
+
+Do not force a fixed linear order for delivery turns.  
+Use a dependency graph:
+
+- `customer_intake` is bootstrap and must complete first.
+- `design_and_structure` depends on `customer_intake`.
+- `frontend_code` depends on accepted `design_and_structure` outputs.
+- `dashboard_integration` depends on `frontend_code` (for API contract and route shape).
+- `checkout_payment` depends on `dashboard_integration` when commerce payment capability is required.
+- `testing_upload_gate` depends on all required in-scope delivery gates being `DONE` or `SKIP`.
+- `aws_release` depends on `testing_upload_gate` `PASS` and release-plan evidence.
+
+Within the same dependency level, steps can be reordered.  
+No step should begin if its hard dependencies are not satisfied; if no hard dependency is required, it may be advanced when the user asks and the corresponding code blocks are available.
 
 ### Mandatory core (must pass)
 
@@ -47,6 +64,12 @@ Build with a **mandatory core** + **capability-driven optional slices**.
 3. 前端交付（页面/API联动）
 4. 能力型后端交付（按站点能力自动裁剪）
 5. 验收与发布（测试/发布）
+
+### Minimum Delivery Path（默认）
+
+- 支付相关：完成配置核对、待支付订单创建链路、`notify/query` 的一次关键联动验证即可放行该阶段。  
+- 全量测试：先完成“上线可用最小门槛”（主流程、关键权限、支付核心链路、包体体积与敏感文件清理），非关键覆盖项记为 `DEFERRED` 并进入下一阶段追踪。  
+- 你如果要正式发布商业站点并且允许耗时更久，可在用户确认后进入“完整验证模式”补跑全部测试与优化项。
 
 ### Capability-driven optional slices
 
@@ -76,7 +99,8 @@ See also: [elastic thresholds](references/elastic-thresholds.md).
    服务：`buyai-booking-service-backend`  
    订单与支付：`buyai-checkout-address-ux` + `buyai-globepay-payment` + `buyna-gmv-commerce`  
    不需要的能力可 `SKIP`
-5. 最后验收与发布（`buyna-testing-quality` + `buyna-aws-release`）
+5. 最后验收与发布（`buyna-testing-quality` + `buyna-aws-release`）  
+   默认先执行最小验收，再根据 `DEFERRED` 清单决定是否补跑全量。
 
 ## 七阶段（兼容内核）
 
@@ -94,7 +118,7 @@ Gate 4 owns framework, identity, database, S3, product/service backend, and fron
 
 Execute one internal gate or one compatible interaction slice at a time.  
 Design and structure are merged into one approval; checkout/payment backend-related gates can be merged when delivery evidence is complete.  
-Unlock only the immediately following gate or slice after explicit user confirmation.  
+Unlock the next gate/slice that becomes dependency-ready after explicit user confirmation.  
 Corrections, questions, silence, or a broad request are not approval.
 
 In `developer` mode, end with:
