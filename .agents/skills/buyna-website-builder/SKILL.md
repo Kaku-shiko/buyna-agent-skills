@@ -37,6 +37,41 @@ evidence. Persist an explicit later switch through `setInteractionMode`. Read
 6. Deliver the smallest valid result, then record its evidence and request approval.
 7. Stop. Approve and unlock the next gate only after the user's explicit later confirmation.
 
+## Creator & Invoker Guidance
+
+### 给制作者（执行技能的人）
+
+先看流程图再开工。必读顺序：
+- `buyna-customer-intake` → `buyna-website-design` / `buyna-page-structure` → `buyna-frontend-builder`  
+- 按能力跳到：`buyai-product-merchant-backend`/`buyai-booking-service-backend`、`buyai-dashboard-data-interaction`、`buyai-checkout-address-ux`、`buyai-globepay-payment`、`buyna-gmv-commerce`
+
+固定模块清单（优先复用）：
+- `buyna-workflow-state-core`（状态/步骤路由）
+- `buyna-postgres-merchant-core` + `buyna-s3-storage`（商户数据与文件隔离）
+- `buyna-cart-core`、`buyna-order-core`（购物车/订单）
+- `buyai-globepay-payment` + `buyna-gmv-commerce`（支付与GMV）
+
+执行原则：
+- 先引用固定模块，后补充项目适配器；
+- 未知项先提问，不猜字段名/路径；
+- 代码交付必须输出可落文件路径，不能只输出伪代码/说明。
+
+### 给引用者（调用技能的人）
+
+调用前只需确认 5 件事：
+1. 站点类型（商城/服务/展示）  
+2. 是否需要后台（Dashboard）  
+3. 是否需要购物车/支付  
+4. 是否只做最小验收或要求全量验收  
+5. 手机端支付是 H5/JSAPI 还是二维码优先
+
+输出我会自动给你：
+- 下一步可执行的目标节点；
+- 使用的固定模块名称；
+- 需要你提供的关键输入（域名、网站类型、支付方式、商品材料）；
+- `SKIP_REASON`（如果该能力不适用）；
+- 可继续或延期的 `DEFERRED` 清单与触发条件。  
+
 ## Elastic Workflow (preferred)
 
 Build with a **mandatory core** + **capability-driven optional slices**.
