@@ -7,7 +7,7 @@ description: "Guide a Buyna.ai team member through a fast, safe website workflow
 
 Use the fixed `packages/buyna-workflow-state-core` state machine. Execute only the current gate or approved interaction slice and stop.  
 Fast mode is default: group compatible tasks to reduce turns without reducing safety.
-For normal 建站 requests, use **Minimum Delivery Path** first and defer full coverage only after a quick sign-off.
+默认优先级：**先把网站上线流程跑通**（设计/前端/后端交付与发布），再做最小验证；完整验证默认不跑，只有你明确回复「要完整验证」才启动。
 
 ## Elastic policy for all thresholds in this flow
 
@@ -72,6 +72,14 @@ evidence. Persist an explicit later switch through `setInteractionMode`. Read
 - `SKIP_REASON`（如果该能力不适用）；
 - 可继续或延期的 `DEFERRED` 清单与触发条件。  
 
+### 手动支付订单模式
+
+若你声明“支付订单我自己会做”，则该技能流程采用：
+- 仍按正常上线流程交付前后端和发布基础能力；
+- 标记 `CHECK_MODE: MANUAL_PAYMENT_VALIDATION`；
+- 在测试门槛中仅保留最小支付边界（环境与回调基本可达）；
+- 不默认执行全面支付订单/退款回放，改为你手工确认后再继续。  
+
 ## Elastic Workflow (preferred)
 
 Build with a **mandatory core** + **capability-driven optional slices**.
@@ -135,7 +143,7 @@ See also: [elastic thresholds](references/elastic-thresholds.md).
    订单与支付：`buyai-checkout-address-ux` + `buyai-globepay-payment` + `buyna-gmv-commerce`  
    不需要的能力可 `SKIP`
 5. 最后验收与发布（`buyna-testing-quality` + `buyna-aws-release`）  
-   默认先执行最小验收，再根据 `DEFERRED` 清单决定是否补跑全量。
+   默认先执行最小验收，再根据 `DEFERRED` 清单决定是否补跑全量。完整验证入口保持手动触发。
 
 ## 七阶段（兼容内核）
 
@@ -180,3 +188,4 @@ For code phases 4-8, report `DELIVERED_FILES`, `IMPLEMENTED_SCOPE`, `VERIFICATIO
 - Keep secrets out of chat, frontend code, project files, and Skill files.
 - Do not treat local preview as production delivery.
 - Interaction mode changes presentation only. It never changes required evidence, approval, security, payment, database, or release gates.
+
