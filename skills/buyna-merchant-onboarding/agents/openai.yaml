@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna Merchant Onboarding"
+  short_description: "Safely add one merchant to existing resources"
+  default_prompt: "Use $buyna-merchant-onboarding to onboard one new merchant step by step."

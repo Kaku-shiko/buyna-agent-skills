@@ -1,0 +1,58 @@
+name: Validate Skills
+
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - ".agents/skills/**"
+      - "packages/**"
+      - "repository-manifest.json"
+      - "scripts/install.ps1"
+      - "scripts/validate.ps1"
+      - ".github/workflows/validate-skills.yml"
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - ".agents/skills/**"
+      - "packages/**"
+      - "repository-manifest.json"
+      - "scripts/install.ps1"
+      - "scripts/validate.ps1"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Validate repository Skills
+        shell: pwsh
+        run: ./scripts/validate.ps1
+      - name: Smoke-test complete project installation
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'buyna-skill-install-smoke'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          ./scripts/install.ps1 -Scope Project -ProjectPath $target
+          $manifest = Get-Content -Raw ./repository-manifest.json | ConvertFrom-Json
+          $skills = @(Get-ChildItem (Join-Path $target '.agents/skills') -Directory)
+          $packages = @(Get-ChildItem (Join-Path $target 'packages') -Directory)
+          if ($skills.Count -ne @($manifest.skills).Count) { throw 'Installed Skill count mismatch' }
+          if ($packages.Count -ne @($manifest.packages).Count) { throw 'Installed package count mismatch' }
+      - name: Test fixed modules
+        shell: pwsh
+        run: |
+          Get-ChildItem packages -Directory | ForEach-Object {
+            npm test --prefix $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Test project resource registry
+        shell: pwsh
+        run: node --test skills/buyna-project-resource-registry/scripts/validate-resource-record.test.mjs
+      - name: Test RDS resource identity migration guard
+        shell: pwsh
+        run: node --test skills/buyna-unified-merchant-architecture/scripts/validate-resource-identity-migration.test.mjs

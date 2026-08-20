@@ -1,0 +1,7 @@
+{
+  "name": "@buyna/order-core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/order-core.mjs",
+  "scripts": { "test": "node --test test/order-core.test.mjs" }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Checkout Address UX"
+  short_description: "Improve checkout forms and address persistence"
+  default_prompt: "Use $buyai-checkout-address-ux to improve buyer forms, Japan postal-code auto-fill, mobile inputs, server storage, and draft persistence after errors."

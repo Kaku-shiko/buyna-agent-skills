@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {planRuntimeSlot,validateRuntimeSlot} from '../src/index.mjs';
+test('reuses one instance and creates no TCP port',()=>{const slot=planRuntimeSlot({projectId:'project_alpha',instanceId:'i-shared',instanceIp:'35.73.127.215'});assert.deepEqual(slot.shared.ingressPorts,[80,443]);assert.equal(slot.releaseLimits.newPorts,0);assert.equal(slot.owned.socketPath,'/run/buyna/project_alpha.sock')});
+test('rejects another project runtime collision',()=>{const slot=planRuntimeSlot({projectId:'project_alpha',instanceId:'i-shared',instanceIp:'35.73.127.215'});assert.equal(validateRuntimeSlot({slot,existing:[{projectId:'project_beta',owned:{runtimeIdentity:'project_alpha.socket'}}]}).status,'blocked')});

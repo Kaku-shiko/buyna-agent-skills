@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Testing Quality"
+  short_description: "Verify website behavior before delivery"
+  default_prompt: "Use $buyna-testing-quality to check this website step by step before it is delivered or deployed."
