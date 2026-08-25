@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+export {createUploadEffectExecutor,createUploadQueue} from './upload-queue.mjs';
+
 function fail(code){const error=new Error(code);error.code=code;throw error}
 function segment(value,code){const text=String(value??'').trim();if(!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(text))fail(code);return text}
 function method(owner,name){if(typeof owner?.[name]!=='function')fail(`MISSING_ADAPTER_${name.toUpperCase()}`)}

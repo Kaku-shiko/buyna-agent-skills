@@ -4,6 +4,6 @@
   "type": "module",
   "exports": "./src/file-core.mjs",
   "scripts": {
-    "test": "node --test test/file-core.test.mjs"
+    "test": "node --test test/file-core.test.mjs test/upload-queue.test.mjs"
   }
 }
