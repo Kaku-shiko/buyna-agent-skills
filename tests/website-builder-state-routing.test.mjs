@@ -64,6 +64,14 @@ const paidBooking = {
   requiresPayment: true,
   requiresBooking: true,
 };
+const mixedProductBooking = {
+  siteType: "mixed",
+  requiresDashboard: true,
+  requiresCart: true,
+  requiresCheckout: true,
+  requiresPayment: true,
+  requiresBooking: true,
+};
 
 test("static local preview selects only frontend behavior and canonical N/A gates", () => {
   assert.deepEqual(runRoute({
@@ -143,6 +151,31 @@ test("paid booking routes checkout and payment without a cart dependency", () =>
   assert.ok(!route.fixedModules.includes("buyna-cart-core"));
 });
 
+test("mixed product and booking commerce routes both backends exactly once", () => {
+  const route = runRoute({
+    capabilities: mixedProductBooking,
+    workflowState: stateAt("checkout_payment"),
+    requestedSlice: "checkout_payment",
+    releaseIntent: false,
+  });
+  assert.deepEqual(route.skills, [
+    "buyai-product-merchant-backend",
+    "buyai-booking-service-backend",
+    "buyai-checkout-address-ux",
+    "buyai-globepay-payment",
+    "buyai-globepay-status-sync",
+    "buyna-gmv-commerce",
+  ]);
+  assert.equal(new Set(route.skills).size, route.skills.length);
+  assert.deepEqual(route.fixedModules, [
+    "buyna-workflow-state-core",
+    "buyna-cart-core",
+    "buyna-order-core",
+    "buyna-checkout-flow-core",
+    "buyna-commerce-settlement-core",
+  ]);
+});
+
 test("dependency-ready checkout repair enters checkout directly without replaying earlier Skills", () => {
   assert.deepEqual(runRoute({
     capabilities: productGlobepay,
@@ -159,6 +192,36 @@ test("dependency-ready checkout repair enters checkout directly without replayin
     notApplicableGates: [],
     continueWithoutConfirmation: true,
     commerceArchitecture: "checkout-flow+transport-adapters+settlement",
+    externalActions: { git: false, aws: false },
+  });
+});
+
+test("completed deployed workflow returns an explicit checkout repair reopen action", () => {
+  const completedState = {
+    currentGate: null,
+    gates: Object.fromEntries(gates.map((gate) => [gate, {
+      status: "approved",
+      delivery: { verified: true },
+      approvedBy: "user",
+    }])),
+    configuration: {},
+  };
+  assert.deepEqual(runRoute({
+    capabilities: productGlobepay,
+    workflowState: completedState,
+    requestedSlice: "checkout_payment",
+    releaseIntent: false,
+    mode: "repair",
+  }), {
+    action: "reopen_repair",
+    targetGate: "checkout_payment",
+    requestedSlice: "checkout_payment",
+    skills: ["buyai-checkout-address-ux", "buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce"],
+    fixedModules: ["buyna-workflow-state-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
+    notApplicableGates: [],
+    continueWithoutConfirmation: false,
+    commerceArchitecture: "checkout-flow+transport-adapters+settlement",
+    repairTransition: { type: "openRepairSlice", gate: "checkout_payment" },
     externalActions: { git: false, aws: false },
   });
 });
@@ -215,12 +278,19 @@ test("Builder structural surfaces keep trigger, authority, legacy boundary, and 
   assert.match(builder, /routing-map\.md/);
   assert.doesNotMatch(routingMap, /dashboard_backend|testing_and_upload/);
   assert.match(workflowContract, /importVerifiedHistory/);
+  assert.match(workflowContract, /openRepairSlice/);
+  assert.match(workflowContract, /completeRepairSlice/);
+  assert.match(workflowContract, /outcome.*not_applicable/is);
+  assert.match(workflowContract, /legacy-globepay-service/);
+  assert.match(routingMap, /mixed.*product.*booking|mixed.*both backends/is);
   assert.match(phasePayment, /trusted provider.*notify\/query.*exact amount.*currency/is);
   assert.match(phasePayment, /paymentArchitecture.*fixed-cores/is);
   assert.match(checkout, /booking.*buyna-checkout-flow-core|buyna-checkout-flow-core.*booking/is);
   assert.match(product, /inherit.*configuration\.workPackage|configuration\.workPackage.*inherit/is);
   assert.match(payment, /createGlobepayService.*legacy-only|legacy-only.*createGlobepayService/is);
   assert.match(status, /createGlobepayService.*legacy-only|legacy-only.*createGlobepayService/is);
+  assert.match(payment, /legacy-globepay-service/);
+  assert.match(status, /legacy-globepay-service/);
   assert.match(legacyServiceContract, /legacy-only/i);
   for (const path of ["SKILL.md", "agents/openai.yaml", "references/routing-map.md", "references/phase-06-payment.md", "references/workflow-state-contract.md", "scripts/route-builder.mjs"]) {
     assert.equal(read(`.agents/skills/buyna-website-builder/${path}`),read(`skills/buyna-website-builder/${path}`),`${path} matches the canonical Builder`);

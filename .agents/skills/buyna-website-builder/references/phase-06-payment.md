@@ -14,6 +14,9 @@ notify/query result only after signature/source verification and exact amount
 and currency reconciliation; browser return parameters remain display/navigation
 input. Record `paymentArchitecture: fixed-cores`, the server scope, checkout-flow
 verification, and amount/currency reconciliation in gate delivery evidence.
+An existing legacy project records `paymentArchitecture:
+legacy-globepay-service` explicitly. Missing or unknown architecture blocks
+payment work; it never selects the legacy service implicitly.
 
 ### Default fast check (minimum delivery path)
 

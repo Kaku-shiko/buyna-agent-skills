@@ -17,10 +17,17 @@ After loading state, call `getInteractionPolicy({state})`. This is the canonical
 ## Verified history recovery
 
 For repair/resume, call `importVerifiedHistory({state, requestedGate, imports,
-importedBy})` only with real delivery objects and approval records. Imports start
-at `currentGate`, follow the canonical order without gaps, and end immediately
-before `requestedGate`. Each approval contains its record path, approver,
-approved timestamp, and `decision: approved`.
+importedBy})` with real approved delivery records or verified capability-driven
+N/A records. Imports start at `currentGate`, follow the canonical order without
+gaps, and end immediately before `requestedGate`. Each approval contains its
+record path, approver, approved timestamp, and `decision: approved`.
+
+For a legitimate optional gate, use `outcome: not_applicable` plus a
+`notApplicable` object containing `reason`, `record`, `verifiedBy`, and
+`verifiedAt`. This branch accepts only `dashboard_integration` when Dashboard is
+not required or `checkout_payment` when checkout/payment is not required. It
+records `verified_gate_not_applicable_imported` and contains no fake delivery or
+approval files.
 
 The Interface validates every gate's ordinary delivery contract, applies the
 history to a cloned state, advances readiness once, and returns one transition
@@ -28,6 +35,16 @@ with an ordered `events` batch plus the final aggregate `event`. Persist that
 transition through `saveTransition`; the file store appends the complete event
 batch in one write. Chat assertions are discovery hints and are never import
 evidence.
+
+For a completed/deployed workflow (`currentGate=null`), authorize a bounded
+implementation repair through `openRepairSlice({state, gate, scope,
+authorizedBy})`. The Interface returns separate `activeRepair` readiness and a
+`repair_slice_opened` event while preserving canonical gate status, delivery,
+approval, and release evidence. The router then enters that matching repair
+slice without reopening the original workflow. After delivery, call
+`completeRepairSlice({state, delivery, completedBy})`; it applies the ordinary
+gate evidence validator, stores the repair delivery on `activeRepair`, and emits
+`repair_slice_completed` without changing canonical gate history.
 
 ## Work-package authorization
 
@@ -48,6 +65,9 @@ After customer scope and combined design/structure are explicitly approved, a us
 The intake delivery stores `siteType` and all five capability booleans. Dashboard and
 checkout may be `not_applicable` when capabilities are unnecessary; other
 gates can continue with `SKIP` + `SKIP_REASON` when capability-driven.
+When `requiresPayment=true`, intake also stores an explicit
+`paymentArchitecture` of `fixed-cores` or `legacy-globepay-service`; omission or
+another value is invalid.
 Product commerce without provider payment records `requiresCart=true`,
 `requiresCheckout=true`, and `requiresPayment=false`; its checkout gate runs
 the checkout-flow core and skips provider settlement only. Paid booking may set

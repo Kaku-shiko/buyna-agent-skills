@@ -122,7 +122,11 @@ function completeGate(state,gate,delivery){
 
 const contentCapabilities={siteType:'content',requiresDashboard:false,requiresCart:false,requiresCheckout:false,requiresPayment:false,requiresBooking:false};
 const commerceCapabilities={siteType:'commerce',requiresDashboard:true,requiresCart:true,requiresCheckout:true,requiresPayment:true,requiresBooking:false};
-const intake=(capabilities=contentCapabilities)=>({record:'workflow/records/customer-intake.json',capabilities});
+const intake=(capabilities=contentCapabilities,paymentArchitecture)=>({
+  record:'workflow/records/customer-intake.json',
+  capabilities,
+  ...(paymentArchitecture?{paymentArchitecture}:{}),
+});
 
 test('frontend code cannot request approval without files passing checks and an interface contract',()=>{
   let state=createWorkflow({projectId:'shop-two'});
@@ -135,7 +139,7 @@ test('frontend code cannot request approval without files passing checks and an 
 
 test('dashboard integration stays incomplete until every required slice has code and passing verification',()=>{
   let state=createWorkflow({projectId:'shop-three',dashboardSlices:['merchant_identity','products','orders']});
-  state=completeGate(state,'customer_intake',intake(commerceCapabilities));
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities,'fixed-cores'));
   state=completeGate(state,'design_and_structure',{designRecord:'workflow/records/design.json',pageStructure:'workflow/records/page-structure.json',boardStatus:'delivered'});
   state=completeGate(state,'frontend_code',{deliveredFiles:['src/index.tsx'],verification:[{status:'passed'}],interfaceContract:'workflow/records/frontend-contract.json'});
   state=startGate({state,gate:'dashboard_integration'}).state;
@@ -176,7 +180,7 @@ test('one passing check cannot hide a failed check',()=>{
 
 test('capabilities prevent skipping required commerce gates',()=>{
   let state=createWorkflow({projectId:'commerce-shop'});
-  state=completeGate(state,'customer_intake',intake(commerceCapabilities));
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities,'fixed-cores'));
   state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
   state=completeGate(state,'frontend_code',{deliveredFiles:['app.tsx'],verification:['PASS'],interfaceContract:'contract.json'});
   assert.throws(()=>markNotApplicable({state,gate:'dashboard_integration',reason:'skip'}),/DASHBOARD_REQUIRED/);
@@ -220,8 +224,8 @@ const verifiedApproval=(gate)=>({
   decision:'approved',
 });
 
-const importedHistory=(capabilities=commerceCapabilities)=>[
-  {gate:'customer_intake',delivery:intake(capabilities),approval:verifiedApproval('customer_intake')},
+const importedHistory=(capabilities=commerceCapabilities,paymentArchitecture=capabilities.requiresPayment?'fixed-cores':undefined)=>[
+  {gate:'customer_intake',delivery:intake(capabilities,paymentArchitecture),approval:verifiedApproval('customer_intake')},
   {gate:'design_and_structure',delivery:{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'},approval:verifiedApproval('design_and_structure')},
   {gate:'frontend_code',delivery:{deliveredFiles:['app.tsx'],verification:['PASS'],interfaceContract:'contract.json'},approval:verifiedApproval('frontend_code')},
   {gate:'dashboard_integration',delivery:{completedSlices:[],frontendFiles:['dashboard.tsx'],backendFiles:['server.mjs'],verification:['PASS']},approval:verifiedApproval('dashboard_integration')},
@@ -248,6 +252,45 @@ test('verified history import validates canonical evidence and advances directly
   assert.equal(transition.event.event,'verified_history_imported');
   assert.equal(transition.state.gates.frontend_code.approvalMode,'imported_verified_evidence');
   assert.equal(transition.state.configuration.paymentArchitecture,'fixed-cores');
+});
+
+test('static verified history imports approved gates and capability-legitimate not-applicable gates',()=>{
+  const notApplicable=(gate,reason)=>({
+    gate,
+    outcome:'not_applicable',
+    notApplicable:{
+      reason,
+      record:`workflow/records/${gate}-not-applicable.json`,
+      verifiedBy:'operator',
+      verifiedAt:'2026-08-25T01:30:00.000Z',
+    },
+  });
+  const transition=workflowCore.importVerifiedHistory({
+    state:createWorkflow({projectId:'static-recovery'}),
+    requestedGate:'testing_upload_gate',
+    imports:[
+      {gate:'customer_intake',delivery:intake(),approval:verifiedApproval('customer_intake')},
+      {gate:'design_and_structure',delivery:{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'},approval:verifiedApproval('design_and_structure')},
+      {gate:'frontend_code',delivery:{deliveredFiles:['index.html'],verification:['PASS'],interfaceContract:'contract.json'},approval:verifiedApproval('frontend_code')},
+      notApplicable('dashboard_integration','static site has no dashboard'),
+      notApplicable('checkout_payment','static site has no checkout'),
+    ],
+    importedBy:'operator',
+    now:'2026-08-25T02:00:00.000Z',
+  });
+  assert.equal(transition.state.currentGate,'testing_upload_gate');
+  assert.equal(transition.state.gates.dashboard_integration.status,'not_applicable');
+  assert.equal(transition.state.gates.checkout_payment.status,'not_applicable');
+  assert.equal('delivery' in transition.state.gates.dashboard_integration,false);
+  assert.equal('delivery' in transition.state.gates.checkout_payment,false);
+  assert.deepEqual(transition.events.map(event=>event.event),[
+    'verified_gate_history_imported',
+    'verified_gate_history_imported',
+    'verified_gate_history_imported',
+    'verified_gate_not_applicable_imported',
+    'verified_gate_not_applicable_imported',
+    'verified_history_imported',
+  ]);
 });
 
 test('history import rejects chat assertions, missing approval evidence, and noncanonical order atomically',()=>{
@@ -304,4 +347,94 @@ test('provider payment checkout requires exact amount and currency reconciliatio
   state=recordDelivery({state,gate:'checkout_payment',delivery:{paymentArchitecture:'fixed-cores',scope:{projectId:'provider-checkout',sellerId:'seller-1'},pendingOrder:true,checkoutFlowVerified:true,amountCurrencyReconciled:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']}}).state;
   state=requestApproval({state,gate:'checkout_payment'}).state;
   assert.equal(state.gates.checkout_payment.status,'waiting_for_approval');
+});
+
+test('payment-capable intake rejects an omitted or unsupported payment architecture',()=>{
+  for(const paymentArchitecture of [undefined,'implicit-legacy']){
+    let state=startGate({state:createWorkflow({projectId:`architecture-${paymentArchitecture??'missing'}`}),gate:'customer_intake'}).state;
+    const delivery=intake(commerceCapabilities);
+    if(paymentArchitecture!==undefined)delivery.paymentArchitecture=paymentArchitecture;
+    assert.throws(()=>recordDelivery({state,gate:'customer_intake',delivery}),/PAYMENT_ARCHITECTURE_(?:REQUIRED|UNSUPPORTED)/);
+  }
+});
+
+test('explicit fixed and named legacy payment architectures select separate validation paths',()=>{
+  const legacyDelivery={pendingOrder:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']};
+  let fixedState=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'explicit-fixed'}),requestedGate:'checkout_payment',imports:importedHistory(commerceCapabilities,'fixed-cores'),importedBy:'operator'}).state;
+  fixedState=startGate({state:fixedState,gate:'checkout_payment'}).state;
+  fixedState=recordDelivery({state:fixedState,gate:'checkout_payment',delivery:legacyDelivery}).state;
+  assert.throws(()=>requestApproval({state:fixedState,gate:'checkout_payment'}),/PAYMENT_DELIVERY_EVIDENCE_MISSING/);
+
+  let legacyState=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'explicit-legacy'}),requestedGate:'checkout_payment',imports:importedHistory(commerceCapabilities,'legacy-globepay-service'),importedBy:'operator'}).state;
+  legacyState=startGate({state:legacyState,gate:'checkout_payment'}).state;
+  legacyState=recordDelivery({state:legacyState,gate:'checkout_payment',delivery:legacyDelivery}).state;
+  legacyState=requestApproval({state:legacyState,gate:'checkout_payment'}).state;
+  assert.equal(legacyState.configuration.paymentArchitecture,'legacy-globepay-service');
+  assert.equal(legacyState.gates.checkout_payment.status,'waiting_for_approval');
+});
+
+test('ambiguous persisted payment workflow cannot approve checkout evidence as implicit legacy',()=>{
+  let state=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'ambiguous-payment'}),requestedGate:'checkout_payment',imports:importedHistory(),importedBy:'operator'}).state;
+  delete state.configuration.paymentArchitecture;
+  state=startGate({state,gate:'checkout_payment'}).state;
+  state=recordDelivery({state,gate:'checkout_payment',delivery:{pendingOrder:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']}}).state;
+  assert.throws(()=>requestApproval({state,gate:'checkout_payment'}),/PAYMENT_ARCHITECTURE_REQUIRED/);
+});
+
+test('completed workflow opens a separate authorized repair slice without rewriting canonical gates',()=>{
+  const completed=createWorkflow({projectId:'completed-repair'});
+  for(const gate of Object.keys(completed.gates))completed.gates[gate]={status:'approved',delivery:{record:`${gate}.json`},approvedBy:'user'};
+  completed.currentGate=null;
+  const canonicalSnapshot=structuredClone(completed.gates);
+  assert.equal(typeof workflowCore.openRepairSlice,'function');
+  const transition=workflowCore.openRepairSlice({
+    state:completed,
+    gate:'checkout_payment',
+    scope:'repair verified checkout behavior',
+    authorizedBy:'user',
+    now:'2026-08-25T03:00:00.000Z',
+  });
+  assert.equal(transition.state.currentGate,null);
+  assert.deepEqual(transition.state.gates,canonicalSnapshot);
+  assert.deepEqual(transition.state.activeRepair,{
+    gate:'checkout_payment',
+    status:'ready',
+    scope:'repair verified checkout behavior',
+    authorizedBy:'user',
+    authorizedAt:'2026-08-25T03:00:00.000Z',
+  });
+  assert.equal(transition.event.event,'repair_slice_opened');
+});
+
+test('authorized repair slice validates delivery and completes without rewriting canonical gates',()=>{
+  const completed=createWorkflow({projectId:'completed-repair-delivery'});
+  completed.configuration.capabilities=commerceCapabilities;
+  completed.configuration.paymentArchitecture='fixed-cores';
+  for(const gate of Object.keys(completed.gates))completed.gates[gate]={status:'approved',delivery:{record:`${gate}.json`},approvedBy:'user'};
+  completed.currentGate=null;
+  const canonicalSnapshot=structuredClone(completed.gates);
+  let state=workflowCore.openRepairSlice({state:completed,gate:'checkout_payment',scope:'repair checkout',authorizedBy:'user'}).state;
+  assert.equal(typeof workflowCore.completeRepairSlice,'function');
+  const transition=workflowCore.completeRepairSlice({
+    state,
+    delivery:{
+      paymentArchitecture:'fixed-cores',
+      scope:{projectId:'completed-repair-delivery',sellerId:'seller-1'},
+      pendingOrder:true,
+      checkoutFlowVerified:true,
+      amountCurrencyReconciled:true,
+      routingVerified:true,
+      statusSyncVerified:true,
+      idempotencyVerified:true,
+      gmvOutboxVerified:true,
+      verification:['PASS'],
+    },
+    completedBy:'operator',
+    now:'2026-08-25T04:00:00.000Z',
+  });
+  assert.equal(transition.state.currentGate,null);
+  assert.deepEqual(transition.state.gates,canonicalSnapshot);
+  assert.equal(transition.state.activeRepair.status,'complete');
+  assert.equal(transition.state.activeRepair.completedBy,'operator');
+  assert.equal(transition.event.event,'repair_slice_completed');
 });

@@ -21,6 +21,8 @@ Output:
 - `notApplicableGates` contains only canonical optional gates.
 - `continueWithoutConfirmation` inherits the saved bounded work package.
 - `externalActions.git` and `externalActions.aws` are explicit.
+- A completed workflow in repair mode returns `action: reopen_repair` and an
+  `openRepairSlice` transition until a matching separate repair slice exists.
 
 ## Canonical Gates
 
@@ -48,6 +50,8 @@ is entered directly; otherwise the router returns `currentGate`.
 - Paid booking: `requiresBooking=true`, `requiresCheckout=true`, and
   `requiresPayment=true`; execute booking plus checkout/payment without a cart
   dependency.
+- Mixed product plus booking: when both cart and booking capabilities are true,
+  return both backends once, then the shared checkout/payment route.
 - `requiresCheckout=false` is the only capability condition that makes
   `checkout_payment` not applicable.
 
@@ -60,6 +64,12 @@ fill missing history, call `importVerifiedHistory` in canonical order and save
 its event batch. Re-run the router with the resulting state; the requested
 dependency-ready slice is then selected directly. A chat assertion supplies no
 readiness evidence by itself.
+
+When a deployed workflow has `currentGate=null`, `mode=repair` selects the
+requested implementation gate and returns `reopen_repair`. Authorize the bounded
+repair scope through `openRepairSlice`; this creates separate repair readiness
+without changing canonical completed gates. Rerun the router to execute that
+authorized slice directly.
 
 ## Payment Architecture
 
@@ -74,6 +84,10 @@ New payment path:
 
 `createGlobepayService` belongs only to explicitly recorded legacy maintenance
 and is not composed with this new path.
+
+Payment-capable intake names exactly one supported architecture:
+`fixed-cores` or `legacy-globepay-service`. Missing or unknown values block the
+route; legacy behavior is never inferred from omission.
 
 ## External Boundary
 

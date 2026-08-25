@@ -17,6 +17,10 @@ configuration, framework wiring, and visual presentation.
   and approval records are supplied for missing history, call
   `importVerifiedHistory` once, persist its event batch, recompute readiness,
   and enter the requested ready slice directly.
+- Completed/deployed repair: when `currentGate=null`, run the router in `repair`
+  mode. On `reopen_repair`, authorize one bounded repair scope through
+  `openRepairSlice`, persist the transition, and rerun the router. The repair
+  slice is separate; canonical completed gates and release evidence stay intact.
 - Chat statements identify evidence to inspect; the workflow advances from the
   verified records returned to the import Interface.
 
@@ -34,6 +38,8 @@ evidence. Read [interaction modes](references/interaction-modes.md).
 3. Run `scripts/route-builder.mjs` with recorded capabilities, the loaded
    readiness/evidence state, requested slice, release intent, and
    `build | repair | resume` mode.
+   When it returns `reopen_repair`, record the separately authorized repair
+   slice with `openRepairSlice` and run the same input against the new state.
 4. Treat the script output as routing authority. Read
    [routing-map.md](references/routing-map.md), the selected phase reference,
    and only the returned child Skills.
@@ -42,6 +48,8 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    presentation, and missing project code.
 6. Run the returned fixed-module tests and minimum applicable project tests.
 7. Persist delivery evidence through the workflow core. If
+   an `activeRepair` is ready, validate and close it through
+   `completeRepairSlice`; canonical completed gates remain unchanged. Otherwise, if
    `continueWithoutConfirmation=true`, call `completeAuthorizedGate` and
    continue to the next ready included gate. Otherwise render the current
    decision point once.
@@ -67,7 +75,10 @@ node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
 Payment-capable new builds use the fixed checkout core, GlobePay transport and
 verification Adapters, then the settlement core. Every new-path request carries
 server-owned `projectId + sellerId`; settlement reconciles exact order, amount,
-and currency before applying effects.
+and currency before applying effects. Payment-capable intake records one
+explicit supported architecture: `fixed-cores` for this new path or
+`legacy-globepay-service` for an already recorded legacy project. An omitted or
+unknown architecture is a blocker, not an implicit legacy selection.
 
 ## Approvals And External Actions
 

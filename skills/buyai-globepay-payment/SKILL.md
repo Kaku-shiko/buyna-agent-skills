@@ -46,11 +46,14 @@ proposed provider transition, never a database write or proof of payment.
 
 ## Legacy-Only Service
 
-When an existing project explicitly records the legacy service architecture,
+When an existing project explicitly records
+`paymentArchitecture: legacy-globepay-service`,
 `createGlobepayService` from `scripts/globepay-service.mjs` remains available
 for legacy-only maintenance through `references/service-adapter-contract.md`.
 That legacy path stays separate from the new fixed-core path; migration selects
-one architecture before implementation.
+one named architecture before implementation. New fixed-core work records
+`paymentArchitecture: fixed-cores`; a missing or unknown value blocks payment
+routing.
 
 ## Gold
 

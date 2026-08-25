@@ -9,6 +9,7 @@ const gateOrder=Object.freeze([
 ]);
 const interactionModes=Object.freeze(['team','developer']);
 const workPackageGates=Object.freeze(['frontend_code','dashboard_integration','checkout_payment','testing_upload_gate']);
+const paymentArchitectures=Object.freeze(['fixed-cores','legacy-globepay-service']);
 
 function requiredText(value,code){
   const result=String(value??'').trim();
@@ -35,9 +36,12 @@ function normalizeCapabilities(value){
   return Object.freeze(result);
 }
 
-function selectPaymentArchitecture(state,capabilities){
+function selectPaymentArchitecture(state,capabilities,value){
   state.configuration??={};
-  if(capabilities.requiresPayment&&!state.configuration.paymentArchitecture)state.configuration.paymentArchitecture='fixed-cores';
+  if(!capabilities.requiresPayment)return;
+  const architecture=requiredText(value,'PAYMENT_ARCHITECTURE_REQUIRED');
+  if(!paymentArchitectures.includes(architecture))throw new Error('PAYMENT_ARCHITECTURE_UNSUPPORTED');
+  state.configuration.paymentArchitecture=architecture;
 }
 
 export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.2.0',dashboardSlices=[],interactionMode='team'}={}){
@@ -48,6 +52,7 @@ export function createWorkflow({projectId,now=new Date().toISOString(),workflowV
 
 export const WORKFLOW_GATES=gateOrder;
 export const INTERACTION_MODES=interactionModes;
+export const PAYMENT_ARCHITECTURES=paymentArchitectures;
 
 const commonInteractionPolicy=Object.freeze({
   maxActionQuestionsPerTurn:1,
@@ -109,7 +114,10 @@ function validateDelivery(state,gate,delivery){
     const capabilities=state.configuration?.capabilities;
     if(!delivery.pendingOrder||!allChecksPassed(delivery.verification))throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
     if(capabilities?.requiresPayment){
-      const fixedCorePath=state.configuration?.paymentArchitecture==='fixed-cores'||delivery.paymentArchitecture==='fixed-cores';
+      const architecture=requiredText(state.configuration?.paymentArchitecture,'PAYMENT_ARCHITECTURE_REQUIRED');
+      if(!paymentArchitectures.includes(architecture))throw new Error('PAYMENT_ARCHITECTURE_UNSUPPORTED');
+      if(delivery.paymentArchitecture&&delivery.paymentArchitecture!==architecture)throw new Error('PAYMENT_ARCHITECTURE_MISMATCH');
+      const fixedCorePath=architecture==='fixed-cores';
       const scopeValid=!fixedCorePath||(delivery.scope?.projectId===state.projectId&&Boolean(requiredText(delivery.scope?.sellerId,'SELLER_ID_REQUIRED')));
       const coreValid=!fixedCorePath||(delivery.checkoutFlowVerified&&delivery.amountCurrencyReconciled);
       if(!scopeValid||!coreValid||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified)throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
@@ -144,7 +152,7 @@ export function recordDelivery({state,gate,delivery,now=new Date().toISOString()
   current.delivery=structuredClone(delivery);
   if(gate==='customer_intake'){
     next.configuration.capabilities=normalizeCapabilities(delivery.capabilities);
-    selectPaymentArchitecture(next,next.configuration.capabilities);
+    selectPaymentArchitecture(next,next.configuration.capabilities,delivery.paymentArchitecture);
   }
   current.deliveryRecordedAt=now;next.updatedAt=now;
   return result(next,{event:'delivery_recorded',gate,at:now});
@@ -205,15 +213,19 @@ export function completeAuthorizedGate({state,gate,now=new Date().toISOString()}
 
 export function markNotApplicable({state,gate,reason,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate);
-  if(!['dashboard_integration','checkout_payment'].includes(gate))throw new Error('GATE_NOT_OPTIONAL');
-  const capabilities=next.configuration?.capabilities;
-  if(!capabilities)throw new Error('SITE_CAPABILITIES_REQUIRED');
-  if(gate==='dashboard_integration'&&capabilities.requiresDashboard)throw new Error('DASHBOARD_REQUIRED');
-  if(gate==='checkout_payment'&&(capabilities.requiresCheckout||capabilities.requiresPayment))throw new Error('CHECKOUT_PAYMENT_REQUIRED');
+  validateNotApplicableCapability(next,gate);
   if(!['ready','in_progress'].includes(current.status))throw new Error('GATE_CANNOT_BE_SKIPPED');
   current.status='not_applicable';current.reason=requiredText(reason,'NOT_APPLICABLE_REASON_REQUIRED');current.completedAt=now;
   unlockFollowing(next,gate);next.updatedAt=now;
   return result(next,{event:'gate_not_applicable',gate,reason:current.reason,at:now});
+}
+
+function validateNotApplicableCapability(state,gate){
+  if(!['dashboard_integration','checkout_payment'].includes(gate))throw new Error('GATE_NOT_OPTIONAL');
+  const capabilities=state.configuration?.capabilities;
+  if(!capabilities)throw new Error('SITE_CAPABILITIES_REQUIRED');
+  if(gate==='dashboard_integration'&&capabilities.requiresDashboard)throw new Error('DASHBOARD_REQUIRED');
+  if(gate==='checkout_payment'&&(capabilities.requiresCheckout||capabilities.requiresPayment))throw new Error('CHECKOUT_PAYMENT_REQUIRED');
 }
 
 function verifiedApproval(value){
@@ -225,6 +237,16 @@ function verifiedApproval(value){
   return{record,approvedBy,approvedAt,decision:'approved'};
 }
 
+function verifiedNotApplicable(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('VERIFIED_NOT_APPLICABLE_EVIDENCE_REQUIRED');
+  const reason=requiredText(value.reason,'VERIFIED_NOT_APPLICABLE_EVIDENCE_REQUIRED');
+  const record=requiredText(value.record,'VERIFIED_NOT_APPLICABLE_EVIDENCE_REQUIRED');
+  const verifiedBy=requiredText(value.verifiedBy,'VERIFIED_NOT_APPLICABLE_EVIDENCE_REQUIRED');
+  const verifiedAt=requiredText(value.verifiedAt,'VERIFIED_NOT_APPLICABLE_EVIDENCE_REQUIRED');
+  if(Number.isNaN(Date.parse(verifiedAt)))throw new Error('VERIFIED_NOT_APPLICABLE_EVIDENCE_REQUIRED');
+  return{reason,record,verifiedBy,verifiedAt};
+}
+
 export function importVerifiedHistory({state,requestedGate,imports,importedBy,now=new Date().toISOString()}={}){
   const requestedIndex=gateOrder.indexOf(requestedGate),startIndex=gateOrder.indexOf(state?.currentGate);
   if(requestedIndex<0||startIndex<0||requestedIndex<=startIndex)throw new Error('HISTORY_IMPORT_TARGET_INVALID');
@@ -233,14 +255,26 @@ export function importVerifiedHistory({state,requestedGate,imports,importedBy,no
   for(let offset=0;offset<imports.length;offset+=1){
     const expectedGate=gateOrder[startIndex+offset],item=imports[offset];
     if(item?.gate!==expectedGate)throw new Error('HISTORY_IMPORT_ORDER_INVALID');
+    const current=next.gates[expectedGate];
+    if(next.currentGate!==expectedGate||current.status!=='ready')throw new Error('HISTORY_IMPORT_STATE_INVALID');
+    if(item.outcome==='not_applicable'){
+      if('delivery'in item||'approval'in item)throw new Error('VERIFIED_NOT_APPLICABLE_EVIDENCE_INVALID');
+      validateNotApplicableCapability(next,expectedGate);
+      const evidence=verifiedNotApplicable(item.notApplicable);
+      current.status='not_applicable';current.reason=evidence.reason;current.completedAt=evidence.verifiedAt;
+      current.importMode='imported_verified_evidence';current.notApplicableRecord=evidence.record;
+      current.verifiedBy=evidence.verifiedBy;current.verifiedAt=evidence.verifiedAt;
+      unlockFollowing(next,expectedGate);
+      events.push({event:'verified_gate_not_applicable_imported',gate:expectedGate,reason:evidence.reason,verificationRecord:evidence.record,importedBy:actor,at:now});
+      continue;
+    }
     if(!item.delivery||typeof item.delivery!=='object'||Array.isArray(item.delivery))throw new Error('VERIFIED_DELIVERY_EVIDENCE_REQUIRED');
     if(expectedGate==='customer_intake'){
       next.configuration.capabilities=normalizeCapabilities(item.delivery.capabilities);
-      selectPaymentArchitecture(next,next.configuration.capabilities);
+      selectPaymentArchitecture(next,next.configuration.capabilities,item.delivery.paymentArchitecture);
     }
     validateDelivery(next,expectedGate,item.delivery);
-    const approval=verifiedApproval(item.approval),current=next.gates[expectedGate];
-    if(next.currentGate!==expectedGate||current.status!=='ready')throw new Error('HISTORY_IMPORT_STATE_INVALID');
+    const approval=verifiedApproval(item.approval);
     current.status='approved';current.delivery=structuredClone(item.delivery);current.deliveryRecordedAt=now;
     current.approvalMode='imported_verified_evidence';current.approvalRecord=approval.record;
     current.approvedBy=approval.approvedBy;current.approvedAt=approval.approvedAt;
@@ -252,6 +286,34 @@ export function importVerifiedHistory({state,requestedGate,imports,importedBy,no
   const summary={event:'verified_history_imported',gates:imports.map(item=>item.gate),requestedGate,importedBy:actor,at:now};
   events.push(summary);
   return{state:next,event:summary,events};
+}
+
+export function openRepairSlice({state,gate,scope,authorizedBy,now=new Date().toISOString()}={}){
+  const next=copyState(state);
+  if(next.currentGate!==null||Object.values(next.gates??{}).some(value=>!['approved','not_applicable'].includes(value?.status)))throw new Error('WORKFLOW_NOT_COMPLETE');
+  if(!workPackageGates.includes(gate))throw new Error('REPAIR_GATE_REQUIRES_EXPLICIT_WORKFLOW');
+  if(next.activeRepair&&!['complete','cancelled'].includes(next.activeRepair.status))throw new Error('REPAIR_SLICE_ALREADY_ACTIVE');
+  const actor=requiredText(authorizedBy,'APPROVER_REQUIRED');
+  next.activeRepair={
+    gate,
+    status:'ready',
+    scope:requiredText(scope,'WORK_PACKAGE_SCOPE_REQUIRED'),
+    authorizedBy:actor,
+    authorizedAt:now,
+  };
+  next.updatedAt=now;
+  return result(next,{event:'repair_slice_opened',gate,authorizedBy:actor,at:now});
+}
+
+export function completeRepairSlice({state,delivery,completedBy,now=new Date().toISOString()}={}){
+  const next=copyState(state),repair=next.activeRepair;
+  if(!repair||!['ready','in_progress'].includes(repair.status))throw new Error('REPAIR_SLICE_NOT_ACTIVE');
+  if(!delivery||typeof delivery!=='object'||Array.isArray(delivery))throw new Error('DELIVERY_REQUIRED');
+  validateDelivery(next,repair.gate,delivery);
+  const actor=requiredText(completedBy,'REPAIR_COMPLETER_REQUIRED');
+  repair.status='complete';repair.delivery=structuredClone(delivery);
+  repair.completedBy=actor;repair.completedAt=now;next.updatedAt=now;
+  return result(next,{event:'repair_slice_completed',gate:repair.gate,completedBy:actor,at:now});
 }
 
 export function rejectGate({state,gate,feedback,rejectedBy,now=new Date().toISOString()}={}){

@@ -12,6 +12,7 @@ const gates = Object.freeze([
   "aws_release",
 ]);
 const requestedSlices = Object.freeze([...gates, "local_preview"]);
+const repairSlices = Object.freeze(["frontend_code", "dashboard_integration", "checkout_payment", "testing_upload_gate"]);
 const capabilityKeys = Object.freeze([
   "requiresDashboard",
   "requiresCart",
@@ -40,9 +41,13 @@ function normalizeCapabilities(value) {
 
 function verifyReadiness(workflowState) {
   const state = requiredObject(workflowState, "WORKFLOW_STATE_REQUIRED");
-  if (!gates.includes(state.currentGate)) throw new Error("CURRENT_GATE_INVALID");
   const gateStates = requiredObject(state.gates, "GATE_STATE_REQUIRED");
   for (const gate of gates) requiredObject(gateStates[gate], "GATE_STATE_REQUIRED");
+  if (state.currentGate === null) {
+    if (gates.some((gate) => !["approved", "not_applicable"].includes(gateStates[gate].status))) throw new Error("COMPLETED_WORKFLOW_EVIDENCE_REQUIRED");
+    return state;
+  }
+  if (!gates.includes(state.currentGate)) throw new Error("CURRENT_GATE_INVALID");
   const currentIndex = gates.indexOf(state.currentGate);
   for (const gate of gates.slice(0, currentIndex)) {
     const prior = gateStates[gate];
@@ -66,9 +71,10 @@ function routeForGate({ gate, capabilities, mode }) {
   if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure"], fixedModules, commerceArchitecture: null };
   if (gate === "frontend_code") return { skills: ["buyna-frontend-builder"], fixedModules, commerceArchitecture: null };
   if (gate === "dashboard_integration") {
-    const skills = ["buyai-dashboard-data-interaction"];
-    if (capabilities.requiresBooking) skills.unshift("buyai-booking-service-backend");
-    else if (capabilities.siteType === "commerce" || capabilities.siteType === "mixed") skills.unshift("buyai-product-merchant-backend");
+    const skills = [];
+    if (capabilities.requiresCart || capabilities.siteType === "commerce") skills.push("buyai-product-merchant-backend");
+    if (capabilities.requiresBooking) skills.push("buyai-booking-service-backend");
+    skills.push("buyai-dashboard-data-interaction");
     return { skills, fixedModules, commerceArchitecture: null };
   }
   if (gate === "testing_upload_gate") return { skills: ["buyna-testing-quality"], fixedModules, commerceArchitecture: null };
@@ -76,8 +82,8 @@ function routeForGate({ gate, capabilities, mode }) {
 
   const skills = [];
   if (mode !== "repair") {
+    if (capabilities.requiresCart) skills.push("buyai-product-merchant-backend");
     if (capabilities.requiresBooking) skills.push("buyai-booking-service-backend");
-    else if (capabilities.requiresCart) skills.push("buyai-product-merchant-backend");
   }
   if (capabilities.requiresCheckout) {
     skills.push("buyai-checkout-address-ux");
@@ -99,12 +105,16 @@ function routeForGate({ gate, capabilities, mode }) {
 
 export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build" } = {}) {
   const capabilities = normalizeCapabilities(rawCapabilities);
-  const workflowState = verifyReadiness(rawState);
   if (!requestedSlices.includes(requestedSlice)) throw new Error("REQUESTED_SLICE_INVALID");
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
+  const workflowState = verifyReadiness(rawState);
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
+  const completed = workflowState.currentGate === null;
+  if (completed && mode !== "repair") throw new Error("WORKFLOW_COMPLETE");
+  if (completed && !repairSlices.includes(requestedGate)) throw new Error("REPAIR_SLICE_INVALID");
+  const activeRepair = completed && workflowState.activeRepair?.gate === requestedGate && ["ready", "in_progress"].includes(workflowState.activeRepair.status);
   const requestedStatus = workflowState.gates[requestedGate].status;
-  const targetGate = ["ready", "in_progress"].includes(requestedStatus) ? requestedGate : workflowState.currentGate;
+  const targetGate = completed ? requestedGate : ["ready", "in_progress"].includes(requestedStatus) ? requestedGate : workflowState.currentGate;
   const selected = routeForGate({ gate: targetGate, capabilities, mode });
   const skippedGates = notApplicableGates(capabilities);
   const workPackageGates = workflowState.configuration?.workPackage?.gates ?? [];
@@ -114,10 +124,11 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     skills: selected.skills,
     fixedModules: selected.fixedModules,
     notApplicableGates: skippedGates,
-    continueWithoutConfirmation: workPackageGates.includes(targetGate),
+    continueWithoutConfirmation: activeRepair || workPackageGates.includes(targetGate),
     commerceArchitecture: selected.commerceArchitecture,
     externalActions: { git: false, aws: targetGate === "aws_release" && releaseIntent === true },
   };
+  if (completed && !activeRepair) return { action: "reopen_repair", ...base, repairTransition: { type: "openRepairSlice", gate: targetGate } };
   if (skippedGates.includes(targetGate)) return { action: "mark_not_applicable", ...base, reason: "CAPABILITY_NOT_REQUIRED", skills: [], fixedModules: ["buyna-workflow-state-core"], commerceArchitecture: null };
   if (targetGate === "aws_release" && releaseIntent !== true) return { action: "blocked", ...base, reason: "RELEASE_INTENT_REQUIRED", skills: [], externalActions: { git: false, aws: false } };
   return { action: "execute", ...base };

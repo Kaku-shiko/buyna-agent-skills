@@ -47,6 +47,11 @@ no-payment product route uses cart/order modules and marks the payment node
 provider portion skipped while `checkout_payment` remains applicable. Project code supplies only the applicable Adapters,
 configuration, API wiring, and presentation.
 
+For a mixed product-and-booking capability set, the Builder returns this Skill
+and `buyai-booking-service-backend` once each. This Skill keeps product/cart/order
+ownership while the booking Skill keeps reservation/capacity ownership; both
+share the selected checkout/payment cores and project Adapters.
+
 When invoked by `buyna-website-builder`, inherit the saved
 `configuration.workPackage` authorization and `interactionMode`. An included
 `dashboard_integration` or `checkout_payment` slice returns evidence to the

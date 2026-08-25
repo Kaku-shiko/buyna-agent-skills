@@ -29,11 +29,13 @@ order, amount, and currency before a legal transition and idempotent effects.
 Project code supplies only provider/database Adapters, configuration, routes,
 and presentation.
 
-When an existing project explicitly records the legacy service architecture,
+When an existing project explicitly records
+`paymentArchitecture: legacy-globepay-service`,
 `createGlobepayService(...).syncPaymentStatus(...)` remains a legacy-only
 maintenance Interface described by
 `buyai-globepay-payment/references/service-adapter-contract.md`. The legacy
-service and new fixed-core path are selected separately.
+service and `paymentArchitecture: fixed-cores` path are selected separately;
+missing or unknown architecture blocks status mutation.
 
 ## Required Flow
 
