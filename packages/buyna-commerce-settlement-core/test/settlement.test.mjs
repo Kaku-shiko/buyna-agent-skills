@@ -51,8 +51,8 @@ function createHarness({ event = {}, order = {}, capabilities } = {}) {
           claimed.add(eventId);
           return true;
         },
-        async getOrder() {
-          calls.push('getOrder');
+        async getOrderForSettlement() {
+          calls.push('getOrderForSettlement');
           return storedOrder;
         },
         async upsertPayment() {
@@ -155,7 +155,7 @@ test('rejects a paid-to-failed transition before settlement effects', async () =
     event: { status: 'failed' },
   });
   await assert.rejects(() => module.settle(SCOPE), /SETTLEMENT_INVALID_TRANSITION/);
-  assert.deepEqual(calls, ['transaction', 'claim', 'getOrder']);
+  assert.deepEqual(calls, ['transaction', 'claim', 'getOrderForSettlement']);
 });
 
 test('rejects provider and order scope mismatches before settlement effects', async (t) => {
@@ -191,7 +191,7 @@ test('rejects provider and order scope mismatches before settlement effects', as
 test('rejects provider and stored order identity mismatch', async () => {
   const { module, calls } = createHarness({ order: { id: 'order-other' } });
   await assert.rejects(() => module.settle(SCOPE), /ORDER_ID_MISMATCH/);
-  assert.deepEqual(calls, ['transaction', 'claim', 'getOrder']);
+  assert.deepEqual(calls, ['transaction', 'claim', 'getOrderForSettlement']);
 });
 
 test('rejects amount and currency mismatches before settlement effects', async (t) => {
@@ -218,22 +218,153 @@ test('rejects amount and currency mismatches before settlement effects', async (
   }
 });
 
+test('rejects malformed event and authoritative order payment amounts', async (t) => {
+  const invalidAmounts = [
+    ['missing', undefined],
+    ['null', null],
+    ['string', '1000'],
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['unsafe', Number.MAX_SAFE_INTEGER + 1],
+  ];
+
+  for (const [name, amount] of invalidAmounts) {
+    await t.test(`event amount ${name}`, async () => {
+      const { module, calls } = createHarness({ event: { amount } });
+      await assert.rejects(() => module.settle(SCOPE), /PAYMENT_EVENT_AMOUNT_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+    await t.test(`order amount ${name}`, async () => {
+      const { module, calls } = createHarness({ order: { amount } });
+      await assert.rejects(() => module.settle(SCOPE), /ORDER_AMOUNT_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+  }
+});
+
+test('rejects malformed event and authoritative order currencies', async (t) => {
+  const invalidCurrencies = [
+    ['missing', undefined],
+    ['null', null],
+    ['empty', ''],
+    ['lowercase', 'jpy'],
+    ['whitespace', ' JPY '],
+    ['non-string', 392],
+    ['malformed', 'JP¥'],
+  ];
+
+  for (const [name, currency] of invalidCurrencies) {
+    await t.test(`event currency ${name}`, async () => {
+      const { module, calls } = createHarness({ event: { currency } });
+      await assert.rejects(() => module.settle(SCOPE), /PAYMENT_EVENT_CURRENCY_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+    await t.test(`order currency ${name}`, async () => {
+      const { module, calls } = createHarness({ order: { currency } });
+      await assert.rejects(() => module.settle(SCOPE), /ORDER_CURRENCY_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+  }
+});
+
+test('rejects malformed cumulative and authoritative refund amounts', async (t) => {
+  const invalidRefundAmounts = [
+    ['missing', undefined],
+    ['null', null],
+    ['string', '400'],
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['unsafe', Number.MAX_SAFE_INTEGER + 1],
+  ];
+
+  for (const [name, amount] of invalidRefundAmounts) {
+    await t.test(`event refund amount ${name}`, async () => {
+      const { module, calls } = createHarness({
+        order: { status: 'paid' },
+        event: { status: 'partially_refunded', refundAmount: amount },
+      });
+      await assert.rejects(() => module.settle(SCOPE), /REFUND_AMOUNT_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+    await t.test(`stored refunded amount ${name}`, async () => {
+      const { module, calls } = createHarness({
+        order: { status: 'paid', refundedAmount: amount },
+        event: { status: 'partially_refunded', refundAmount: 400 },
+      });
+      await assert.rejects(() => module.settle(SCOPE), /ORDER_REFUND_AMOUNT_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+    await t.test(`stored paid amount ${name}`, async () => {
+      const { module, calls } = createHarness({
+        order: { status: 'paid', paidAmount: amount },
+        event: { status: 'partially_refunded', refundAmount: 400 },
+      });
+      await assert.rejects(() => module.settle(SCOPE), /ORDER_PAID_AMOUNT_INVALID/);
+      assert.equal(calls.includes('payment'), false);
+    });
+  }
+});
+
 test('rejects cumulative refunds above the paid amount', async () => {
   const { module, calls } = createHarness({
     order: { status: 'paid' },
     event: { status: 'refunded', refundAmount: 1001 },
   });
   await assert.rejects(() => module.settle(SCOPE), /REFUND_AMOUNT_EXCEEDS_PAID/);
-  assert.deepEqual(calls, ['transaction', 'claim', 'getOrder']);
+  assert.deepEqual(calls, ['transaction', 'claim', 'getOrderForSettlement']);
 });
 
-test('rejects browser-source, untrusted, and identity-less provider events', async (t) => {
+test('rejects every source outside the provider-owned closed enum', async (t) => {
   const cases = [
     {
-      name: 'browser source',
-      event: { source: 'browser_return' },
-      error: /PROVIDER_EVENT_NOT_TRUSTED/,
+      name: 'missing source',
+      event: { source: undefined },
     },
+    {
+      name: 'null source',
+      event: { source: null },
+    },
+    {
+      name: 'unknown source',
+      event: { source: 'provider_webhook' },
+    },
+    {
+      name: 'browser_return source',
+      event: { source: 'browser_return' },
+    },
+    {
+      name: 'browserReturn source',
+      event: { source: 'browserReturn' },
+    },
+    {
+      name: 'return_url source',
+      event: { source: 'return_url' },
+    },
+  ];
+
+  for (const entry of cases) {
+    await t.test(entry.name, async () => {
+      const { module, calls } = createHarness({ event: entry.event });
+      await assert.rejects(
+        () => module.settle(SCOPE),
+        /PROVIDER_EVENT_SOURCE_NOT_ALLOWED/,
+      );
+      assert.deepEqual(calls, []);
+    });
+  }
+});
+
+test('accepts only normalized notify query and scheduled provider sources', async (t) => {
+  for (const source of ['provider_notify', 'provider_query', 'provider_scheduled']) {
+    await t.test(source, async () => {
+      const { module } = createHarness({ event: { source } });
+      assert.equal((await module.settle(SCOPE)).status, 'applied');
+    });
+  }
+});
+
+test('rejects untrusted and identity-less provider events', async (t) => {
+  const cases = [
     {
       name: 'untrusted provider result',
       event: { trusted: false },
@@ -307,7 +438,7 @@ function createEffectHarness({
           claimed.add(eventId);
           return true;
         },
-        async getOrder() {
+        async getOrderForSettlement() {
           return order;
         },
         async upsertPayment({ verified }) {
@@ -345,6 +476,19 @@ function createEffectHarness({
       if (optionalAdapters) {
         tx.applyCouponOnce = async ({ eventId }) => {
           effects.push({ name: 'coupon', transactionId, eventId });
+        };
+        tx.applyRefundCouponPolicyOnce = async ({
+          verified,
+          refundDelta,
+          cumulativeRefundAmount,
+        }) => {
+          effects.push({
+            name: 'couponRefund',
+            transactionId,
+            eventId: verified.eventId,
+            refundDelta,
+            cumulativeRefundAmount,
+          });
         };
         tx.markCartClearOnce = async ({ eventId }) => {
           effects.push({ name: 'cart', transactionId, eventId });
@@ -472,4 +616,248 @@ test('refund events append only new deltas and never repeat paid effects', async
       { eventId: 'refund-3', refundDelta: 300 },
     ],
   );
+});
+
+test('configured refund coupon policy runs once without replaying paid coupon redemption', async () => {
+  const harness = createEffectHarness({
+    events: [
+      {
+        eventId: 'refund-1',
+        status: 'partially_refunded',
+        refundAmount: 400,
+      },
+    ],
+    capabilities: { coupon: true, refundCoupon: true },
+    order: { status: 'paid' },
+  });
+
+  await harness.module.settle(SCOPE);
+  assert.deepEqual(await harness.module.settle(SCOPE), {
+    status: 'duplicate',
+    eventId: 'refund-1',
+  });
+  assert.deepEqual(
+    harness.effects.map(({ name }) => name),
+    ['payment', 'order', 'refund', 'couponRefund', 'gmv'],
+  );
+  assert.deepEqual(
+    harness.effects.find(({ name }) => name === 'couponRefund'),
+    {
+      name: 'couponRefund',
+      transactionId: 1,
+      eventId: 'refund-1',
+      refundDelta: 400,
+      cumulativeRefundAmount: 400,
+    },
+  );
+  assert.equal(harness.effects.some(({ name }) => name === 'coupon'), false);
+});
+
+test('preflights every selected adapter before claiming or writing settlement state', async (t) => {
+  const cases = [
+    ['paid claim', 'paid', 'claimEvent', /MISSING_ADAPTER_CLAIMEVENT/],
+    [
+      'paid locked order read',
+      'paid',
+      'getOrderForSettlement',
+      /MISSING_ADAPTER_GETORDERFORSETTLEMENT/,
+    ],
+    ['paid payment', 'paid', 'upsertPayment', /MISSING_ADAPTER_UPSERTPAYMENT/],
+    ['paid order', 'paid', 'setOrderStatus', /MISSING_ADAPTER_SETORDERSTATUS/],
+    ['paid inventory', 'paid', 'applyInventoryOnce', /MISSING_ADAPTER_APPLYINVENTORYONCE/],
+    ['paid customer', 'paid', 'upsertPaidCustomer', /MISSING_ADAPTER_UPSERTPAIDCUSTOMER/],
+    ['paid GMV', 'paid', 'appendGmvOutbox', /MISSING_ADAPTER_APPENDGMVOUTBOX/],
+    ['paid coupon', 'paid', 'applyCouponOnce', /MISSING_ADAPTER_APPLYCOUPONONCE/],
+    ['paid cart', 'paid', 'markCartClearOnce', /MISSING_ADAPTER_MARKCARTCLEARONCE/],
+    ['refund record', 'refund', 'recordRefund', /MISSING_ADAPTER_RECORDREFUND/],
+    ['refund GMV', 'refund', 'appendGmvOutbox', /MISSING_ADAPTER_APPENDGMVOUTBOX/],
+    [
+      'refund coupon policy',
+      'refund',
+      'applyRefundCouponPolicyOnce',
+      /MISSING_ADAPTER_APPLYREFUNDCOUPONPOLICYONCE/,
+    ],
+  ];
+
+  for (const [name, transition, missingMethod, expectedError] of cases) {
+    await t.test(name, async () => {
+      const writes = [];
+      const isRefund = transition === 'refund';
+      const event = {
+        trusted: true,
+        source: 'provider_notify',
+        eventId: `${transition}-1`,
+        provider: 'provider',
+        orderId: 'order-1',
+        ...SCOPE,
+        status: isRefund ? 'partially_refunded' : 'paid',
+        amount: 1000,
+        currency: 'JPY',
+        refundAmount: isRefund ? 400 : 0,
+      };
+      const order = {
+        id: 'order-1',
+        ...SCOPE,
+        status: isRefund ? 'paid' : 'pending_payment',
+        amount: 1000,
+        currency: 'JPY',
+        refundedAmount: 0,
+      };
+      const tx = {
+        async claimEvent() {
+          writes.push('claim');
+          return true;
+        },
+        async getOrderForSettlement() {
+          return order;
+        },
+        async upsertPayment() {
+          writes.push('payment');
+        },
+        async setOrderStatus() {
+          writes.push('order');
+        },
+        async applyInventoryOnce() {
+          writes.push('inventory');
+        },
+        async applyCouponOnce() {
+          writes.push('coupon');
+        },
+        async upsertPaidCustomer() {
+          writes.push('customer');
+        },
+        async recordRefund() {
+          writes.push('refund');
+        },
+        async applyRefundCouponPolicyOnce() {
+          writes.push('couponRefund');
+        },
+        async appendGmvOutbox() {
+          writes.push('gmv');
+        },
+        async markCartClearOnce() {
+          writes.push('cart');
+        },
+      };
+      delete tx[missingMethod];
+      const module = createSettlementModule({
+        provider: { async verify() { return event; } },
+        store: { async transaction(run) { return run(tx); } },
+        capabilities: isRefund
+          ? { refundCoupon: true }
+          : { coupon: true, cart: true },
+      });
+
+      await assert.rejects(() => module.settle(SCOPE), expectedError);
+      assert.deepEqual(writes, []);
+    });
+  }
+});
+
+test('concurrent distinct refunds calculate deltas from serialized authoritative order state', async () => {
+  const order = {
+    id: 'order-1',
+    ...SCOPE,
+    status: 'paid',
+    amount: 1000,
+    currency: 'JPY',
+    refundedAmount: 0,
+  };
+  const events = {
+    'refund-1': {
+      trusted: true,
+      source: 'provider_notify',
+      eventId: 'refund-1',
+      provider: 'provider',
+      orderId: 'order-1',
+      ...SCOPE,
+      status: 'partially_refunded',
+      amount: 1000,
+      currency: 'JPY',
+      refundAmount: 400,
+    },
+    'refund-2': {
+      trusted: true,
+      source: 'provider_notify',
+      eventId: 'refund-2',
+      provider: 'provider',
+      orderId: 'order-1',
+      ...SCOPE,
+      status: 'partially_refunded',
+      amount: 1000,
+      currency: 'JPY',
+      refundAmount: 700,
+    },
+  };
+  const refundEffects = [];
+  const claimed = new Set();
+  let staleReadCount = 0;
+  let releaseStaleReads;
+  const bothStaleReads = new Promise((resolve) => {
+    releaseStaleReads = resolve;
+  });
+  let lockTail = Promise.resolve();
+  const provider = {
+    async verify(input) {
+      return events[input.eventId];
+    },
+  };
+  const store = {
+    async transaction(run) {
+      let releaseOrderLock;
+      let hasOrderLock = false;
+      const tx = {
+        async claimEvent({ eventId }) {
+          if (claimed.has(eventId)) return false;
+          claimed.add(eventId);
+          return true;
+        },
+        async getOrder() {
+          const staleSnapshot = { ...order };
+          staleReadCount += 1;
+          if (staleReadCount === 2) releaseStaleReads();
+          await bothStaleReads;
+          return staleSnapshot;
+        },
+        async getOrderForSettlement() {
+          const previousLock = lockTail;
+          lockTail = new Promise((resolve) => {
+            releaseOrderLock = resolve;
+          });
+          await previousLock;
+          hasOrderLock = true;
+          return order;
+        },
+        async upsertPayment() {},
+        async setOrderStatus({ status }) {
+          order.status = status;
+        },
+        async recordRefund({ verified, refundDelta }) {
+          refundEffects.push({ eventId: verified.eventId, refundDelta });
+          order.refundedAmount = verified.refundAmount;
+        },
+        async appendGmvOutbox() {},
+      };
+      try {
+        return await run(tx);
+      } finally {
+        if (hasOrderLock) releaseOrderLock();
+      }
+    },
+  };
+  const module = createSettlementModule({ provider, store });
+
+  await Promise.all([
+    module.settle({ ...SCOPE, eventId: 'refund-1' }),
+    module.settle({ ...SCOPE, eventId: 'refund-2' }),
+  ]);
+
+  assert.deepEqual(
+    refundEffects.sort((left, right) => left.eventId.localeCompare(right.eventId)),
+    [
+      { eventId: 'refund-1', refundDelta: 400 },
+      { eventId: 'refund-2', refundDelta: 300 },
+    ],
+  );
+  assert.equal(order.refundedAmount, 700);
 });

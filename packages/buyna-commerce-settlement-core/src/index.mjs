@@ -13,6 +13,14 @@ function requiredText(value, code) {
   return value;
 }
 
+function validateAmount(value, code) {
+  if (!Number.isSafeInteger(value) || value < 0) fail(code);
+}
+
+function validateCurrency(value, code) {
+  if (typeof value !== 'string' || !/^[A-Z]{3}$/.test(value)) fail(code);
+}
+
 export const SETTLEMENT_STATUSES = Object.freeze({
   PENDING_PAYMENT: 'pending_payment',
   PAID: 'paid',
@@ -44,18 +52,25 @@ export const SETTLEMENT_TRANSITIONS = Object.freeze({
   refunded: Object.freeze([]),
 });
 
+export const PROVIDER_EVENT_SOURCES = Object.freeze({
+  NOTIFY: 'provider_notify',
+  QUERY: 'provider_query',
+  SCHEDULED: 'provider_scheduled',
+});
+
+const ALLOWED_PROVIDER_EVENT_SOURCES = new Set(
+  Object.values(PROVIDER_EVENT_SOURCES),
+);
+
 const REFUND_STATUSES = new Set([
   SETTLEMENT_STATUSES.PARTIALLY_REFUNDED,
   SETTLEMENT_STATUSES.REFUNDED,
 ]);
 
 function validateTrustedEvent(verified) {
-  if (
-    verified?.trusted !== true
-    || verified.source === 'browser'
-    || verified.source?.startsWith?.('browser_')
-  ) {
-    fail('PROVIDER_EVENT_NOT_TRUSTED');
+  if (verified?.trusted !== true) fail('PROVIDER_EVENT_NOT_TRUSTED');
+  if (!ALLOWED_PROVIDER_EVENT_SOURCES.has(verified.source)) {
+    fail('PROVIDER_EVENT_SOURCE_NOT_ALLOWED');
   }
   requiredText(verified.eventId, 'PROVIDER_EVENT_ID_REQUIRED');
   requiredText(verified.provider, 'PROVIDER_ID_REQUIRED');
@@ -80,6 +95,10 @@ function validateScope(scope, verified, order) {
 
 function validateOrder(verified, order) {
   if (order.id !== verified.orderId) fail('ORDER_ID_MISMATCH');
+  validateAmount(order.amount, 'ORDER_AMOUNT_INVALID');
+  validateAmount(verified.amount, 'PAYMENT_EVENT_AMOUNT_INVALID');
+  validateCurrency(order.currency, 'ORDER_CURRENCY_INVALID');
+  validateCurrency(verified.currency, 'PAYMENT_EVENT_CURRENCY_INVALID');
   if (verified.amount !== order.amount) fail('PAYMENT_AMOUNT_MISMATCH');
   if (verified.currency !== order.currency) fail('PAYMENT_CURRENCY_MISMATCH');
   if (!SETTLEMENT_TRANSITIONS[order.status]?.includes(verified.status)) {
@@ -89,15 +108,16 @@ function validateOrder(verified, order) {
 
 function refundAmounts(verified, order) {
   if (!REFUND_STATUSES.has(verified.status)) return undefined;
-  const paidAmount = order.paidAmount ?? order.amount;
-  const refundedAmount = order.refundedAmount ?? 0;
+  const paidAmount = Object.hasOwn(order, 'paidAmount')
+    ? order.paidAmount
+    : order.amount;
+  const refundedAmount = order.refundedAmount;
   const cumulativeRefundAmount = verified.refundAmount;
-  if (
-    !Number.isFinite(cumulativeRefundAmount)
-    || cumulativeRefundAmount > paidAmount
-  ) {
-    fail('REFUND_AMOUNT_EXCEEDS_PAID');
-  }
+  validateAmount(paidAmount, 'ORDER_PAID_AMOUNT_INVALID');
+  validateAmount(refundedAmount, 'ORDER_REFUND_AMOUNT_INVALID');
+  validateAmount(cumulativeRefundAmount, 'REFUND_AMOUNT_INVALID');
+  if (refundedAmount > paidAmount) fail('ORDER_REFUND_AMOUNT_INVALID');
+  if (cumulativeRefundAmount > paidAmount) fail('REFUND_AMOUNT_EXCEEDS_PAID');
   if (cumulativeRefundAmount <= refundedAmount) {
     fail('REFUND_AMOUNT_NOT_INCREASED');
   }
@@ -112,11 +132,32 @@ function refundAmounts(verified, order) {
   return { paidAmount, refundedAmount, cumulativeRefundAmount };
 }
 
+function settlementAdapterMethods(status, capabilities) {
+  const names = [
+    'claimEvent',
+    'getOrderForSettlement',
+    'upsertPayment',
+    'setOrderStatus',
+  ];
+  if (status === SETTLEMENT_STATUSES.PAID) {
+    names.push('applyInventoryOnce', 'upsertPaidCustomer', 'appendGmvOutbox');
+    if (capabilities.coupon) names.push('applyCouponOnce');
+    if (capabilities.cart) names.push('markCartClearOnce');
+  } else if (REFUND_STATUSES.has(status)) {
+    names.push('recordRefund', 'appendGmvOutbox');
+    if (capabilities.refundCoupon) {
+      names.push('applyRefundCouponPolicyOnce');
+    }
+  }
+  return names;
+}
+
 export function createSettlementModule({ provider, store, capabilities } = {}) {
   method(provider, 'verify');
   method(store, 'transaction');
   const enabledCapabilities = Object.freeze({
     coupon: capabilities?.coupon === true,
+    refundCoupon: capabilities?.refundCoupon === true,
     cart: capabilities?.cart === true,
   });
 
@@ -139,7 +180,9 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
       }
 
       return store.transaction(async (tx) => {
-        for (const name of ['claimEvent', 'getOrder']) method(tx, name);
+        for (const name of settlementAdapterMethods(verified.status, enabledCapabilities)) {
+          method(tx, name);
+        }
         const claimed = await tx.claimEvent({
           eventId: verified.eventId,
           provider: verified.provider,
@@ -148,7 +191,7 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
           return { status: 'duplicate', eventId: verified.eventId };
         }
 
-        const order = await tx.getOrder({
+        const order = await tx.getOrderForSettlement({
           ...scope,
           orderId: verified.orderId,
         });
@@ -157,16 +200,10 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
         validateOrder(verified, order);
         const refund = refundAmounts(verified, order);
 
-        for (const name of ['upsertPayment', 'setOrderStatus']) method(tx, name);
         await tx.upsertPayment({ order, verified });
         await tx.setOrderStatus({ order, status: verified.status });
 
         if (verified.status === SETTLEMENT_STATUSES.PAID) {
-          for (const name of ['applyInventoryOnce', 'upsertPaidCustomer', 'appendGmvOutbox']) {
-            method(tx, name);
-          }
-          if (enabledCapabilities.coupon) method(tx, 'applyCouponOnce');
-          if (enabledCapabilities.cart) method(tx, 'markCartClearOnce');
           await tx.applyInventoryOnce({ order, eventId: verified.eventId });
           if (enabledCapabilities.coupon) {
             await tx.applyCouponOnce({ order, eventId: verified.eventId });
@@ -177,7 +214,6 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
             await tx.markCartClearOnce({ order, eventId: verified.eventId });
           }
         } else if (REFUND_STATUSES.has(verified.status)) {
-          for (const name of ['recordRefund', 'appendGmvOutbox']) method(tx, name);
           const refundDelta = refund.cumulativeRefundAmount - refund.refundedAmount;
           const refundEffect = {
             order,
@@ -186,6 +222,9 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
             cumulativeRefundAmount: refund.cumulativeRefundAmount,
           };
           await tx.recordRefund(refundEffect);
+          if (enabledCapabilities.refundCoupon) {
+            await tx.applyRefundCouponPolicyOnce(refundEffect);
+          }
           await tx.appendGmvOutbox(refundEffect);
         }
 
