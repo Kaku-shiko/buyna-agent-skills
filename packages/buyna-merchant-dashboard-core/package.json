@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.mjs",
     "./model": "./src/dashboard-model.mjs",
+    "./operation-state": "./src/operation-state.mjs",
     "./theme-contract": "./src/theme-contract.mjs"
   },
   "scripts": {
