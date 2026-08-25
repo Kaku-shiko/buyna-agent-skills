@@ -17,13 +17,16 @@ const commerceStateModules = [
   "buyna-commerce-settlement-core",
 ];
 
-test("website-builder installs the fixed checkout and trusted-settlement modules", () => {
+// Maintainers: extend this one fixture when a reviewed shared-module boundary changes.
+const sharedModuleBoundaryPolicy = () => readJson("tests/fixtures/shared-module-boundaries.json");
+
+test("website-builder declares the fixed checkout and trusted-settlement modules", () => {
   const manifest = readJson("repository-manifest.json");
   const profilePackages = manifest.profiles["website-builder"].packages;
 
   for (const moduleName of commerceStateModules) {
     assert.ok(manifest.packages.includes(moduleName), `${moduleName} is part of the installable inventory`);
-    assert.ok(profilePackages.includes(moduleName), `${moduleName} is installed by the website-builder profile`);
+    assert.ok(profilePackages.includes(moduleName), `${moduleName} is declared by the website-builder profile`);
 
     const pkg = readJson(`packages/${moduleName}/package.json`);
     assert.equal(pkg.name, `@buyna/${moduleName.replace(/^buyna-/, "")}`);
@@ -31,17 +34,28 @@ test("website-builder installs the fixed checkout and trusted-settlement modules
     assert.ok(entrypoint, `${moduleName} exposes its state interface`);
     assert.match(read(`packages/${moduleName}/${entrypoint.replace(/^\.\//, "")}`), /export\s+/);
   }
+
+  const installer = read("scripts/install.ps1");
+  assert.match(installer, /\@\(\$manifest\.packages\)\s*\|\s*ForEach-Object/);
 });
 
-test("shared commerce-state modules do not contain styles or merchant-specific identifiers", () => {
-  const merchantIdentifiers = /\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\b/i;
+test("shared commerce-state modules obey the authoritative presentation and production-boundary policy", () => {
+  const policy = sharedModuleBoundaryPolicy();
+  const prohibitedIdentifiers = new RegExp(
+    [...policy.merchantIdentifierPatterns, ...policy.productionIdentifierPatterns].join("|"),
+    "i",
+  );
 
   for (const moduleName of commerceStateModules) {
     const files = filesUnder(`packages/${moduleName}`);
-    assert.ok(!files.some((file) => file.endsWith(".css")), `${moduleName} does not bundle CSS`);
+    assert.ok(
+      !files.some((file) => policy.presentationStylesheetExtensions
+        .some((extension) => file.toLowerCase().endsWith(`.${extension}`))),
+      `${moduleName} does not bundle a presentation stylesheet`,
+    );
 
     for (const file of files.filter((candidate) => /\.(?:mjs|js|json)$/i.test(candidate))) {
-      assert.doesNotMatch(read(file), merchantIdentifiers, `${file} contains no merchant-specific identifier`);
+      assert.doesNotMatch(read(file), prohibitedIdentifiers, `${file} contains no merchant or production identifier`);
     }
   }
 });
@@ -56,6 +70,8 @@ test("team docs preserve fixed commerce behavior while projects generate present
     assert.match(document, /provider.*(?:Adapter|适配)|(?:Adapter|适配).*provider/i);
     assert.match(document, /database.*(?:Adapter|适配)|(?:Adapter|适配).*database/i);
     assert.match(document, /项目.*生成|generated per project/i);
+    assert.match(document, /website-builder.*(?:声明|declared)/is);
+    assert.match(document, /完整安装.*manifest\.packages.*安装/is);
   }
 });
 

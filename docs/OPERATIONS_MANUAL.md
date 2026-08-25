@@ -94,8 +94,10 @@ flowchart TD
 ### 固定结账与结算状态模块
 
 `buyna-checkout-flow-core` 与 `buyna-commerce-settlement-core` 提供固定的
-checkout 和 settlement 状态行为。每个项目只生成自己的表单展示、provider Adapter
-和 database Adapter；共享模块不包含 CSS、商家标识、支付传输或数据库实现。
+checkout 和 settlement 状态行为；两者在 `website-builder` profile 中声明。完整安装器
+通过 `repository-manifest.json` 的 `manifest.packages` 安装全部固定模块，包括这两个
+模块。每个项目只生成自己的表单展示、provider Adapter 和 database Adapter；共享模块
+不包含 CSS、商家标识、支付传输或数据库实现。
 
 ## 5. 第一次安装
 
