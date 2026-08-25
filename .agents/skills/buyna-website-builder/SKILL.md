@@ -47,14 +47,17 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    verifiable missing history through
    `importVerifiedHistory`; if a required record is unavailable, request one
    grouped evidence input.
-   At trusted server initialization, construct one `createVerifiedWorkflowStore`
-   with the server-owned receipt authority; the store captures that authority in
-   its private closure. For every persisted load or resume, call
+   At trusted server initialization, call `loadPinnedWorkflowAuthority` from the
+   immutable server-owned configuration, then construct one
+   `createVerifiedWorkflowStore` with that pinned public verification key/key ID
+   and its protected authority transport. For every persisted load or resume, call
    `loadVerifiedWorkflow()` before routing or transitioning. Save only through
    `saveWorkflow({loadedState, transition})`. A route request, AI response, or
-   per-load call must never supply a verifier, receipt authority, boolean, string,
-   or JSON provenance marker. `WORKFLOW_STATE_PROVENANCE_UNTRUSTED` requires an
-   authoritative store load or a fresh in-memory core transition.
+   per-load call must never supply authority configuration, a verifier, boolean,
+   string, or JSON provenance marker. Transport responses cannot declare success:
+   the store verifies every signed receipt, latest head, fresh nonce, and
+   conditional commit acknowledgement locally. `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`
+   requires an authoritative store load or a fresh in-memory core transition.
    After design/page-structure approval, persist the exact approved Dashboard
    slice list through `setApprovedDashboardSlices` only while `currentGate` is
    `frontend_code` and that gate is `ready`, before frontend start or delivery.

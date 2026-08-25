@@ -35,12 +35,21 @@ for each record (exact actor, scope, timestamp, and event); a hand-built
 configuration object is blocked before module selection.
 
 Opaque provenance is runtime-owned. Serialized workflow JSON is not trusted.
-At trusted server initialization, construct `createVerifiedWorkflowStore` with
-the receipt authority captured in its private closure. Every persisted resume,
-including routes without a work package or repair, must obtain state through
-`loadVerifiedWorkflow()`. The request and AI never pass a per-load verifier or
-receipt authority. The store verifies the append-only journal, hashes, revision,
-state digest, and provider receipt before restoring provenance. An unverified
+At trusted server initialization, `loadPinnedWorkflowAuthority` reads the pinned
+public key and key ID from immutable server-owned configuration, then
+`createVerifiedWorkflowStore` captures the resulting authority plus transport.
+Every persisted resume, including routes without a work package or repair, must
+obtain state through `loadVerifiedWorkflow()`. The request and AI never pass a
+per-load verifier or authority configuration. Each load sends a fresh nonce,
+locally verifies the signed latest head, and requires its revision, head, and
+state digest to equal the local append-only journal evidence. Each save uses a conditional monotonic
+commit (CAS) from the prior signed head and locally verifies the signed
+acknowledgement. Old locally valid files therefore cannot roll the workflow back.
+
+The transport Adapter may request signed journal receipts, latest heads, and CAS
+commits from a protected RDS/DynamoDB/KMS-backed authority service, but its return
+value never declares validity. Production selection and connection remain
+project infrastructure; this Skill performs no live service call. An unverified
 state returns `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`.
 
 Output:

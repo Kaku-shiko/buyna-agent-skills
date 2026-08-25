@@ -43,8 +43,13 @@ test("Builder is the single entrypoint and exposes bounded Dashboard selection w
   assert.doesNotMatch(routing, /hydrateVerifiedWorkflowState|verifyHistoryReceipt/);
   assert.match(builder, /loadVerifiedWorkflow/);
   assert.match(routing, /loadVerifiedWorkflow/);
+  assert.match(builder, /loadPinnedWorkflowAuthority/);
+  assert.match(routing, /pinned\s+public key|public key.*pinned/is);
+  assert.match(routing, /fresh nonce|nonce.*fresh/is);
+  assert.match(routing, /conditional|CAS/);
   assert.match(builder, /trusted server initialization|server initialization.*trusted/is);
-  assert.match(routing, /receipt authority.*private|private.*receipt authority/is);
+  assert.match(routing, /RDS|DynamoDB|KMS/);
+  assert.doesNotMatch(`${builder}\n${routing}`, /private key|signing secret/i);
   assert.match(builder, /every (?:persisted )?(?:resume|load)|every resume/is);
   assert.match(routing, /WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
   assert.match(routing, /append-only (?:journal|history)/i);

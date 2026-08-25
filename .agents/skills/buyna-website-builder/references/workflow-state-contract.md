@@ -8,20 +8,33 @@
 - Append-only events: `workflow/history/workflow-events.jsonl`
 - Delivery evidence: `workflow/records/`
 
-Construct `createVerifiedWorkflowStore` once during trusted server
-initialization with the server-owned receipt authority. The authority remains in
-the store's private closure and is never accepted from a route request, AI call,
-or individual load. Initialize only a fresh `createWorkflow` state. Every
-persisted resume calls `loadVerifiedWorkflow()`; every following persisted
-transition calls `saveWorkflow({loadedState, transition})` with that exact loaded
-state.
+During trusted server initialization, call `loadPinnedWorkflowAuthority`; it
+resolves the immutable server configuration path from
+`BUYNA_WORKFLOW_AUTHORITY_CONFIG_PATH`, accepts no request argument, and reads
+that server environment once. The configuration contains only an Ed25519 public
+verification key and pinned key ID, and returns an opaque loader-branded
+authority. Construct `createVerifiedWorkflowStore` with that authority and the
+protected authority transport. Neither authority configuration nor a verifier is
+accepted from a route request, AI call, or individual load. Initialize only a
+fresh `createWorkflow` state. Every persisted resume calls
+`loadVerifiedWorkflow()`; every following persisted transition calls
+`saveWorkflow({loadedState, transition})` with that exact loaded state.
 
 The snapshot records state revision, state digest, and journal head. Every JSONL
 journal record contains sequence, event ID, previous event ID/hash, event
-contents, state revision, state digest, timestamp, content hash, and authority
+contents, state revision, state digest, timestamp, content hash, and signed
 receipt. Verified load rejects altered state/event content, truncation, reorder,
-replay, revision/head mismatch, and invalid receipts before it restores opaque
-runtime provenance.
+replay, revision/head mismatch, invalid signatures, a replayed nonce response,
+and disagreement with the signed external monotonic head before it restores
+opaque runtime provenance. Save performs a conditional head commit (CAS) from
+the verified prior revision/head to the new revision/head digest and verifies
+the signed acknowledgement locally.
+
+The authority transport has three effects only: request a signed journal
+receipt, read the signed latest head using the supplied fresh nonce, and
+conditionally commit a new head. Boolean or empty-object responses carry no
+authority. A project Adapter may map these effects to a protected
+RDS/DynamoDB/KMS-backed service; this contract contains no live connection.
 
 Never store credentials, payment secrets, personal form values, or environment variables here.
 

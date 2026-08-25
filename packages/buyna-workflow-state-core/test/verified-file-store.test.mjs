@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
-import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
+import {createHash,generateKeyPairSync,sign} from 'node:crypto';
 import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import * as workflowCore from '../src/index.mjs';
 const {createWorkflow,isTrustedWorkflowState,recordDelivery,startGate}=workflowCore;
-import {createVerifiedWorkflowStore} from '../src/file-store.mjs';
+import {createVerifiedWorkflowStore,loadPinnedWorkflowAuthority} from '../src/file-store.mjs';
 
-const SECRET='test-only-authority-secret';
+const keyId='verified-file-store-key';
+const {publicKey,privateKey}=generateKeyPairSync('ed25519');
 const timestamp='2026-08-26T10:00:00.000Z';
 
 function canonical(value){
@@ -17,23 +18,45 @@ function canonical(value){
   return value;
 }
 
-function authority(secret=SECRET){
-  const sign=record=>createHmac('sha256',secret).update(JSON.stringify(canonical(record))).digest('hex');
+function encoded(value){return Buffer.from(JSON.stringify(canonical(value)))}
+function hash(value){return createHash('sha256').update(encoded(value)).digest('hex')}
+function signed(payload){return sign(null,encoded(payload),privateKey).toString('base64')}
+function same(left,right){return JSON.stringify(canonical(left))===JSON.stringify(canonical(right))}
+
+function transport(){
+  let latestHead=null;
   return{
-    async createReceipt({record}){return{provider:'test-hmac',signature:sign(record)}} ,
-    async verifyReceipt({record,receipt}){
-      if(receipt?.provider!=='test-hmac'||typeof receipt.signature!=='string')return false;
-      const expected=Buffer.from(sign(record),'hex'),actual=Buffer.from(receipt.signature,'hex');
-      return expected.length===actual.length&&timingSafeEqual(expected,actual);
+    async issueJournalReceipt({record}){
+      const recordDigest=hash(record),payload={type:'workflow_journal_receipt',keyId,recordDigest};
+      return{keyId,recordDigest,signature:signed(payload)};
+    },
+    async readLatestHead({projectId,nonce}){
+      const payload={type:'workflow_latest_head',keyId,projectId,nonce,head:latestHead};
+      return{keyId,projectId,nonce,head:structuredClone(latestHead),signature:signed(payload)};
+    },
+    async commitLatestHead({projectId,previousHead,nextHead}){
+      const accepted=same(previousHead,latestHead);
+      if(accepted)latestHead=structuredClone(nextHead);
+      const committedAt='2026-08-26T10:00:00.000Z';
+      const payload={type:'workflow_head_commit',keyId,projectId,previousHead,nextHead,accepted,committedAt};
+      return{keyId,projectId,previousHead:structuredClone(previousHead),nextHead:structuredClone(nextHead),accepted,committedAt,signature:signed(payload)};
     },
   };
 }
 
+async function storeContext(projectRoot){
+  const configPath=path.join(projectRoot,'authority.json');
+  await writeFile(configPath,JSON.stringify({keyId,algorithm:'Ed25519',publicKeyPem:publicKey.export({type:'spki',format:'pem'})}));
+  process.env.BUYNA_WORKFLOW_AUTHORITY_CONFIG_PATH=configPath;
+  const pinnedAuthority=await loadPinnedWorkflowAuthority(),authorityTransport=transport();
+  return{projectRoot,pinnedAuthority,authorityTransport};
+}
+
 async function fixture(){
   const projectRoot=await mkdtemp(path.join(tmpdir(),'buyna-verified-workflow-'));
-  const store=createVerifiedWorkflowStore({projectRoot,receiptAuthority:authority()});
+  const storeArgs=await storeContext(projectRoot),store=createVerifiedWorkflowStore(storeArgs);
   await store.initializeWorkflow({state:createWorkflow({projectId:'verified-store',now:timestamp}),now:timestamp});
-  return{projectRoot,store,statePath:path.join(projectRoot,'workflow','workflow-state.json'),historyPath:path.join(projectRoot,'workflow','history','workflow-events.jsonl')};
+  return{...storeArgs,store,storeArgs,statePath:path.join(projectRoot,'workflow','workflow-state.json'),historyPath:path.join(projectRoot,'workflow','history','workflow-events.jsonl')};
 }
 
 async function journal(historyPath){
@@ -52,13 +75,13 @@ test('trusted store saves, crosses serialization, verifies, and resumes the next
     assert.equal(isTrustedWorkflowState(persisted.state),false);
     assert.throws(()=>startGate({state:persisted.state,gate:'customer_intake'}),/WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
 
-    const resumedStore=createVerifiedWorkflowStore({projectRoot:context.projectRoot,receiptAuthority:authority()});
+    const resumedStore=createVerifiedWorkflowStore(context.storeArgs);
     const loaded=await resumedStore.loadVerifiedWorkflow();
     assert.equal(isTrustedWorkflowState(loaded),true);
     const started=startGate({state:loaded,gate:'customer_intake',now:'2026-08-26T10:01:00.000Z'});
     await resumedStore.saveWorkflow({loadedState:loaded,transition:started,now:'2026-08-26T10:01:00.000Z'});
 
-    const nextProcessStore=createVerifiedWorkflowStore({projectRoot:context.projectRoot,receiptAuthority:authority()});
+    const nextProcessStore=createVerifiedWorkflowStore(context.storeArgs);
     const resumed=await nextProcessStore.loadVerifiedWorkflow();
     assert.equal(isTrustedWorkflowState(resumed),true);
     assert.doesNotThrow(()=>recordDelivery({state:resumed,gate:'customer_intake',delivery:{
@@ -101,25 +124,11 @@ test('save requires the exact state returned by a verified load',async()=>{
 test('initialization accepts only a fresh workflow state',async()=>{
   const projectRoot=await mkdtemp(path.join(tmpdir(),'buyna-invalid-initial-'));
   try{
-    const store=createVerifiedWorkflowStore({projectRoot,receiptAuthority:authority()});
+    const store=createVerifiedWorkflowStore(await storeContext(projectRoot));
     const created=createWorkflow({projectId:'advanced-initial'});
     const advanced=startGate({state:created,gate:'customer_intake'}).state;
     await assert.rejects(store.initializeWorkflow({state:advanced}),/WORKFLOW_INITIAL_STATE_REQUIRED/);
   }finally{await rm(projectRoot,{recursive:true,force:true})}
-});
-
-test('receipt authority failures are normalized and never become trusted state',async()=>{
-  const context=await fixture();
-  try{
-    const failing=createVerifiedWorkflowStore({
-      projectRoot:context.projectRoot,
-      receiptAuthority:{
-        async createReceipt(){return{}},
-        async verifyReceipt(){throw new Error('provider unavailable')},
-      },
-    });
-    await assert.rejects(failing.loadVerifiedWorkflow(),/WORKFLOW_JOURNAL_RECEIPT_INVALID/);
-  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
 });
 
 for(const scenario of [

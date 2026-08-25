@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -10,13 +10,37 @@ const { planWebsiteRoute } = await import(
   new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root)
 );
 const workflowCore = await import(new URL("packages/buyna-workflow-state-core/src/index.mjs", root));
-const { createVerifiedWorkflowStore } = await import(new URL("packages/buyna-workflow-state-core/src/file-store.mjs", root));
+const { createVerifiedWorkflowStore, loadPinnedWorkflowAuthority } = await import(new URL("packages/buyna-workflow-state-core/src/file-store.mjs", root));
 
-function receiptAuthority() {
-  const sign = (record) => createHmac("sha256", "route-test-authority").update(JSON.stringify(record)).digest("hex");
+const routeKeyId = "route-test-key";
+const routeKeys = generateKeyPairSync("ed25519");
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  return value;
+}
+const encode = (value) => Buffer.from(JSON.stringify(canonical(value)));
+const hash = (value) => createHash("sha256").update(encode(value)).digest("hex");
+const signed = (payload) => sign(null, encode(payload), routeKeys.privateKey).toString("base64");
+const same = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+
+function authorityTransport() {
+  let latestHead = null;
   return {
-    async createReceipt({ record }) { return { provider: "route-test", signature: sign(record) }; },
-    async verifyReceipt({ record, receipt }) { return receipt?.provider === "route-test" && receipt.signature === sign(record); },
+    async issueJournalReceipt({ record }) {
+      const recordDigest = hash(record);
+      return { keyId: routeKeyId, recordDigest, signature: signed({ type: "workflow_journal_receipt", keyId: routeKeyId, recordDigest }) };
+    },
+    async readLatestHead({ projectId, nonce }) {
+      return { keyId: routeKeyId, projectId, nonce, head: structuredClone(latestHead), signature: signed({ type: "workflow_latest_head", keyId: routeKeyId, projectId, nonce, head: latestHead }) };
+    },
+    async commitLatestHead({ projectId, previousHead, nextHead }) {
+      const accepted = same(previousHead, latestHead);
+      if (accepted) latestHead = structuredClone(nextHead);
+      const committedAt = "2026-08-26T05:00:00.000Z";
+      const payload = { type: "workflow_head_commit", keyId: routeKeyId, projectId, previousHead, nextHead, accepted, committedAt };
+      return { keyId: routeKeyId, projectId, previousHead: structuredClone(previousHead), nextHead: structuredClone(nextHead), accepted, committedAt, signature: signed(payload) };
+    },
   };
 }
 
@@ -299,7 +323,11 @@ test("serialized or fully forged authorization is blocked until authoritative st
 
   const projectRoot = await mkdtemp(path.join(tmpdir(), "buyna-route-verified-"));
   try {
-    const store = createVerifiedWorkflowStore({ projectRoot, receiptAuthority: receiptAuthority() });
+    const configPath = path.join(projectRoot, "workflow-authority.json");
+    await writeFile(configPath, JSON.stringify({ keyId: routeKeyId, algorithm: "Ed25519", publicKeyPem: routeKeys.publicKey.export({ type: "spki", format: "pem" }) }));
+    process.env.BUYNA_WORKFLOW_AUTHORITY_CONFIG_PATH = configPath;
+    const pinnedAuthority = await loadPinnedWorkflowAuthority();
+    const store = createVerifiedWorkflowStore({ projectRoot, pinnedAuthority, authorityTransport: authorityTransport() });
     await store.initializeWorkflow({ state: workflowCore.createWorkflow({ projectId: "real-dashboard-route" }) });
     const apply = async (makeTransition) => {
       const loaded = await store.loadVerifiedWorkflow();
