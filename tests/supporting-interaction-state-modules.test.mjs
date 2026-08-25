@@ -37,12 +37,193 @@ const filesUnder = (directory) => readdirSync(new URL(directory, root), { withFi
     ? filesUnder(`${directory}/${entry.name}`)
     : [join(directory, entry.name).replaceAll("\\", "/")]);
 
-function extractModuleSpecifiers(source) {
-  const matches = [
-    ...source.matchAll(/\b(?:import|export)\s+(?:[^'"\r\n]*?\s+from\s*)?['"]([^'"]+)['"]/gu),
-    ...source.matchAll(/\b(?:import|require)\s*\(\s*['"]([^'"]+)['"]\s*\)/gu),
-  ];
-  return matches.map((match) => match[1]);
+function tokenizeJavaScript(source) {
+  const tokens = [];
+  let index = 0;
+  const push = (type, value) => tokens.push({ type, value });
+
+  while (index < source.length) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (/\s/u.test(character)) {
+      index += 1;
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      index += 2;
+      while (index < source.length && source[index] !== "\n") index += 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      index += 2;
+      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
+        index += 1;
+      }
+      index = Math.min(index + 2, source.length);
+      continue;
+    }
+    if (character === "'" || character === '"' || character === "`") {
+      const quote = character;
+      let value = "";
+      index += 1;
+      while (index < source.length) {
+        if (source[index] === "\\") {
+          value += source[index];
+          if (index + 1 < source.length) value += source[index + 1];
+          index += 2;
+          continue;
+        }
+        if (source[index] === quote) {
+          index += 1;
+          break;
+        }
+        value += source[index];
+        index += 1;
+      }
+      push("string", value);
+      continue;
+    }
+    if (/[A-Za-z_$]/u.test(character)) {
+      const start = index;
+      index += 1;
+      while (index < source.length && /[A-Za-z0-9_$]/u.test(source[index])) index += 1;
+      push("identifier", source.slice(start, index));
+      continue;
+    }
+    if (/[0-9]/u.test(character)) {
+      const start = index;
+      index += 1;
+      while (index < source.length && /[0-9A-Za-z_.]/u.test(source[index])) index += 1;
+      push("number", source.slice(start, index));
+      continue;
+    }
+    const operator = ["===", "!==", "=>", "==", "!=", ">=", "<=", "?.", "??", "&&", "||", "**", "++", "--", "+=", "-=", "*=", "/="]
+      .find((candidate) => source.startsWith(candidate, index));
+    if (operator) {
+      push("punctuator", operator);
+      index += operator.length;
+      continue;
+    }
+    push("punctuator", character);
+    index += 1;
+  }
+  return tokens;
+}
+
+function extractModuleSpecifiers(tokens) {
+  const specifiers = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.type !== "identifier") continue;
+    if (token.value === "require" && tokens[index + 1]?.value === "("
+      && tokens[index + 2]?.type === "string") {
+      specifiers.push(tokens[index + 2].value);
+      continue;
+    }
+    if (token.value === "import" && tokens[index + 1]?.value === "("
+      && tokens[index + 2]?.type === "string") {
+      specifiers.push(tokens[index + 2].value);
+      continue;
+    }
+    if (token.value !== "import" && token.value !== "export") continue;
+    for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
+      if (tokens[cursor].value === ";") break;
+      if (tokens[cursor].type === "string") {
+        if (token.value === "import" || tokens[cursor - 1]?.value === "from") {
+          specifiers.push(tokens[cursor].value);
+        }
+        break;
+      }
+    }
+  }
+  return specifiers;
+}
+
+function locallyDeclaredFunctions(tokens) {
+  const names = new Set();
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    if (tokens[index].value === "function" && tokens[index + 1].type === "identifier") {
+      names.add(tokens[index + 1].value);
+    }
+  }
+  return names;
+}
+
+function executableBoundaries(tokens) {
+  const violations = new Set();
+  const localFunctions = locallyDeclaredFunctions(tokens);
+  for (let index = 0; index < tokens.length; index += 1) {
+    const current = tokens[index];
+    const previous = tokens[index - 1];
+    const next = tokens[index + 1];
+    if (current.value === "fetch" && next?.value === "("
+      && previous?.value !== "." && !localFunctions.has("fetch")) {
+      violations.add("providerTransport");
+    }
+    if (current.value === "globalThis" && next?.value === "."
+      && tokens[index + 2]?.value === "fetch" && tokens[index + 3]?.value === "(") {
+      violations.add("providerTransport");
+    }
+    if (["http", "https"].includes(current.value) && next?.value === "."
+      && ["request", "get"].includes(tokens[index + 2]?.value)
+      && tokens[index + 3]?.value === "(") {
+      violations.add("providerTransport");
+    }
+    if (current.value === "." && next?.value === "query" && tokens[index + 2]?.value === "(") {
+      violations.add("sqlOrOrm");
+    }
+    if (current.value === "sql" && next?.type === "string") violations.add("sqlOrOrm");
+    if (["S3Client", "PutObjectCommand", "DeleteObjectCommand"].includes(current.value)
+      && next?.value === "(") {
+      violations.add("awsSdkCall");
+    }
+  }
+  return violations;
+}
+
+function isSecretAssignmentKey(value) {
+  if (typeof value !== "string") return false;
+  const normalized = value.replaceAll(/[^A-Za-z]/gu, "").toLowerCase();
+  return ["password", "token", "cookie", "credential"]
+    .some((name) => normalized === name || normalized.endsWith(name));
+}
+
+function isPlaceholder(value) {
+  const normalized = value.trim();
+  return normalized === ""
+    || /^<[^>]+>$/u.test(normalized)
+    || /^\$\{[^}]+\}$/u.test(normalized)
+    || /^\{\{[^}]+\}\}$/u.test(normalized)
+    || /^(?:YOUR|REPLACE|PLACEHOLDER|EXAMPLE|TEST|DUMMY|CHANGEME)(?:[_ -].*)?$/iu.test(normalized);
+}
+
+function assignedKey(tokens, operatorIndex) {
+  const before = tokens[operatorIndex - 1];
+  if (before?.type === "identifier" || before?.type === "string") return before.value;
+  if (before?.value === "]" && tokens[operatorIndex - 2]?.type === "string"
+    && tokens[operatorIndex - 3]?.value === "[") {
+    return tokens[operatorIndex - 2].value;
+  }
+  return null;
+}
+
+function hasRawSecretLiteral(tokens, policy) {
+  const valuePatterns = policy.rawSecretValuePatterns.map((pattern) => new RegExp(pattern, "iu"));
+  if (tokens.some((token) => token.type === "string"
+    && valuePatterns.some((pattern) => pattern.test(token.value)))) return true;
+
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    if (!["=", ":"].includes(tokens[index].value)) continue;
+    if (tokens[index].value === ":" && !["{", ","].includes(tokens[index - 2]?.value)) {
+      continue;
+    }
+    const value = tokens[index + 1];
+    const key = assignedKey(tokens, index);
+    if (value?.type === "string" && isSecretAssignmentKey(key) && !isPlaceholder(value.value)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function supportingBoundaryViolations(files, policy, readSource) {
@@ -51,11 +232,9 @@ function supportingBoundaryViolations(files, policy, readSource) {
   const componentExtensions = new Set(policy.componentExtensions);
   const moduleRules = Object.entries(policy.forbiddenModuleSpecifiers)
     .map(([boundary, patterns]) => [boundary, patterns.map((pattern) => new RegExp(pattern, "iu"))]);
-  const sourceRules = {
-    providerTransport: policy.providerTransportExecutablePatterns,
-    sqlOrOrm: policy.sqlOrOrmExecutablePatterns,
+  const stringRules = {
     merchantIdentifier: policy.merchantIdentifierPatterns,
-    rawSecretLiteral: policy.rawSecretLiteralPatterns,
+    productionIdentifier: policy.productionIdentifierPatterns,
   };
 
   for (const file of files) {
@@ -73,18 +252,22 @@ function supportingBoundaryViolations(files, policy, readSource) {
     }
 
     const source = readSource(file);
-    for (const specifier of extractModuleSpecifiers(source)) {
+    const tokens = tokenizeJavaScript(source);
+    for (const specifier of extractModuleSpecifiers(tokens)) {
       for (const [boundary, patterns] of moduleRules) {
         if (patterns.some((pattern) => pattern.test(specifier))) {
           violations.push({ file, boundary });
         }
       }
     }
-    for (const [boundary, patterns] of Object.entries(sourceRules)) {
-      if (patterns.some((pattern) => new RegExp(pattern, "iu").test(source))) {
+    for (const boundary of executableBoundaries(tokens)) violations.push({ file, boundary });
+    for (const [boundary, patterns] of Object.entries(stringRules)) {
+      if (tokens.some((token) => token.type === "string"
+        && patterns.some((pattern) => new RegExp(pattern, "iu").test(token.value)))) {
         violations.push({ file, boundary });
       }
     }
+    if (hasRawSecretLiteral(tokens, policy)) violations.push({ file, boundary: "rawSecretLiteral" });
   }
   return violations;
 }
@@ -147,7 +330,11 @@ test("public supporting-state data exposes only the fixed safe contracts", async
     directory: {
       async findMerchantByHost({ host }) {
         assert.equal(host, "shop.example.test");
-        return { projectId: "project_alpha", sellerId: "seller_alpha", status: "active" };
+        return {
+          projectId: "project_alpha", sellerId: "seller_alpha", status: "active",
+          token: "adapter-token", bucket: "adapter-bucket", url: "https://adapter.invalid",
+          credential: "adapter-credential",
+        };
       },
       async findMembership(input) {
         assert.deepEqual(input, {
@@ -155,6 +342,8 @@ test("public supporting-state data exposes only the fixed safe contracts", async
         });
         return {
           projectId: "project_alpha", sellerId: "seller_alpha", role: "admin", status: "active",
+          token: "adapter-token", bucket: "adapter-bucket", url: "https://adapter.invalid",
+          credential: "adapter-credential",
         };
       },
     },
@@ -164,6 +353,23 @@ test("public supporting-state data exposes only the fixed safe contracts", async
     "host", "merchantStatus", "projectId", "role", "sellerId", "subjectId",
   ]);
 
+  let maliciousDirectoryCalls = 0;
+  const maliciousSessionResolver = createMerchantContextResolver({
+    requestAdapter: { async getObservedHost() { return "shop.example.test"; } },
+    sessionAdapter: {
+      async getAuthenticatedIdentity() { return { ...identity, token: "adapter-token" }; },
+    },
+    directory: {
+      async findMerchantByHost() { maliciousDirectoryCalls += 1; return null; },
+      async findMembership() { maliciousDirectoryCalls += 1; return null; },
+    },
+  });
+  await assert.rejects(
+    () => maliciousSessionResolver.resolve(),
+    (error) => error.code === "MERCHANT_CONTEXT_AUTH_REQUIRED",
+  );
+  assert.equal(maliciousDirectoryCalls, 0);
+
   const ids = { item: ["file_1"], attempt: ["attempt_1"] };
   const queue = createUploadQueue({
     projectId: "project_alpha",
@@ -171,7 +377,11 @@ test("public supporting-state data exposes only the fixed safe contracts", async
     idGenerator(kind) { return ids[kind].shift(); },
     clock: () => new Date("2026-08-26T00:00:00.000Z"),
   });
-  queue.select({ name: "item.webp", size: 1200, type: "image/webp" });
+  queue.select({
+    name: "item.webp", size: 1200, type: "image/webp",
+    password: "unsafe", token: "unsafe", cookie: "unsafe", credential: "unsafe",
+    bucket: "unsafe", url: "https://unsafe.invalid",
+  });
   const output = queue.transition({ itemId: "file_1", event: "start_validation" });
   assert.deepEqual(exactKeys(output), ["effects", "snapshot"]);
   assert.deepEqual(exactKeys(output.snapshot), ["coverItemId", "items", "projectId", "sellerId"]);
@@ -191,6 +401,11 @@ test("supporting module source rejects executable infrastructure, UI, route, and
   const policy = readJson("tests/fixtures/shared-module-boundaries.json")
     .supportingInteractionSourceBoundary;
   assert.ok(policy, "supporting interaction source boundary is declared");
+  for (const requiredPolicy of [
+    "productionIdentifierPatterns", "rawSecretValuePatterns",
+  ]) {
+    assert.ok(Array.isArray(policy[requiredPolicy]), `${requiredPolicy} is declared`);
+  }
 
   for (const moduleName of supportingModules) {
     const files = filesUnder(`packages/${moduleName}/src`);
@@ -206,6 +421,11 @@ test("supporting source boundary catches executable mutations but permits valida
   const policy = readJson("tests/fixtures/shared-module-boundaries.json")
     .supportingInteractionSourceBoundary;
   assert.ok(policy, "supporting interaction source boundary is declared");
+  for (const requiredPolicy of [
+    "productionIdentifierPatterns", "rawSecretValuePatterns",
+  ]) {
+    assert.ok(Array.isArray(policy[requiredPolicy]), `${requiredPolicy} is declared`);
+  }
   const directory = mkdtempSync(join(tmpdir(), "buyna-supporting-boundary-"));
   const mutations = [
     ["theme.css", ".root { color: red; }", "presentationStylesheet"],
@@ -217,21 +437,42 @@ test("supporting source boundary catches executable mutations but permits valida
     ["cookie.mjs", "import cookieParser from 'cookie-parser';", "cookieMiddlewareImport"],
     ["route.mjs", "import upload from '../routes/upload.mjs';", "projectRouteImport"],
     ["provider.mjs", "import axios from 'axios';", "providerTransportImport"],
+    ["undici.mjs", "import { request } from 'undici';", "providerTransportImport"],
+    ["require-http.mjs", "const https = require('node:https');", "providerTransportImport"],
     ["fetch.mjs", "export const send = () => fetch('/provider');", "providerTransport"],
-    ["sql-literal.mjs", "export const statement = 'SELECT * FROM sessions';", "sqlOrOrm"],
+    ["sql-call.mjs", "export const load = client => client.query('SELECT * FROM sessions');", "sqlOrOrm"],
+    ["aws-call.mjs", "export const command = new PutObjectCommand({});", "awsSdkCall"],
     ["merchant.mjs", "export const merchant = 'medinance';", "merchantIdentifier"],
+    ["production-ip.mjs", "export const target = '35.73.127.215';", "productionIdentifier"],
+    ["production-arn.mjs", "export const target = 'arn:aws:s3:::merchant-files';", "productionIdentifier"],
+    ["production-instance.mjs", "export const target = 'i-0123456789abcdef0';", "productionIdentifier"],
     ["access-key.mjs", "export const value = 'AKIA1234567890ABCDEF';", "rawSecretLiteral"],
     ["pem.mjs", "export const value = '-----BEGIN PRIVATE KEY-----';", "rawSecretLiteral"],
     ["jwt.mjs", "export const value = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEifQ.abcdefghijklmnop';", "rawSecretLiteral"],
     ["bearer.mjs", "export const header = 'Bearer literalcredential123';", "rawSecretLiteral"],
     ["assigned-token.mjs", "const token = 'literalcredential123'; export { token };", "rawSecretLiteral"],
+    ["direct-password.mjs", "password = 'literalcredential123';", "rawSecretLiteral"],
+    ["property-token.mjs", "state.token = 'literalcredential123';", "rawSecretLiteral"],
+    ["bracket-cookie.mjs", "state['cookie'] = 'literalcredential123';", "rawSecretLiteral"],
+    ["object-credential.mjs", "export const state = { credential: 'literalcredential123' };", "rawSecretLiteral"],
   ];
 
   try {
     for (const [name, source] of mutations) writeFileSync(join(directory, name), source, "utf8");
     writeFileSync(
       join(directory, "allowed-validation.mjs"),
-      "export const forbiddenIdentityFields = ['sessionId', 'password', 'token', 'cookie', 'credential'];",
+      [
+        "export const forbiddenIdentityFields = ['sessionId', 'password', 'token', 'cookie', 'credential'];",
+        "const compared = token === 'literalcredential123';",
+        "const chosen = condition ? credential : 'literalcredential123';",
+        "const password = ''; const authToken = '<TOKEN>'; const credential = '${CREDENTIAL}';",
+        "function fetch(input) { return input; } fetch('/local-only');",
+        "const importExample = 'import pg from \\\"pg\\\"';",
+        "const callExample = 'fetch(\\\"/provider\\\")';",
+        "// import React from 'react'; fetch('/ignored');",
+        "/* const token = 'ignored'; client.query('SELECT * FROM ignored'); */",
+        "export { compared, chosen, password, authToken, credential, importExample, callExample };",
+      ].join("\n"),
       "utf8",
     );
     const files = readdirSync(directory).map((name) => join(directory, name));

@@ -118,6 +118,8 @@ snapshot 和 settlement 提供库存结果；coupon 独立向适用的 checkout 
 固定模块不提供统一 Dashboard 皮肤。登录/session 存储、S3/PostgreSQL 连接和所有可见
 UI 均由项目代码负责。完整安装继续遍历 `repository-manifest.json` 的
 `manifest.packages`；`buyna-storefront-gallery-core` 尚未登记，图库按项目生成。
+`scaffoldMerchantProject` 生成的 `resources.yaml` 是被阻塞的本地候选记录，不包含
+IP、实例 ID、ARN 或其他生产部署目标；必须由资源登记流程核验现有资源后再写入项目。
 
 ## 5. 第一次安装
 

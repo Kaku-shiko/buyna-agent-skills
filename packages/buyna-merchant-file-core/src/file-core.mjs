@@ -29,7 +29,7 @@ export function scaffoldMerchantProject({root,projectId,sellerId,merchantType}={
   if(fs.existsSync(projectPath))fail('PROJECT_ALREADY_EXISTS');
   for(const directory of ['frontend','backend/adapters','backend/routes','backend/services','backend/repositories','backend/migrations','tests','deployment'])fs.mkdirSync(path.join(projectPath,directory),{recursive:true});
   fs.writeFileSync(path.join(projectPath,'merchant.config.json'),`${JSON.stringify({projectId:safeProject,sellerId:safeSeller,merchantType},null,2)}\n`,'utf8');
-  fs.writeFileSync(path.join(projectPath,'resources.yaml'),`project: {id: ${safeProject}, seller_id: ${safeSeller}}\ndatabase:\n  mode: existing\n  engine: postgresql\n  connection_source: DATABASE_URL\n  name: ""\n  schema: ""\n  allow_create_database: false\nstorage:\n  mode: existing\n  bucket_source: AWS_STORAGE_BUCKET_NAME\n  region: ""\n  prefix: projects/${safeProject}/\n  allow_create_bucket: false\ndeployment:\n  instance_ip: 35.73.127.215\n  allow_create_instance: false\n`,'utf8');
+  fs.writeFileSync(path.join(projectPath,'resources.yaml'),`project: {id: ${safeProject}, seller_id: ${safeSeller}}\ndatabase:\n  mode: existing\n  engine: postgresql\n  connection_source: DATABASE_URL\n  name: ""\n  schema: ""\n  allow_create_database: false\nstorage:\n  mode: existing\n  bucket_source: AWS_STORAGE_BUCKET_NAME\n  region: ""\n  prefix: projects/${safeProject}/\n  allow_create_bucket: false\ndeployment:\n  allow_create_instance: false\n`,'utf8');
   return{created:true,projectPath};
 }
 

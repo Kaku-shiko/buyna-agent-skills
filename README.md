@@ -50,6 +50,8 @@ snapshot 和 settlement 提供优惠结果；catalog 管理生命周期独立运
 这些模块固定程序行为，不固定 Dashboard、登录页或文件卡片设计。登录/session 存储和
 S3/PostgreSQL 连接仍由各项目代码负责。`buyna-storefront-gallery-core` 当前未登记；图库
 交互与 UI 仍按项目生成。完整安装仍只遍历 `manifest.packages`，不增加第二套安装命令。
+`scaffoldMerchantProject` 只生成被阻塞的本地候选资源记录，不预填 IP、实例 ID、ARN
+或其他生产目标；资源登记 Skill 核验现有资源后再由项目写入。
 
 当前预留：
 

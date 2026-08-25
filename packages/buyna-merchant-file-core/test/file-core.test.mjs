@@ -17,7 +17,10 @@ test('project scaffolder creates the fixed merchant layers without secrets or ov
   const result=scaffoldMerchantProject({root,projectId:'shop-a',sellerId:'seller-a',merchantType:'product'});
   assert.equal(result.created,true);
   for(const relative of ['resources.yaml','merchant.config.json','frontend','backend/adapters','backend/routes','backend/services','backend/repositories','backend/migrations','tests','deployment'])assert.equal(fs.existsSync(path.join(result.projectPath,relative)),true,relative);
-  const resource=parseSimpleYaml(fs.readFileSync(path.join(result.projectPath,'resources.yaml'),'utf8'));
+  const resourceText=fs.readFileSync(path.join(result.projectPath,'resources.yaml'),'utf8');
+  assert.doesNotMatch(resourceText,/(?:\b(?:\d{1,3}\.){3}\d{1,3}\b|\barn:(?:aws|aws-cn|aws-us-gov):|\bi-[0-9a-f]{8,17}\b)/i);
+  const resource=parseSimpleYaml(resourceText);
+  assert.equal(resource.deployment.instance_ip,undefined);
   assert.equal(validateResourceRecord(resource).status,'blocked');
   assert.throws(()=>scaffoldMerchantProject({root,projectId:'shop-a',sellerId:'seller-a',merchantType:'product'}),/PROJECT_ALREADY_EXISTS/);
   fs.rmSync(root,{recursive:true,force:true});
