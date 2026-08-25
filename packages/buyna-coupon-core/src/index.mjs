@@ -102,7 +102,13 @@ function normalizeDiscount(discount) {
     return { type: 'percentage', basisPoints };
   }
   if (discount.type === 'fixed') {
-    return { type: 'fixed', amount: safeMoney(discount.amount, 'discount.amount') };
+    const amount = safeMoney(discount.amount, 'discount.amount');
+    if (amount === 0) {
+      throw failure('COUPON_INVALID_INPUT', 'fixed discount must be positive', {
+        field: 'discount.amount',
+      });
+    }
+    return { type: 'fixed', amount };
   }
   throw failure('COUPON_INVALID_INPUT', 'unsupported discount type', {
     field: 'discount.type',
@@ -151,6 +157,133 @@ function adapterInvalid(message) {
 function assertScope(record, projectId, sellerId) {
   if (record.projectId !== projectId || record.sellerId !== sellerId) {
     throw failure('COUPON_SCOPE_MISMATCH', 'coupon does not belong to the server scope');
+  }
+}
+
+const POLICY_STATES = new Set([
+  STATES.DRAFT,
+  STATES.ACTIVE,
+  STATES.PAUSED,
+  STATES.EXPIRED,
+  STATES.ARCHIVED,
+]);
+
+function isNonNegativeSafeInteger(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+function isPositiveSafeInteger(value) {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function isNormalizedIso(value) {
+  if (typeof value !== 'string') return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === value;
+}
+
+function counterMapTotal(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  let total = 0n;
+  for (const [customerId, count] of Object.entries(value)) {
+    if (customerId.trim() === '' || !isNonNegativeSafeInteger(count)) return null;
+    total += BigInt(count);
+    if (total > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  }
+  return Number(total);
+}
+
+function validateAuthoritativeCoupon(coupon) {
+  try {
+    if (!coupon || typeof coupon !== 'object') throw new Error('missing record');
+    if (!POLICY_STATES.has(coupon.state)) throw new Error('illegal policy state');
+    if (normalizeCode(coupon.code) !== coupon.code) throw new Error('unnormalized code');
+    if (!isPositiveSafeInteger(coupon.policyVersion)) throw new Error('invalid policy version');
+
+    const discount = coupon.discount;
+    if (!discount || typeof discount !== 'object' || Array.isArray(discount)) {
+      throw new Error('invalid discount');
+    }
+    if (discount.type === 'percentage') {
+      if (!isPositiveSafeInteger(discount.basisPoints) || discount.basisPoints > 10_000) {
+        throw new Error('invalid percentage discount');
+      }
+    } else if (discount.type === 'fixed') {
+      if (!isPositiveSafeInteger(discount.amount)) throw new Error('invalid fixed discount');
+    } else {
+      throw new Error('unsupported discount');
+    }
+
+    if (!isPositiveSafeInteger(coupon.minimumItemQuantity)) {
+      throw new Error('invalid minimum quantity');
+    }
+    if (!isNonNegativeSafeInteger(coupon.minimumOrderAmount)) {
+      throw new Error('invalid minimum amount');
+    }
+    if (
+      coupon.maximumDiscountAmount !== null
+      && !isNonNegativeSafeInteger(coupon.maximumDiscountAmount)
+    ) {
+      throw new Error('invalid maximum discount');
+    }
+    for (const field of ['totalUsageLimit', 'perCustomerUsageLimit']) {
+      if (coupon[field] !== null && !isPositiveSafeInteger(coupon[field])) {
+        throw new Error(`invalid ${field}`);
+      }
+    }
+
+    if (!isNonNegativeSafeInteger(coupon.redeemedCount)) {
+      throw new Error('invalid redeemed count');
+    }
+    if (!isNonNegativeSafeInteger(coupon.reservedCount)) {
+      throw new Error('invalid reserved count');
+    }
+    const redemptionMapTotal = counterMapTotal(coupon.perCustomerRedemptions);
+    const reservationMapTotal = counterMapTotal(coupon.perCustomerReservations);
+    if (
+      redemptionMapTotal === null
+      || reservationMapTotal === null
+      || redemptionMapTotal !== coupon.redeemedCount
+      || reservationMapTotal !== coupon.reservedCount
+    ) {
+      throw new Error('coupon usage counters are inconsistent');
+    }
+    const totalUsage = BigInt(coupon.redeemedCount) + BigInt(coupon.reservedCount);
+    if (
+      totalUsage > BigInt(Number.MAX_SAFE_INTEGER)
+      || (coupon.totalUsageLimit !== null && totalUsage > BigInt(coupon.totalUsageLimit))
+    ) {
+      throw new Error('coupon total usage is inconsistent');
+    }
+    if (coupon.perCustomerUsageLimit !== null) {
+      const customerIds = new Set([
+        ...Object.keys(coupon.perCustomerRedemptions),
+        ...Object.keys(coupon.perCustomerReservations),
+      ]);
+      for (const customerId of customerIds) {
+        const used =
+          (coupon.perCustomerRedemptions[customerId] ?? 0)
+          + (coupon.perCustomerReservations[customerId] ?? 0);
+        if (!Number.isSafeInteger(used) || used > coupon.perCustomerUsageLimit) {
+          throw new Error('coupon customer usage is inconsistent');
+        }
+      }
+    }
+
+    for (const field of ['validFrom', 'validUntil']) {
+      if (coupon[field] !== null && !isNormalizedIso(coupon[field])) {
+        throw new Error(`invalid ${field}`);
+      }
+    }
+    if (coupon.validFrom && coupon.validUntil && coupon.validUntil <= coupon.validFrom) {
+      throw new Error('invalid validity order');
+    }
+    if (!isNormalizedIso(coupon.createdAt) || !isNormalizedIso(coupon.updatedAt)) {
+      throw new Error('invalid audit timestamp');
+    }
+    if (coupon.updatedAt < coupon.createdAt) throw new Error('invalid audit timestamp order');
+  } catch (error) {
+    adapterInvalid(`authoritative coupon policy is invalid: ${error.message}`);
   }
 }
 
@@ -283,6 +416,7 @@ async function claim(tx, context) {
     const event = result.event;
     if (
       !event
+      || event.eventId !== context.eventId
       || event.projectId !== context.projectId
       || event.sellerId !== context.sellerId
       || event.operation !== context.operation
@@ -563,6 +697,7 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
       ) {
         adapterInvalid('locked coupon does not match the requested identity');
       }
+      validateAuthoritativeCoupon(current);
       return quoteCoupon(current, input, nowIso(clock));
     });
   }
@@ -609,6 +744,10 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
       });
       if (!current) throw failure('COUPON_NOT_FOUND', 'coupon was not found');
       assertScope(current, scope.projectId, scope.sellerId);
+      if (current.couponId !== snapshot.couponId) {
+        adapterInvalid('locked coupon does not match the reservation snapshot identity');
+      }
+      validateAuthoritativeCoupon(current);
       if (current.reservation) {
         assertReservation(current.reservation, scope, reservationId);
         assertSameSnapshot(snapshot, current.reservation.discountSnapshot);

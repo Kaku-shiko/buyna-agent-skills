@@ -358,7 +358,11 @@ test('enforces minimum quantity and amount eligibility', async () => {
 test('enforces validity windows and usage limits', async () => {
   const first = moduleWith();
   await activeCoupon(first.coupons);
-  first.store.mutateCoupon('coupon-1', (coupon) => ({ ...coupon, redeemedCount: 2 }));
+  first.store.mutateCoupon('coupon-1', (coupon) => ({
+    ...coupon,
+    redeemedCount: 2,
+    perCustomerRedemptions: { 'customer-a': 1, 'customer-b': 1 },
+  }));
   await assert.rejects(
     first.coupons.quote({
       couponId: 'coupon-1',
@@ -372,6 +376,7 @@ test('enforces validity windows and usage limits', async () => {
   await activeCoupon(second.coupons);
   second.store.mutateCoupon('coupon-1', (coupon) => ({
     ...coupon,
+    redeemedCount: 1,
     perCustomerRedemptions: { 'customer-1': 1 },
   }));
   await assert.rejects(
@@ -858,6 +863,22 @@ test('rejects a locked coupon returned under the wrong aggregate identity', asyn
     }),
     { code: 'COUPON_ADAPTER_INVALID' },
   );
+
+  const reservation = moduleWith();
+  await activeCoupon(reservation.coupons);
+  const snapshot = await quoteDefault(reservation.coupons);
+  reservation.store.mutateCoupon('coupon-1', (coupon) => ({
+    ...coupon,
+    couponId: 'coupon-other',
+  }));
+  await assert.rejects(
+    reservation.coupons.reserve({
+      eventId: 'event-wrong-coupon-id',
+      reservationId: 'reservation-wrong-coupon-id',
+      snapshot,
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
 });
 
 test('preflights operation Adapter methods before claiming an event', async () => {
@@ -899,4 +920,116 @@ test('rolls back failed reservations so the same event can retry safely', async 
   assert.equal(retried.state, 'reserved');
   assert.equal(store.inspectCoupon('coupon-1').reservedCount, 1);
   assert.equal(store.inspectEvent('event-rollback').result.state, 'reserved');
+});
+
+test('rejects malformed authoritative coupon policy records before quoting', async () => {
+  const corruptions = [
+    ['illegal state', (coupon) => ({ ...coupon, state: 'unknown' })],
+    ['unnormalized code', (coupon) => ({ ...coupon, code: ' summer-10 ' })],
+    ['zero percentage', (coupon) => ({
+      ...coupon,
+      discount: { type: 'percentage', basisPoints: 0 },
+    })],
+    ['oversized percentage', (coupon) => ({
+      ...coupon,
+      discount: { type: 'percentage', basisPoints: 10_001 },
+    })],
+    ['negative fixed discount', (coupon) => ({
+      ...coupon,
+      discount: { type: 'fixed', amount: -100 },
+    })],
+    ['unsupported discount', (coupon) => ({
+      ...coupon,
+      discount: { type: 'mystery', amount: 100 },
+    })],
+    ['invalid minimum quantity', (coupon) => ({ ...coupon, minimumItemQuantity: 0 })],
+    ['unsafe minimum amount', (coupon) => ({
+      ...coupon,
+      minimumOrderAmount: Number.MAX_SAFE_INTEGER + 1,
+    })],
+    ['fractional maximum discount', (coupon) => ({
+      ...coupon,
+      maximumDiscountAmount: 1.5,
+    })],
+    ['invalid policy version', (coupon) => ({ ...coupon, policyVersion: '' })],
+    ['invalid total limit', (coupon) => ({ ...coupon, totalUsageLimit: 0 })],
+    ['negative redeemed counter', (coupon) => ({ ...coupon, redeemedCount: -1 })],
+    ['counter map mismatch', (coupon) => ({
+      ...coupon,
+      redeemedCount: 1,
+      perCustomerRedemptions: {},
+    })],
+    ['per-customer limit exceeded', (coupon) => ({
+      ...coupon,
+      redeemedCount: 2,
+      perCustomerRedemptions: { 'customer-1': 2 },
+    })],
+    ['invalid validity timestamp', (coupon) => ({ ...coupon, validFrom: 'not-a-date' })],
+    ['reversed validity window', (coupon) => ({
+      ...coupon,
+      validFrom: '2026-09-01T00:00:00.000Z',
+      validUntil: '2026-08-01T00:00:00.000Z',
+    })],
+  ];
+
+  for (const [label, corrupt] of corruptions) {
+    const { coupons, store } = moduleWith();
+    await activeCoupon(coupons);
+    store.mutateCoupon('coupon-1', corrupt);
+    await assert.rejects(
+      coupons.quote({
+        couponId: 'coupon-1',
+        customerId: 'customer-1',
+        order: orderInput(),
+      }),
+      (error) => error.code === 'COUPON_ADAPTER_INVALID',
+      label,
+    );
+  }
+});
+
+test('rejects a corrupted policy before reserve without leaking usage or raising payable', async () => {
+  const { coupons, store } = moduleWith();
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  store.mutateCoupon('coupon-1', (coupon) => ({
+    ...coupon,
+    discount: { type: 'fixed', amount: -500 },
+  }));
+
+  await assert.rejects(
+    coupons.reserve({
+      eventId: 'event-invalid-policy-reserve',
+      reservationId: 'reservation-invalid-policy',
+      snapshot,
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(store.inspectReservation('reservation-invalid-policy'), undefined);
+  assert.equal(store.inspectCoupon('coupon-1').reservedCount, 0);
+  assert.equal(store.inspectEvent('event-invalid-policy-reserve'), undefined);
+  assert.ok(snapshot.payableAmount <= snapshot.originalAmount);
+});
+
+test('rejects replay envelopes with a missing or different event identity', async () => {
+  for (const replacement of [undefined, 'event-other']) {
+    const { coupons, store } = moduleWith();
+    await activeCoupon(coupons);
+    const snapshot = await quoteDefault(coupons);
+    const input = {
+      eventId: 'event-envelope-id',
+      reservationId: 'reservation-envelope-id',
+      snapshot,
+    };
+    await coupons.reserve(input);
+    store.mutateEvent(input.eventId, (event) => {
+      const next = { ...event };
+      if (replacement === undefined) delete next.eventId;
+      else next.eventId = replacement;
+      return next;
+    });
+    await assert.rejects(coupons.reserve(input), {
+      code: 'COUPON_EVENT_CONFLICT',
+    });
+  }
 });
