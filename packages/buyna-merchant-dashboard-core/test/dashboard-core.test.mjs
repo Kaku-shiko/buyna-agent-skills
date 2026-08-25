@@ -121,6 +121,22 @@ test('a newer dashboard request rejects an older response',()=>{
   assert.deepEqual(operation.snapshot().data,{rows:['current']});
 });
 
+test('an older read permission response is stale after the newer read completes',()=>{
+  const operation=createDashboardOperation();
+  const first=operation.transition('load');
+  const second=operation.transition('load');
+  const current=operation.transition('load_success',{
+    requestId:second.requestId,
+    data:{rows:['current']},
+  });
+
+  assert.throws(
+    ()=>operation.transition('forbid',{requestId:first.requestId}),
+    error=>error.code==='DASHBOARD_OPERATION_STALE_RESPONSE',
+  );
+  assert.deepEqual(operation.snapshot(),current);
+});
+
 test('dashboard edit and save states suppress duplicate saves and restore the last ready snapshot',()=>{
   const operation=createDashboardOperation({state:'ready',data:{record:{id:'p-1',name:'Before'}}});
   const editing=operation.transition('edit',{draft:{id:'p-1',name:'After'}});
@@ -184,6 +200,28 @@ test('dashboard save supports success, permission denial, recoverable error, and
     error=>error.code==='DASHBOARD_OPERATION_STALE_RESPONSE',
   );
   assert.equal(retryOperation.transition('save_success',{requestId:retrySave.requestId}).state,'saved');
+});
+
+test('an older save permission response is stale after the newer save completes',()=>{
+  const operation=createDashboardOperation({state:'ready',data:{record:{id:'p-3'}}});
+  operation.transition('edit',{draft:{id:'p-3',name:'Current'}});
+  const first=operation.transition('save');
+  operation.transition('save_error',{
+    requestId:first.requestId,
+    errorCode:'TEMPORARY_WRITE_FAILURE',
+    recoverable:true,
+  });
+  const second=operation.transition('retry');
+  const current=operation.transition('save_success',{
+    requestId:second.requestId,
+    data:{record:{id:'p-3',name:'Current'}},
+  });
+
+  assert.throws(
+    ()=>operation.transition('forbid',{requestId:first.requestId}),
+    error=>error.code==='DASHBOARD_OPERATION_STALE_RESPONSE',
+  );
+  assert.deepEqual(operation.snapshot(),current);
 });
 
 test('legacy table views map into operation vocabulary without changing table output',()=>{

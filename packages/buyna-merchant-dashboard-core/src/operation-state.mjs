@@ -60,7 +60,7 @@ export const DASHBOARD_OPERATION_TRANSITIONS = Object.freeze({
   empty: Object.freeze({ load: 'loading' }),
   error: Object.freeze({ retry: destinations(['loading', 'saving']), cancel: 'ready' }),
   forbidden: Object.freeze({ load: 'loading' }),
-  editing: Object.freeze({ save: 'saving', cancel: 'ready', forbid: 'forbidden' }),
+  editing: Object.freeze({ save: 'saving', cancel: 'ready' }),
   saving: Object.freeze({
     save: 'saving',
     save_success: 'saved',
@@ -191,6 +191,24 @@ export function createDashboardOperation(initial) {
     transition(event, data = {}) {
       const normalizedEvent = String(event ?? '').trim();
       if (!normalizedEvent) fail('DASHBOARD_OPERATION_EVENT_REQUIRED');
+      if (normalizedEvent === 'forbid') {
+        const requestId = String(data.requestId ?? '').trim();
+        if (!requestId) fail('DASHBOARD_OPERATION_REQUEST_ID_REQUIRED');
+        if (
+          requestId.startsWith('dashboard-read-')
+          && latestReadRequestId
+          && requestId !== latestReadRequestId
+        ) {
+          fail('DASHBOARD_OPERATION_STALE_RESPONSE');
+        }
+        if (
+          requestId.startsWith('dashboard-save-')
+          && latestSaveRequestId
+          && requestId !== latestSaveRequestId
+        ) {
+          fail('DASHBOARD_OPERATION_STALE_RESPONSE');
+        }
+      }
       if (
         ['load_success', 'load_empty', 'load_error'].includes(normalizedEvent)
         && data.requestId
@@ -251,9 +269,7 @@ export function createDashboardOperation(initial) {
       ].includes(normalizedEvent)) {
         requireRequest(current, data.requestId);
       }
-      if (normalizedEvent === 'forbid' && current.requestId) {
-        requireRequest(current, data.requestId);
-      }
+      if (normalizedEvent === 'forbid') requireRequest(current, data.requestId);
 
       if (normalizedEvent === 'load_success') {
         current = semanticSnapshot(DASHBOARD_OPERATION_STATES.READY, { data: data.data });
