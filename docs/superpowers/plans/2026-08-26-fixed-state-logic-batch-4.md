@@ -36,8 +36,13 @@ repository manifest, Markdown Codex Skills, PowerShell repository validation.
   sum of provider-confirmed completed refund amounts. Net is gross minus refund.
   A browser return, redirect, frontend status, or unverified order row is never
   a captured/refunded fact.
+- This batch supports the closed currency set `['JPY']`. Input is trimmed and
+  uppercased before allowlist validation; every stored/output amount is an
+  integer yen value. Period net may be negative when the period contains a
+  completed refund for a capture outside that period.
 - Fixed read-model code owns exact metric semantics, safe-integer money,
-  timezone validation/buckets, deterministic sorting, and stable errors.
+  timezone validation/buckets, bounded pagination, deterministic sorting, and
+  stable errors.
 - Fixed delivery code owns legal transitions, attempt count, retry eligibility,
   immutable notification intent, idempotency, and normalized provider receipt.
 - SQL/ORM queries, API routes, chart-library mapping, chart UI, recipient
@@ -58,7 +63,8 @@ buyna-commerce-settlement-core
   -> project ChartAdapter and project UI render the result
 
 inquiry/order/booking domain service
-  -> buyna-delivery-state-core enqueues immutable intent once
+  -> domain transaction commits immutable notification source event
+  -> buyna-delivery-state-core reconciles one DeliveryRecord by sourceEventId
   -> project TemplateAdapter renders approved copy
   -> project EmailAdapter or SmsAdapter sends with stable request key
   -> buyna-delivery-state-core persists delivered/failed and safe receipt
@@ -84,6 +90,7 @@ complete branch and runs full verification.
 **Files:**
 - Create: `packages/buyna-commerce-read-model-core/package.json`
 - Create: `packages/buyna-commerce-read-model-core/src/errors.mjs`
+- Create: `packages/buyna-commerce-read-model-core/src/paged-source.mjs`
 - Create: `packages/buyna-commerce-read-model-core/src/time-buckets.mjs`
 - Create: `packages/buyna-commerce-read-model-core/src/metrics.mjs`
 - Create: `packages/buyna-commerce-read-model-core/src/index.mjs`
@@ -93,61 +100,101 @@ complete branch and runs full verification.
 - Consume:
   `createCommerceReadModel({ projectId, sellerId, source, clock? })`.
 - `source` must implement
-  `listOrderFacts({ scope, from, to, currency })`,
-  `listLowStockFacts({ scope, threshold, limit })`, and
-  `listRecentOrderFacts({ scope, limit })`.
-- `listOrderFacts` returns exactly one canonical row per order whose pending,
-  capture, or refund event intersects the requested range:
+  `listCurrentPendingPage({ scope, currency, asOf, cursor, limit, order })`,
+  `listSettlementFactPage({ scope, from, to, currency, cursor, limit, order })`,
+  `listLowStockCandidatePage({ scope, threshold, cursor, limit, order })`, and
+  `listRecentOrderCandidatePage({ scope, cursor, limit, order })`.
+- Every page returns `{ items, nextCursor }`, where `nextCursor` is `null` or a
+  nonempty opaque string. Every row repeats the exact frozen
+  `projectId + sellerId`; the core rejects scope mismatches before aggregation.
+- Current pending pages are ordered by
+  `created_at_asc_order_id_asc` and contain only current
+  `status: 'pending_payment'` rows:
 
   ```js
   {
-    orderId, projectId, sellerId,
-    status: 'pending_payment' | 'paid' | 'partially_refunded' | 'refunded',
-    pendingAmount, capturedAmount, refundedAmount, currency,
-    createdAt, capturedAt,
-    refunds: [{ refundId, amount, completedAt }],
-    settlementSource: 'trusted_settlement' | null
+    orderId, projectId, sellerId, status: 'pending_payment',
+    payableAmount, currency, createdAt, updatedAt
   }
   ```
 
-  Pending rows use `capturedAmount: 0`, `capturedAt: null`,
-  `refundedAmount: 0`, `refunds: []`, and `settlementSource: null`.
-  Paid/refunded rows require
-  `settlementSource: 'trusted_settlement'`, `capturedAmount > 0`, and
-  `0 <= refundedAmount <= capturedAmount`. Each provider-confirmed completed
-  partial/full refund appears once in `refunds`, refund IDs are unique, and the
-  safe-integer sum equals `refundedAmount`. The fixed core rejects duplicate
-  `orderId` or `refundId` rows rather than double counting them.
-- `listLowStockFacts` returns scoped
-  `{ productId, variantId, availableQuantity, reservedQuantity, updatedAt }`.
-  `listRecentOrderFacts` returns only
-  `{ orderId, status, amount, currency, createdAt }`; customer PII and form
+- Settlement pages are ordered by
+  `event_time_asc_order_id_asc_event_id_asc`. They return canonical trusted
+  capture/refund events, rather than precomputed merchant totals:
+
+  ```js
+  {
+    eventId, orderId, projectId, sellerId,
+    type: 'capture' | 'refund', amount, currency, occurredAt,
+    settlementSource: 'trusted_settlement'
+  }
+  ```
+
+  Capture events are positive; refund events are positive and independently
+  provider-confirmed. The core rejects duplicate `eventId`. The project Adapter
+  must reconcile cumulative order refunds before exposing delta events so a
+  provider's cumulative callback never becomes a duplicate refund amount.
+- Low-stock candidate pages are ordered by
+  `available_asc_product_asc_variant_asc` and return scoped
+  `{ productId, variantId, projectId, sellerId, availableQuantity,
+  reservedQuantity, updatedAt }`.
+  Recent-order candidate pages are ordered by
+  `created_at_desc_order_id_asc` and return only
+  `{ orderId, projectId, sellerId, status, payableAmount, capturedAmount,
+  refundedAmount, currency, createdAt }`. The core derives
+  `netPaidAmount = capturedAmount - refundedAmount`. `payableAmount` is the
+  locked order total after discounts/shipping/tax, `capturedAmount` is the
+  provider-verified charged amount, and `refundedAmount` is cumulative
+  provider-confirmed completed refunds. Pending rows have captured/refunded
+  zero; every row requires `0 <= refundedAmount <= capturedAmount <=
+  payableAmount` for the currently supported single-capture model. Customer PII and form
   snapshots remain in the authorized order-detail Adapter.
+- Source order and cursor rules are part of the Adapter contract, not hints.
+  The core validates row order inside and across pages, rejects repeated
+  cursors, and applies output limits only after validation. The Adapter may not
+  arbitrarily pre-limit candidates outside the cursor contract.
 - Produce:
   `getOverview({ from, to, timeZone, currency = 'JPY',
   interval = 'day', lowStockThreshold = 5, lowStockLimit = 10,
   recentOrderLimit = 10 })` returning an immutable object:
 
+  `lowStockThreshold` is a nonnegative safe integer. Both output limits are
+  integers from 1 through 100; invalid values fail `READ_MODEL_LIMIT_INVALID`.
+
   ```js
   {
     scope: { projectId, sellerId },
-    window: { from, to, timeZone, interval },
+    window: { from, to, asOf, timeZone, interval },
     currency,
     metrics: {
       pendingOrders, paidOrders, refundedOrders,
       pendingAmount, grossAmount, refundAmount, netAmount
     },
     trends: [{
-      key, start, end, pendingOrders, paidOrders, refundedOrders,
+      key, startUtc, endUtc, paidOrders, refundedOrders,
       grossAmount, refundAmount, netAmount
     }],
     lowStock: [{ productId, variantId, availableQuantity,
       reservedQuantity, updatedAt }],
-    recentOrders: [{ orderId, status, amount, currency, createdAt }]
+    recentOrders: [{
+      orderId, status, payableAmount, capturedAmount, refundedAmount,
+      netPaidAmount, currency, createdAt
+    }]
   }
   ```
-- Export immutable `COMMERCE_READ_STATUSES`, `TREND_INTERVALS`, and pure
-  `bucketTimestamp({ timestamp, timeZone, interval })` for `day` and `month`.
+- Export immutable `SUPPORTED_CURRENCIES` (`['JPY']`),
+  `COMMERCE_READ_STATUSES`, `TREND_INTERVALS`, `READ_PAGE_LIMIT` (`200`),
+  `MAX_FACT_ROWS` (`10000` total across pending plus settlement streams),
+  `MAX_FACT_PAGES` (`50` per fact stream),
+  `MAX_CANDIDATE_ROWS` (`2000` per candidate stream),
+  `MAX_CANDIDATE_PAGES` (`10` per candidate stream),
+  `MAX_DAY_BUCKETS` (`93`), and `MAX_MONTH_BUCKETS` (`36`). Export pure
+  `buildTimeBuckets({ from, to, timeZone, interval })`; each bucket has
+  `{ key, startUtc, endUtc }`, where local calendar midnight/month boundaries
+  are represented as UTC instants and membership is `startUtc <= t < endUtc`.
+  The cap counts intersecting local calendar buckets (at most 93 days or 36
+  months), not a fixed millisecond duration, so DST cannot bypass or overcount
+  the bound.
 - Dependency on prior modules: the project ReadFactsAdapter reads the results
   already persisted by `buyna-commerce-settlement-core` and inventory
   Adapters. The new package does not import settlement, inventory, order, GMV,
@@ -161,14 +208,17 @@ complete branch and runs full verification.
   - missing/blank `projectId` or `sellerId`;
   - every Adapter call receiving the exact immutable server scope;
   - rejection of cross-seller/cross-project rows;
-  - duplicate `orderId` or `refundId` rows and refund-sum mismatch;
-  - unsafe, negative, fractional, or mixed-currency amounts;
-  - pending rows carrying captured/refund money;
-  - paid/refunded rows without `trusted_settlement`;
-  - cumulative refund above captured amount;
+  - duplicate settlement `eventId` rows or a second capture for one order;
+  - unsafe, negative, fractional, or mixed-currency source amounts (derived
+    period/bucket net remains allowed to be negative);
+  - current-pending pages containing any non-`pending_payment` row;
+  - capture/refund rows without `trusted_settlement`;
+  - lowercase/space-padded `jpy` normalizing to `JPY` and every other currency
+    failing closed;
   - stable errors `READ_MODEL_SCOPE_REQUIRED`,
-    `READ_MODEL_SCOPE_MISMATCH`, `READ_MODEL_DUPLICATE_ORDER`,
-    `READ_MODEL_MONEY_INVALID`, `READ_MODEL_CURRENCY_MISMATCH`, and
+    `READ_MODEL_SCOPE_MISMATCH`, `READ_MODEL_DUPLICATE_EVENT`,
+    `READ_MODEL_DUPLICATE_CAPTURE`,
+    `READ_MODEL_MONEY_INVALID`, `READ_MODEL_CURRENCY_UNSUPPORTED`, and
     `READ_MODEL_SETTLEMENT_UNTRUSTED`.
 
   Include this first happy-path assertion:
@@ -199,15 +249,15 @@ complete branch and runs full verification.
 - [ ] **Step 3: Implement scope and stable metric semantics**
 
   `errors.mjs` exports `fail(code)` and exact validators. `metrics.mjs` exports
-  `normalizeOrderFacts(rows, scope, currency)` and
-  `summarizeCommerceFacts(facts, window)`. Count a paid order when its trusted
-  `capturedAt` is inside the inclusive-start/exclusive-end window; count a
-  refunded order once when at least one completed refund is inside the window.
-  Count a pending order when its `createdAt` is inside the window. Gross sums
-  in-window captures, refund sums in-window refund entries, and net is their
-  difference. Calculate all totals with safe-integer overflow checks. Freeze
-  normalized rows and the returned summary. Do not add a GMV alias or accept
-  precomputed totals from the Adapter.
+  `normalizePendingRows(rows, scope, currency)`,
+  `normalizeSettlementEvents(rows, scope, currency)`, and
+  `summarizeCommerceFacts({ pendingRows, settlementEvents })`. Pending is a
+  current snapshot and counts only rows still `pending_payment` at `asOf`; it is
+  not reconstructed from historical created events. Paid/refunded order counts
+  are distinct order IDs with an in-period capture/refund event. Gross sums
+  captures, refund sums refunds, and signed safe-integer net is their
+  difference; negative net is valid. Freeze normalized rows and summary. Do
+  not add a GMV alias or accept Adapter-precomputed totals.
 
 - [ ] **Step 4: Write failing timezone and deterministic-list tests**
 
@@ -220,23 +270,36 @@ complete branch and runs full verification.
     missing local date keys;
   - `day` and `month` buckets sorted chronologically and zero-filled across the
     requested range;
-  - captures appearing in their authoritative `capturedAt` bucket and every
-    partial/full refund appearing in its own authoritative `completedAt` bucket;
+  - local bucket boundaries represented by exact UTC instants across Tokyo
+    midnight and New York DST; events are assigned by those UTC boundaries;
+  - captures/refunds appearing in their authoritative `occurredAt` bucket;
+  - a period refund for an older capture producing a negative period/bucket net;
+  - more than 93 day buckets, more than 36 month buckets, more than 10,000
+    settlement/current-pending rows, more than 2,000 candidate rows, a page over
+    200 rows, repeated cursor, cursor without progress, and out-of-order rows;
   - low stock sorted by `availableQuantity`, then stable product/variant ID,
     limited after validation;
   - recent orders sorted newest-first, then `orderId`, and limited after scope
     validation;
   - stable errors `READ_MODEL_TIME_ZONE_INVALID`,
-    `READ_MODEL_RANGE_INVALID`, `READ_MODEL_INTERVAL_INVALID`, and
-    `READ_MODEL_FACT_INVALID`.
+    `READ_MODEL_RANGE_INVALID`, `READ_MODEL_SPAN_EXCEEDED`,
+    `READ_MODEL_INTERVAL_INVALID`, `READ_MODEL_PAGE_INVALID`,
+    `READ_MODEL_CURSOR_LOOP`, `READ_MODEL_FACT_LIMIT_EXCEEDED`,
+    `READ_MODEL_SOURCE_ORDER_INVALID`, and `READ_MODEL_FACT_INVALID`.
+    Threshold/output-limit mutations also fail `READ_MODEL_LIMIT_INVALID`.
 
 - [ ] **Step 5: Implement timezone buckets and the read service**
 
-  `time-buckets.mjs` must validate zones with `Intl.DateTimeFormat` and derive
-  local calendar keys through `formatToParts`; never change process timezone or
-  parse locale-formatted display strings. `index.mjs` calls all three Adapter
-  methods with the same frozen scope, normalizes their rows, calculates the
-  summary/trends, and returns deep-frozen serializable data. It emits no chart
+  `paged-source.mjs` owns the bounded cursor iterator, ordering comparator,
+  cursor-loop detection, and fact/candidate caps. `time-buckets.mjs` validates
+  zones with `Intl.DateTimeFormat`, derives local
+  calendar parts through `formatToParts`, and converts each local boundary to
+  an exact UTC instant; never change process timezone or parse display strings.
+  Reject the span before reading facts. `index.mjs` uses one bounded page
+  iterator with page size 200, cursor-loop detection, cross-page ordering
+  validation, and the declared row caps. It calls all four Adapter methods with
+  the same frozen scope, normalizes rows, calculates current pending plus
+  period trends, and returns deep-frozen serializable data. It emits no chart
   label, tooltip, CSS token, component, SQL, or query builder.
 
 - [ ] **Step 6: Run package tests and commit**
@@ -262,6 +325,7 @@ complete branch and runs full verification.
 **Files:**
 - Create: `packages/buyna-delivery-state-core/package.json`
 - Create: `packages/buyna-delivery-state-core/src/errors.mjs`
+- Create: `packages/buyna-delivery-state-core/src/canonical-json.mjs`
 - Create: `packages/buyna-delivery-state-core/src/retry-policy.mjs`
 - Create: `packages/buyna-delivery-state-core/src/state-machine.mjs`
 - Create: `packages/buyna-delivery-state-core/src/index.mjs`
@@ -270,40 +334,112 @@ complete branch and runs full verification.
 **Interfaces:**
 - Consume:
   `createDeliveryStateCore({ projectId, sellerId, store, clock?,
-  deliveryIdGenerator, attemptIdGenerator, retryPolicy? })`.
+  deliveryIdGenerator, attemptIdGenerator, retryPolicy?, leaseSeconds = 60 })`.
 - Export immutable `DELIVERY_STATES`, `DELIVERY_TRANSITIONS`,
   `DELIVERY_KINDS` (`inquiry`, `order`, `booking`), and
   `DELIVERY_CHANNELS` (`email`, `sms`).
 - Expose:
-  `enqueue(intent)`, `claim({ deliveryId, workerId })`,
+  pure `createNotificationSourceEvent(input)`,
+  `reconcileSourceEvent(sourceEvent)`, `claim({ deliveryId, workerId })`,
   `markDelivered({ deliveryId, attemptId, receipt })`,
   `markFailed({ deliveryId, attemptId, failure })`,
-  `retry({ deliveryId, workerId })`,
-  `dispatch({ deliveryId, workerId, templates, providers })`, and
+  `retry({ deliveryId, workerId })`, `recoverExpired({ deliveryId, workerId })`,
+  `dispatch({ deliveryId, workerId, recipients, templates, providers })`, and
   `get({ deliveryId })`.
-- `enqueue(intent)` accepts exactly:
+- The order/booking/inquiry domain transaction writes one immutable source
+  event/outbox row before commit. `sourceEvent` accepts exactly:
 
   ```js
   {
-    idempotencyKey, kind, channel, templateKey, locale,
-    recipientRef, payload
+    sourceEventId, projectId, sellerId,
+    domainRecordId, domainEventId, occurredAt,
+    intent: { kind, channel, templateKey, locale, recipientRef, payload }
   }
   ```
 
-  It stores an immutable normalized intent and payload digest. The fixed core
-  never resolves an email/phone number, renders copy, or stores card/payment
-  credentials. Reusing an idempotency key with the same digest returns the
-  existing delivery; a different digest fails
-  `DELIVERY_IDEMPOTENCY_CONFLICT`.
+  `createNotificationSourceEvent` requires stable domain record/event IDs and
+  derives `sourceEventId` as
+  `notification-source:v1:<sha256>` over canonical JSON
+  `{ version: 1, projectId, sellerId, kind, domainRecordId, domainEventId,
+  channel, templateKey }`. The project inserts its returned frozen row inside
+  the order/booking/inquiry transaction. The same domain event/channel/template
+  therefore always reconciles to the same source identity; changed intent data
+  under that identity is detected by `intentDigest` conflict rather than
+  silently creating another notification.
+
+  `reconcileSourceEvent` validates scope and creates exactly one DeliveryRecord
+  under unique `(projectId, sellerId, sourceEventId)`. Project domain code must
+  insert this source event in the same transaction as the order/booking/inquiry
+  change. A reconciler pages committed source events after restart and calls
+  this function; payment/order success never depends on immediate delivery.
+- Canonical JSON for the immutable digest accepts only null, booleans, strings,
+  safe integers, arrays, and plain objects. Normalize every string/key to NFC,
+  sort object keys by Unicode code-point order, preserve array order, and encode
+  UTF-8 without whitespace. Reject undefined, sparse arrays, nonfinite or
+  fractional numbers, BigInt, Date, Buffer, functions, symbols, cycles,
+  non-plain prototypes, and keys `__proto__`, `prototype`, or `constructor`.
+  Reject duplicate keys after NFC normalization. `intentDigest` is lowercase
+  SHA-256 over canonical JSON containing
+  `{ version: 1, projectId, sellerId, sourceEventId, domainRecordId,
+  domainEventId, occurredAt, intent }`.
+  `idempotencyKey` is `delivery:v1:<intentDigest>` and `requestKey` is
+  `delivery-request:v1:<intentDigest>`; neither is caller-selected.
+- Every persisted record has this exact deep-frozen public shape:
+
+  ```js
+  {
+    version,
+    deliveryId, projectId, sellerId, sourceEventId,
+    domainRecordId, domainEventId,
+    idempotencyKey, intentDigest,
+    intent: { kind, channel, templateKey, locale, recipientRef, payload },
+    state: 'pending' | 'sending' | 'delivered' | 'failed',
+    requestKey,
+    attempts: [{
+      attemptId, attemptNumber, workerId, claimedAt, leaseUntil,
+      state: 'sending' | 'delivered' | 'failed',
+      deliveredAt, failedAt, receipt, failure
+    }],
+    currentAttempt: { attemptId, attemptNumber } | null,
+    attemptCount, nextRetryAt,
+    createdAt, updatedAt
+  }
+  ```
+
+  Nonapplicable attempt timestamps/receipt/failure are exactly `null`; no
+  undocumented property is allowed. `currentAttempt` is `null` for pending and
+  otherwise must point to the matching entry in `attempts`; delivered/failed
+  history remains immutable. `version` is a positive safe integer starting at
+  1. Every mutation increments it
+  by one, preserves `createdAt`, and sets monotonic `updatedAt` from the injected
+  clock.
+  `attemptCount === attempts.length`; pending has no attempts/current attempt;
+  sending/delivered/failed current attempt points to the last attempt. Sending
+  has nonnull `leaseUntil` and null receipt/failure. Terminal attempts retain
+  `claimedAt`/`workerId`, clear `leaseUntil`, and set exactly one of
+  `deliveredAt + receipt` or `failedAt + failure`.
+  `nextRetryAt` is nonnull only for a retryable failed current attempt below the
+  maximum; it is null for every other state.
 - Store Adapter: `transaction(work)`; transaction scope supplies
-  `getByIdempotencyKey`, `createDelivery`, `getDeliveryForUpdate`,
-  `saveSendingAttempt`, `saveDelivered`, and `saveFailed`. Every method receives
-  the exact scope. `get` uses `store.getDelivery({ scope, deliveryId })`.
-- `templates.render({ kind, templateKey, locale, payload })` returns an
+  `getBySourceEventForUpdate({ scope, sourceEventId })`,
+  `createDelivery({ scope, record })`,
+  `getDeliveryForUpdate({ scope, deliveryId })`, and
+  `saveDelivery({ scope, expectedVersion, record })`. `get` uses
+  `store.getDelivery({ scope, deliveryId })`. A project source-event Adapter
+  supplies `listCommittedNotificationEvents({ scope, cursor, limit })` to its
+  reconciler; the fixed core never scans another merchant.
+- `templates.render({ scope, kind, templateKey, locale, payload })` returns an
   immutable `{ subject?, text?, html? }`. `providers.email.send(...)` or
   `providers.sms.send(...)` accepts
-  `{ requestKey, recipientRef, message, metadata }` and returns
+  `{ scope, requestKey, recipient, message, metadata }` and returns
   `{ providerMessageId, acceptedAt, providerStatus? }`.
+  `metadata` is exactly `{ deliveryId, sourceEventId, attemptId }`; it contains
+  no customer, order amount, credential, or arbitrary intent payload.
+- `recipients.resolve({ scope, recipientRef, channel })` returns a transient
+  `{ address }`; address is passed to the provider as `recipient` but is never
+  persisted in DeliveryRecord, receipt, failure, or logs. Every Store,
+  TemplateAdapter, RecipientAdapter, and ProviderAdapter call receives and must
+  validate the exact frozen `{ projectId, sellerId }`.
 - The provider `requestKey` is stable for the delivery, not regenerated per
   attempt. `attemptId` changes for each legal retry. This lets the provider
   Adapter deduplicate a crash after external acceptance while the store records
@@ -311,24 +447,39 @@ complete branch and runs full verification.
 - Default retry policy is immutable
   `{ maxAttempts: 5, delaysSeconds: [60, 300, 900, 3600] }`; an injected policy
   must have `maxAttempts >= 1`, one nonnegative safe-integer delay for every
-  retry slot, and no more than 10 attempts.
+  retry slot, and no more than 10 attempts. `leaseSeconds` must be a safe
+  integer from 5 through 900; invalid policy/lease fails
+  `DELIVERY_RETRY_POLICY_INVALID` or `DELIVERY_LEASE_INVALID` before Store I/O.
 - Normalized receipt stores only `providerMessageId`, `acceptedAt`, and
-  optional `providerStatus`. Normalized failure stores only `code`,
-  `retryable`, `failedAt`, and `nextRetryAt`; raw provider bodies, exception
+  optional `providerStatus`. Normalized failure stores only `code` and
+  `retryable`; `failedAt` belongs to the attempt and `nextRetryAt` belongs to
+  DeliveryRecord. Raw provider bodies, exception
   stacks, addresses, message text, and secrets never enter the state record.
 
 - [ ] **Step 1: Write failing lifecycle and intent tests**
 
   Cover `pending -> sending -> delivered`,
   `pending -> sending -> failed`, and eligible `failed -> sending` retry.
-  Reject every other transition, wrong scope, missing/unknown kind/channel,
-  unsafe payload values, blank template/recipient reference, stale attempt ID,
+  Reject every other transition, wrong scope in source event or any Store row,
+  missing/unknown kind/channel,
+  unsafe/noncanonical payload values, blank template/recipient reference,
+  stale attempt ID,
+  invalid/nonmonotonic source/record/provider timestamps,
   completion from `pending`, retry before `nextRetryAt`, retry after a permanent
   failure, and retry at `maxAttempts`. Require stable errors:
   `DELIVERY_SCOPE_REQUIRED`, `DELIVERY_SCOPE_MISMATCH`,
-  `DELIVERY_INTENT_INVALID`, `DELIVERY_INVALID_TRANSITION`,
+  `DELIVERY_SOURCE_EVENT_INVALID`, `DELIVERY_INTENT_INVALID`,
+  `DELIVERY_IDEMPOTENCY_CONFLICT`, `DELIVERY_INVALID_TRANSITION`,
   `DELIVERY_ATTEMPT_STALE`, `DELIVERY_RETRY_NOT_READY`, and
   `DELIVERY_RETRY_EXHAUSTED`.
+
+  Assert the exact DeliveryRecord key set at pending, sending, delivered, and
+  failed states, exact attempt key set/null fields, version/timestamp behavior,
+  and deep immutability. Assert NFC-equivalent/reordered object input produces
+  the same canonical JSON/digest while array reordering or any intent/scope/
+  source-event change produces a different digest. Assert identical stable
+  domain record/event/channel/template input produces the same deterministic
+  `sourceEventId`, while changing any identity component changes it.
 
 - [ ] **Step 2: Run the focused test to verify RED**
 
@@ -343,6 +494,11 @@ complete branch and runs full verification.
 
 - [ ] **Step 3: Implement immutable state, claims, and retry policy**
 
+  `canonical-json.mjs` implements and exports
+  `canonicalizeDeliveryIntent(value)` and `digestDeliveryIntent(value)` with the
+  exact normalization/rejection rules above; no generic `JSON.stringify`
+  digest is accepted.
+
   `state-machine.mjs` owns only:
 
   ```text
@@ -350,19 +506,27 @@ complete branch and runs full verification.
                      \-> failed -> sending (only when retry eligible)
   ```
 
-  `claim` and `retry` lock the row inside one transaction, allocate exactly one
-  new `attemptId`, increment `attemptCount` once, and persist the stable provider
-  request key. The transaction Adapter decides SQL/ORM locking syntax. Freeze
-  returned state and never expose the mutable persisted row.
+  `claim` and legal `retry` lock the row inside one transaction, allocate
+  exactly one new `attemptId`, increment `attemptCount` once, and persist the
+  stable provider request key. A nonexpired `sending` lease returns
+  `DELIVERY_LEASE_ACTIVE`. `recoverExpired` locks an expired `sending` row and
+  resumes the same `attemptId`, `attemptNumber`, and `requestKey`; it updates
+  that attempt's `workerId`, `claimedAt`, and `leaseUntil` without incrementing
+  `attemptCount` or creating a new external-effect identity. The transaction
+  Adapter decides SQL/ORM locking syntax. Freeze returned records and never
+  expose mutable persisted rows.
 
 - [ ] **Step 4: Write failing idempotency, concurrency, and receipt tests**
 
   Add tests for:
 
-  - duplicate enqueue with the same intent returning the first record;
-  - duplicate enqueue with changed kind/channel/template/recipient/payload
-    failing closed;
+  - duplicate source-event reconciliation with the same canonical intent
+    returning the first record;
+  - the same source-event ID with changed scope, occurrence time, kind, channel,
+    template, recipient, or payload failing closed;
   - two workers racing to claim one pending delivery, with one winner;
+  - nonexpired lease denial, expired lease recovery by a new worker, process
+    restart recovery, and repeated recovery races preserving one attempt;
   - replayed `markDelivered` for the same attempt returning the original result;
   - delivered state never being sent again;
   - repeated `markFailed` not incrementing attempts or moving `nextRetryAt`;
@@ -371,20 +535,25 @@ complete branch and runs full verification.
   - provider receipt allowlist rejecting raw response, token, secret, body,
     address, or arbitrary metadata;
   - failure allowlist rejecting raw exception/stack/message content;
-  - one stable provider request key across attempts and a new attempt ID per
-    explicit retry.
+  - every Store, Template, Recipient, and Provider call receiving the exact same
+    frozen scope, with mutation/cross-seller fixtures failing before effects;
+  - one stable provider request key across attempts, same attempt on lease
+    recovery, and a new attempt ID only after a persisted failed-state retry.
 
 - [ ] **Step 5: Implement dispatch through template/provider Adapters**
 
-  `dispatch` claims first, calls exactly one approved TemplateAdapter, then the
-  provider matching the persisted channel. It passes only the immutable intent
-  payload and stable request key. On success it normalizes and saves the safe
-  receipt. On a project Adapter error shaped
+  `dispatch` claims or recovers the leased attempt, calls RecipientAdapter,
+  exactly one approved TemplateAdapter, then the provider matching the
+  persisted channel. Every call includes the same frozen scope. It passes only
+  transient recipient output, immutable intent payload, and stable request key.
+  On success it normalizes and saves the safe receipt. On a project Adapter
+  error shaped
   `{ code: <stable string>, retryable: <boolean> }`, it saves the normalized
   failure and returns the failed state. Unknown thrown values become
   `DELIVERY_PROVIDER_ERROR` with `retryable: false`; the fixed core never logs
   or persists their text. A missing provider/template method fails before any
-  state transition with `DELIVERY_TEMPLATE_ADAPTER_REQUIRED` or
+  state transition with `DELIVERY_RECIPIENT_ADAPTER_REQUIRED`,
+  `DELIVERY_TEMPLATE_ADAPTER_REQUIRED`, or
   `DELIVERY_PROVIDER_ADAPTER_REQUIRED`.
 
 - [ ] **Step 6: Add provider crash/replay behavior tests**
@@ -394,6 +563,14 @@ complete branch and runs full verification.
   idempotency store returns the same receipt and the delivery reaches
   `delivered` without a second external effect. Also assert template rendering
   is project-owned and may differ by locale without changing state semantics.
+
+  Add a domain-transaction recovery test: commit one order/booking plus its
+  immutable notification source event, crash before reconciliation, restart the
+  worker, page that committed event, and reconcile/dispatch it. Replay the same
+  source event and assert one DeliveryRecord and one external provider effect.
+  A domain transaction rollback must leave no source event and therefore no
+  delivery. This is the required commit-before-enqueue exact-once recovery
+  contract; direct best-effort `enqueue` after commit is not allowed.
 
 - [ ] **Step 7: Run package tests and commit**
 
@@ -454,6 +631,10 @@ complete branch and runs full verification.
   - runtime outputs from mutation fixtures contain only documented keys and no
     password, token, cookie, card, CVV, secret, raw provider response, stack, or
     customer contact value;
+  - DeliveryRecord/attempt shapes, canonical JSON/digest vectors, lease fields,
+    version/timestamps, and scope are repository-visible and mutation-tested;
+  - read adapters expose only the bounded page/cursor/order contract and no
+    unbounded `listAll`, arbitrary pre-limit total, or caller-provided aggregate;
   - README and Operations Manual state fixed behavior versus generated
     SQL/ORM/chart/template/provider/UI boundaries without naming a standard
     Dashboard design.
@@ -477,7 +658,7 @@ complete branch and runs full verification.
   | Fixed module | Project-generated Adapter/presentation |
   |---|---|
   | metric definitions, trusted-fact validation, timezone buckets, sorting | scoped SQL/ORM facts query, API, chart mapping, labels, cards, tables, charts, CSS |
-  | notification transition, attempts, retry, idempotency, receipt | recipient lookup, template copy, email/SMS provider, worker schedule, provider credentials |
+  | canonical notification intent/digest, source-event reconciliation, transition, lease/attempts, retry, idempotency, safe receipt | transactional source-event row Adapter, recipient lookup, template copy, email/SMS provider, worker schedule, provider credentials |
 
   State explicitly that merchant Dashboard sales metrics are not Buyna CRM GMV.
 
@@ -513,6 +694,9 @@ complete branch and runs full verification.
 - Modify: `skills/buyna-website-builder/scripts/route-builder.mjs`
 - Modify: `skills/buyna-website-builder/references/routing-map.md`
 - Modify: `skills/buyna-website-builder/references/phase-05-dashboard-integration.md`
+- Modify: `packages/buyna-workflow-state-core/src/index.mjs`
+- Modify: `packages/buyna-workflow-state-core/test/workflow-state.test.mjs`
+- Modify: `packages/buyna-workflow-state-core/test/verified-file-store.test.mjs`
 - Modify: `skills/buyai-dashboard-data-interaction/SKILL.md`
 - Modify: `skills/buyai-product-merchant-backend/SKILL.md`
 - Modify: `skills/buyai-booking-service-backend/SKILL.md`
@@ -521,31 +705,48 @@ complete branch and runs full verification.
 - Synchronize: `.agents/skills/buyna-website-builder/**`
 
 **Routing contract:**
-- Preserve the existing public
+- Extend the public
   `planWebsiteRoute({ capabilities, workflowState, requestedSlice,
-  releaseIntent = false, mode = 'build', dashboardSlice = null })` signature.
-  Do not add a website gate, confirmation, or free-form notification flag.
-- Define immutable internal slice sets:
+  releaseIntent = false, mode = 'build', dashboardSlice = null,
+  notificationOperation = null })` signature. Do not add a website gate or a
+  free-form notification flag.
+- Add the authoritative workflow transition
+  `setApprovedNotificationOperations({ state, operations, approvedBy, now })`.
+  Allowed operations are exactly `order_notification` and
+  `booking_notification`. It runs only after approved design/page structure and
+  before frontend delivery, validates persisted domain capabilities and
+  approved Dashboard slices, and writes
+  `configuration.notificationOperations` plus provenance-checked approval
+  evidence. Order notification requires `orders` plus product/order capability;
+  booking notification requires `bookings` plus `requiresBooking`. A later
+  addition returns `NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED`; callers
+  never edit configuration directly. The operation list is captured in the
+  same approved design/work-package decision as its matching Dashboard slice;
+  it does not create a second confirmation prompt.
+- Define immutable internal selection data:
 
   ```js
-  const readModelDashboardSlices = [
-    'dashboard', 'inventory', 'orders', 'bookings', 'paid_customers'
-  ];
-  const deliveryDashboardSlices = [
-    'orders', 'bookings', 'customers', 'paid_customers'
-  ];
+  const readModelDashboardSlices = ['dashboard'];
+  const notificationOperationSlices = {
+    order_notification: 'orders',
+    booking_notification: 'bookings'
+  };
   ```
 
 - An approved Dashboard route selects
   `buyna-commerce-read-model-core` exactly once when its normalized persisted
   `dashboardSlices` intersects `readModelDashboardSlices`.
-- It selects `buyna-delivery-state-core` exactly once when its persisted slices
-  intersect `deliveryDashboardSlices` and the persisted capabilities contain a
-  product domain (`requiresCatalog`/`requiresCart`) or booking domain
-  (`requiresBooking`). `orders` is product/order notification work;
-  `bookings` is booking/inquiry notification work. `customers` and
-  `paid_customers` may reuse delivery records/actions only inside the same
-  approved domain slice; they do not create a new marketing system.
+- Inventory, order, booking, customer, and paid-customer lists/details continue
+  using their existing fixed cores and project APIs. They do not select the
+  commerce read model merely because they display rows or amounts.
+- It selects `buyna-delivery-state-core` exactly once only when the caller asks
+  for one `notificationOperation` already persisted through the workflow
+  transition, the operation matches the selected approved `orders`/`bookings`
+  slice, and persisted domain capabilities match. Omission selects no delivery
+  module. Customer and paid-customer lists never select it. Unknown/unapproved
+  operations block with `NOTIFICATION_OPERATION_NOT_APPROVED`; slice/domain
+  mismatch blocks with `NOTIFICATION_OPERATION_NOT_APPLICABLE` before adding
+  dependencies.
 - Static/local preview, design, frontend-only, file-only `products/services`,
   checkout-only payment repair, testing, and release routes do not select the
   two modules unless the actual target is an approved matching Dashboard slice.
@@ -583,21 +784,32 @@ complete branch and runs full verification.
 
   Required matrix:
 
-  - `dashboard`, `inventory`, `orders`, `bookings`, and `paid_customers` select
-    read model once;
-  - product `orders`, product `customers`, booking `bookings`, booking
-    `customers`, and applicable `paid_customers` select delivery once;
-  - `dashboard` alone does not select delivery;
-  - product `products` and booking `services` do not select read/delivery;
+  - `dashboard` selects read model once;
+  - `inventory`, `orders`, `bookings`, `customers`, and `paid_customers` do not
+    select read model;
+  - explicit persisted `order_notification` on `orders` selects delivery once;
+  - explicit persisted `booking_notification` on `bookings` selects delivery
+    once;
+  - omission, ordinary order/booking list, and customer/paid-customer list work
+    select no delivery module;
+  - product `products` and booking `services` select neither new module;
   - static/local preview and checkout-only repair select neither;
-  - `dashboardSlice: 'all'` unions dependencies once from the approved persisted
-    slice array and retains the existing full-scope approval requirement;
+  - `dashboardSlice: 'all'` selects read model once only when `dashboard` is
+    persisted and never implies delivery; the explicit persisted notification
+    operation remains required;
   - unapproved/unknown slices block before adding either module;
-  - persisted capabilities remain authoritative and a caller cannot forge a
-    product/booking domain to acquire delivery;
+  - unknown/unapproved/mismatched operations block before dependencies, and a
+    caller cannot forge product/booking capabilities to acquire delivery;
   - dependency closure and manifest verification preserve exact-once ordering;
   - every result preserves stable `dashboardSlice`, `dashboardSlices`,
-    `continueWithoutConfirmation`, and `externalActions`.
+    `notificationOperation`, `continueWithoutConfirmation`, and
+    `externalActions`.
+
+  Add workflow-core tests proving notification approval cannot run before
+  design approval, cannot name an unknown operation, cannot approve an
+  operation without its matching persisted domain/slice, cannot be forged by
+  direct configuration mutation, and cannot expand after frontend work starts.
+  Provenance/serialization tests cover the new approval evidence.
 
 - [ ] **Step 3: Write the failing Skill/Adapter contract test**
 
@@ -605,6 +817,9 @@ complete branch and runs full verification.
 
   - Dashboard Skill links both new Adapter contracts and orders fresh auth,
     merchant context, read/delivery service, then project presentation/provider;
+  - Dashboard guidance confines read model to the overview and confines
+    delivery to explicit approved order/booking notification operations; list
+    slices keep their existing order/inventory/booking/customer services;
   - read-model contract defines exact fact/output keys, inclusive-start/
     exclusive-end range, IANA timezone, day/month buckets, SQL/ORM Adapter
     ownership, and chart Adapter ownership;
@@ -619,8 +834,9 @@ complete branch and runs full verification.
     component, message copy, label, color, font, spacing, responsive behavior,
     and CSS per project;
   - operations installs/checks both manifest modules;
-  - Builder remains the single entrypoint, routes by persisted slices, and does
-    not add a rigid phase or repeat approval inside an authorized work package;
+  - Builder remains the single entrypoint, routes overview by persisted slice
+    and delivery only by the explicit persisted notification operation, and
+    does not add a rigid phase or repeat approval inside an authorized package;
   - `buyna-gmv-commerce` remains CRM-only and no edited merchant-facing file
     labels gross/refund/net as GMV;
   - no Skill requires one fixed Dashboard shell, chart library, template text,
@@ -635,28 +851,38 @@ complete branch and runs full verification.
   node --test tests/read-model-delivery-skill-contract.test.mjs
   ```
 
-  Expected: routing fails because the two package dependencies are absent;
+  Expected: routing fails because overview/delivery dependencies and the
+  provenance-backed notification-operation transition are absent;
   Skill contract fails because Adapter contracts and guidance are absent. Both
   tests must be red before `route-builder.mjs` or any Skill is edited.
 
 - [ ] **Step 5: Implement deterministic route selection**
 
-  Add the two frozen slice sets near the existing file-capable slice set. Inside
-  `routeForGate`'s `dashboard_integration` branch, derive dependencies only from
-  the already normalized `dashboardSelection.dashboardSlices` and persisted
-  capabilities. Add each module through `addUnique`; update dependency
-  validation/closure so an unregistered or missing selected module fails
-  closed. Do not change canonical gate readiness, payment architecture,
-  Dashboard slice approval, work-package authorization, or external action
-  flags.
+  First implement `setApprovedNotificationOperations` in workflow core using the
+  same immutable transition/provenance pattern as approved Dashboard slices;
+  extend state validation, serialization, verified history, and exact-key
+  checks so a hand-built configuration is rejected.
+
+  Add the overview slice set and operation-to-slice map near the existing
+  file-capable slice set. Normalize `notificationOperation` from verified
+  persisted workflow configuration before `routeForGate`; a request field alone
+  has no authority. Inside `dashboard_integration`, select read model only for
+  `dashboard` and delivery only for the explicit approved operation/matching
+  slice/domain. Add each through `addUnique`; update dependency validation and
+  closure so missing manifest entries fail closed. Preserve canonical gate
+  readiness, payment architecture, work-package authorization, and external
+  action flags.
 
 - [ ] **Step 6: Write exact SQL/ORM/chart and delivery Adapter guidance**
 
   The read-model reference must provide:
 
-  - one canonical fact per order from scoped SQL/ORM queries;
-  - captured/refunded totals sourced from provider-verified settlement records;
-  - indexes/query plans and pagination remaining project responsibilities;
+  - scoped, cursor-paged current pending rows, trusted capture/refund events,
+    low-stock candidates, and recent-order candidates with the exact fixed
+    ordering contract;
+  - captured/refunded events sourced from provider-verified settlement records;
+  - the fixed 200-row page size, row/span/bucket caps, cursor/order validation,
+    and stable limit errors; indexes/query plans remain project responsibilities;
   - fixed output passed into a generated ChartAdapter such as
     `toProjectChartSeries({ trends, locale, labels })`, without a chart-library
     import in the fixed package;
@@ -666,10 +892,13 @@ complete branch and runs full verification.
   The delivery reference must provide:
 
   - exact Store transaction methods from Task 2;
-  - a project TemplateAdapter and channel ProviderAdapter;
-  - server-side recipient resolution from `recipientRef`;
-  - a queue/worker that calls `dispatch`, persists retry timestamps, and resumes
-    after process restart;
+  - transactional domain source-event/outbox creation and deterministic
+    source-event reconciliation after commit/restart;
+  - project RecipientAdapter, TemplateAdapter, and channel ProviderAdapter,
+    each validating the same frozen scope;
+  - server-side transient recipient resolution from `recipientRef`;
+  - a queue/worker that calls `dispatch`, persists lease/retry timestamps, and
+    resumes the same expired sending attempt after process restart;
   - stable provider request-key handling and receipt redaction;
   - no browser authority, frontend provider call, provider secret in a message
     record, or customer payment data in templates.
@@ -677,9 +906,11 @@ complete branch and runs full verification.
 - [ ] **Step 7: Make minimal Skill guidance changes**
 
   Dashboard Skill consumes the fixed read/delivery modules only when selected
-  by the authoritative route. Product/booking Skills enqueue their approved
-  notification intent after the relevant domain transaction and never make
-  payment success depend on notification delivery. Frontend Skill consumes
+  by the authoritative route. Product/booking Skills write the immutable
+  notification source event inside the relevant domain transaction, then let a
+  reconciler create/dispatch it; direct best-effort enqueue after commit is
+  forbidden. Notification failure never changes order/booking/payment success.
+  Frontend Skill consumes
   stable metrics/state and generates presentation. Operations verifies package
   presence and versions. Every child inherits Builder work package and Adapter
   contract; none repeats intake, design approval, onboarding, or confirmation.
@@ -697,6 +928,7 @@ complete branch and runs full verification.
   ```powershell
   node --test tests/read-model-delivery-state-routing.test.mjs
   node --test tests/read-model-delivery-skill-contract.test.mjs
+  npm test --prefix packages/buyna-workflow-state-core
   npm test --prefix packages/buyna-commerce-read-model-core
   npm test --prefix packages/buyna-delivery-state-core
   powershell -ExecutionPolicy Bypass -File .\scripts\validate.ps1
@@ -714,7 +946,7 @@ complete branch and runs full verification.
   Commit:
 
   ```powershell
-  git add skills .agents/skills/buyna-website-builder tests/read-model-delivery-state-routing.test.mjs tests/read-model-delivery-skill-contract.test.mjs
+  git add packages/buyna-workflow-state-core skills .agents/skills/buyna-website-builder tests/read-model-delivery-state-routing.test.mjs tests/read-model-delivery-skill-contract.test.mjs
   git commit -m "feat: route commerce read and delivery state"
   ```
 
@@ -740,25 +972,33 @@ complete branch and runs full verification.
   trusted provider paid event
     -> settlement transaction persists captured total
     -> trusted partial refund persists cumulative refund
-    -> scoped ReadFactsAdapter returns one canonical order fact
+    -> scoped paged ReadFactsAdapter returns trusted capture/refund delta events
     -> commerce read model returns gross/refund/net and timezone trend
     -> Dashboard operation moves loading -> ready with stable data
-    -> order notification intent enqueued once
-    -> TemplateAdapter + EmailAdapter dispatch once
+    -> order transaction commits immutable notification source event
+    -> simulated crash before reconciliation, then restart reconciliation
+    -> RecipientAdapter + TemplateAdapter + EmailAdapter dispatch once
     -> delivered state stores normalized receipt
   ```
 
   Assert gross `10000`, refund `2000`, net `8000`; one paid order; one refunded
   order; the expected `Asia/Tokyo` day bucket; newest recent-order ordering; and
   low-stock rows from the scoped inventory fixture. Replay the paid/refund
-  events, read, enqueue, and dispatch, and assert totals and external delivery
-  effects do not duplicate.
+  events, paged reads, source-event reconciliation, and dispatch, and assert
+  totals, DeliveryRecord, attempt identity, and external effects do not
+  duplicate. Assert every fact row and Store/Recipient/Template/Provider call
+  carries the same frozen scope.
 
 - [ ] **Step 2: Add failure/retry and isolation integration cases**
 
   Use a second notification whose SMS Adapter fails once with a retryable error.
   Advance the injected clock to `nextRetryAt`, retry with a new attempt ID and
   the same provider request key, and assert one final delivered receipt. Then
+  simulate a provider-accepted send followed by store failure, expire the
+  sending lease, restart with a new worker, and assert recovery uses the same
+  attempt ID/request key and the provider fake records one external effect.
+  Run a period containing only the refund of an older capture and assert
+  negative net is preserved, not clamped. Then
   execute the same read/delivery calls for a second seller and assert every
   first-seller row is rejected before query aggregation, template rendering,
   or provider send. Prove notification failure never rolls back the already
@@ -843,22 +1083,29 @@ complete branch and runs full verification.
   Skills, routing tests, and integration tests.
 - [ ] Read facts come only from server-scoped trusted settlement persistence;
   browser return/status/amount never becomes paid/refunded authority.
-- [ ] Partial/full refunds are cumulative per canonical order fact and never
-  double counted.
+- [ ] Provider cumulative refund callbacks are converted by the project Adapter
+  into unique completed delta events; the read core rejects duplicate event IDs
+  and never double counts them.
 - [ ] Timezone buckets use IANA zones and local calendar parts, with explicit
-  DST and inclusive-start/exclusive-end tests.
+  DST, local-boundary-to-UTC-instant, and inclusive-start/exclusive-end tests.
+- [ ] Day/month span caps, page/fact/candidate caps, cursor progress, and
+  within/cross-page ordering are consistent in code, contracts, and tests.
+- [ ] Currency normalizes only to allowlisted JPY, pending means current
+  `pending_payment`, recent-order payable/captured/refunded/net amounts are
+  explicit, and negative period net remains valid.
 - [ ] Merchant read models contain no GMV import, label, CRM endpoint, Outbox,
   credential, or internal event exposure.
-- [ ] Delivery intent, state, attempt count, retry time, stable provider request
-  key, and safe receipt property names match across module, contracts, Skills,
-  and integration tests.
+- [ ] DeliveryRecord, attempts/currentAttempt, lease, version/timestamps,
+  canonical digest, source-event reconciliation, retry time, stable provider
+  request key, and receipt/failure property names match across all contracts.
 - [ ] Provider acceptance/store-crash replay is tested without promising
-  impossible exactly-once I/O from an Adapter that lacks idempotency.
+  impossible exactly-once I/O: production ProviderAdapters must honor the fixed
+  request key through provider idempotency/query before claiming this guarantee.
 - [ ] Template/provider/recipient errors cannot leak raw PII, message bodies,
   exception stacks, credentials, or provider responses into state.
-- [ ] Builder selection uses only persisted capabilities and approved Dashboard
-  slices, selects each dependency once, adds no gate, and preserves current
-  work-package/repair behavior.
+- [ ] Builder selects read model only for overview and delivery only for an
+  explicit provenance-checked order/booking notification operation; lists do
+  not acquire either module, no gate is added, and work-package behavior remains.
 - [ ] Static, file-only, frontend-only, checkout-only, testing, and release
   routes do not acquire unrelated read/delivery modules.
 - [ ] SQL/ORM, charts, templates, email/SMS, worker schedules, APIs, UI/UX, and
