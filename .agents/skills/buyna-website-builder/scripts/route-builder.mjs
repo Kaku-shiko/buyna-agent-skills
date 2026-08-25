@@ -9,6 +9,7 @@ const workflowCoreUrls = [
 const workflowCoreUrl = workflowCoreUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
 if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED");
 const {
+  isTrustedWorkflowState,
   normalizeWebsiteCapabilities,
   validateWorkflowReadinessEvidence,
   websiteCapabilitiesEqual,
@@ -314,6 +315,26 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   if (!requestedSlices.includes(requestedSlice)) throw new Error("REQUESTED_SLICE_INVALID");
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
+  const authorizationBearing = Boolean(
+    rawState?.configuration?.workPackage
+    || rawState?.activeRepair,
+  );
+  if (authorizationBearing && !isTrustedWorkflowState(rawState)) {
+    let capabilities;
+    try { capabilities = normalizeWebsiteCapabilities(rawCapabilities); } catch { capabilities = null; }
+    return withManifestVerification({
+      action: "blocked",
+      targetGate: rawState?.currentGate ?? requestedGate,
+      requestedSlice,
+      reason: "WORKFLOW_STATE_PROVENANCE_UNTRUSTED",
+      skills: [],
+      fixedModules: ["buyna-workflow-state-core"],
+      notApplicableGates: capabilities ? notApplicableGates(capabilities) : [],
+      continueWithoutConfirmation: false,
+      commerceArchitecture: null,
+      externalActions: { git: false, aws: false },
+    });
+  }
   let workflowState;
   try {
     workflowState = verifyReadiness(rawState);

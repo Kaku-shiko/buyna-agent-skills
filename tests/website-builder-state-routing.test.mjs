@@ -8,6 +8,7 @@ const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 const routerPath = fileURLToPath(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root));
 const routeBuilder = await import(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root));
+const workflowCore = await import(new URL("packages/buyna-workflow-state-core/src/index.mjs", root));
 const gates = [
   "customer_intake",
   "design_and_structure",
@@ -18,13 +19,7 @@ const gates = [
   "aws_release",
 ];
 
-const runRoute = (input) => {
-  const result = spawnSync(process.execPath, [routerPath], {
-    input: JSON.stringify(input),
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const route = JSON.parse(result.stdout);
+const normalizeRouteResult = (route) => {
   assert.deepEqual(route.manifestVerification, {
     profile: "website-builder",
     verified: true,
@@ -34,6 +29,28 @@ const runRoute = (input) => {
   delete route.dashboardSlice;
   delete route.dashboardSlices;
   return route;
+};
+
+const runRoute = (input) => {
+  const result = spawnSync(process.execPath, [routerPath], {
+    input: JSON.stringify(input),
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return normalizeRouteResult(JSON.parse(result.stdout));
+};
+
+const runTrustedRoute = (input) => {
+  const history = [{ sequence: 1, eventId: "evt-1", previousEventId: null }];
+  const workflowState = workflowCore.hydrateVerifiedWorkflowState({
+    serializedState: JSON.stringify(input.workflowState),
+    history,
+    verifyHistoryReceipt: ({ state: verifiedState }) => ({
+      verifiedState,
+      receipt: { headEventId: "evt-1", eventCount: 1, verifiedAt: "2026-08-26T00:00:00.000Z" },
+    }),
+  });
+  return normalizeRouteResult(routeBuilder.planWebsiteRoute({ ...input, workflowState }));
 };
 
 const runRouteError = (input) => {
@@ -235,7 +252,7 @@ test("static local preview selects only frontend behavior and canonical N/A gate
 });
 
 test("product commerce without provider payment executes checkout-flow and skips only provider settlement", () => {
-  assert.deepEqual(runRoute({
+  assert.deepEqual(runTrustedRoute({
     capabilities: productNoPayment,
     workflowState: stateAt("checkout_payment", { capabilities: productNoPayment, workPackageGates: ["checkout_payment"] }),
     requestedSlice: "checkout_payment",
@@ -453,7 +470,7 @@ test("mixed product and booking commerce routes both backends exactly once", () 
 });
 
 test("dependency-ready checkout repair enters checkout directly without replaying earlier Skills", () => {
-  assert.deepEqual(runRoute({
+  assert.deepEqual(runTrustedRoute({
     capabilities: productGlobepay,
     workflowState: stateAt("checkout_payment", { capabilities: productGlobepay, workPackageGates: ["checkout_payment", "testing_upload_gate"] }),
     requestedSlice: "checkout_payment",
@@ -512,7 +529,7 @@ test("completed workflow blocks a caller-fabricated repair record without transi
     action: "blocked",
     targetGate: "checkout_payment",
     requestedSlice: "checkout_payment",
-    reason: "REPAIR_AUTHORIZATION_EVIDENCE_INVALID",
+    reason: "WORKFLOW_STATE_PROVENANCE_UNTRUSTED",
     skills: [],
     fixedModules: ["buyna-workflow-state-core"],
     notApplicableGates: [],

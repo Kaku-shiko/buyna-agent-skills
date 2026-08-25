@@ -99,6 +99,37 @@ function assertStableBoundary(route, dashboardSlice, dashboardSlices) {
   assert.deepEqual(route.externalActions, { git: false, aws: false });
 }
 
+function createTrustedDashboardState() {
+  const capabilities = product();
+  const approve = (state, gate, delivery) => {
+    state = workflowCore.startGate({ state, gate }).state;
+    state = workflowCore.recordDelivery({ state, gate, delivery }).state;
+    state = workflowCore.requestApproval({ state, gate }).state;
+    return workflowCore.approveGate({ state, gate, approvedBy: "user" }).state;
+  };
+  let state = workflowCore.createWorkflow({ projectId: "real-dashboard-route" });
+  state = approve(state, "customer_intake", { record: "intake.json", capabilities });
+  state = approve(state, "design_and_structure", {
+    designRecord: "design.json", pageStructure: "pages.json", boardStatus: "delivered",
+  });
+  state = workflowCore.setApprovedDashboardSlices({
+    state, slices: ["products", "orders"], approvedBy: "user",
+  }).state;
+  state = workflowCore.authorizeWorkPackage({
+    state,
+    gates: ["frontend_code", "dashboard_integration"],
+    scope: "approved frontend and Dashboard slices",
+    authorizedBy: "user",
+  }).state;
+  state = workflowCore.startGate({ state, gate: "frontend_code" }).state;
+  state = workflowCore.recordDelivery({
+    state, gate: "frontend_code",
+    delivery: { deliveredFiles: ["app.tsx"], verification: ["PASS"], interfaceContract: "contract.json" },
+  }).state;
+  state = workflowCore.completeAuthorizedGate({ state, gate: "frontend_code" }).state;
+  return { capabilities, state };
+}
+
 test("product and booking file-capable Dashboard slices select request-local supporting modules once", () => {
   const productRoute = routeFor();
   assert.equal(productRoute.skills.filter((value) => value === "buyai-dashboard-data-interaction").length, 1);
@@ -152,12 +183,14 @@ test("Dashboard selection is derived only from persisted approved slices", () =>
 });
 
 test("all selects persisted slices only inside an approved Dashboard work package", () => {
-  const approvedAll = routeFor({
-    slice: "all",
-    persisted: ["products", "orders", "media"],
-    workPackage: ["dashboard_integration"],
+  const trusted = createTrustedDashboardState();
+  const approvedAll = planWebsiteRoute({
+    capabilities: trusted.capabilities,
+    workflowState: trusted.state,
+    requestedSlice: "dashboard_integration",
+    dashboardSlice: "all",
   });
-  assertStableBoundary(approvedAll, "all", ["products", "orders", "media"]);
+  assertStableBoundary(approvedAll, "all", ["products", "orders"]);
   for (const module of ["buyna-auth-session-core", "buyna-merchant-context-core", "buyna-merchant-file-core"]) {
     assert.equal(approvedAll.fixedModules.filter((value) => value === module).length, 1);
   }
@@ -216,7 +249,7 @@ test("fabricated work-package and Dashboard slice configuration are blocked with
     capabilities, workflowState: rawWorkPackage, requestedSlice: "dashboard_integration", dashboardSlice: "all",
   });
   assert.equal(workPackageRoute.action, "blocked");
-  assert.equal(workPackageRoute.reason, "WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID");
+  assert.equal(workPackageRoute.reason, "WORKFLOW_STATE_PROVENANCE_UNTRUSTED");
   assertStableBoundary(workPackageRoute, null, []);
 
   const rawSlices = stateAt("dashboard_integration", capabilities, ["products"]);
@@ -230,33 +263,7 @@ test("fabricated work-package and Dashboard slice configuration are blocked with
 });
 
 test("real workflow transitions authorize Dashboard slices and bounded all routing end to end", () => {
-  const capabilities = product();
-  const approve = (state, gate, delivery) => {
-    state = workflowCore.startGate({ state, gate }).state;
-    state = workflowCore.recordDelivery({ state, gate, delivery }).state;
-    state = workflowCore.requestApproval({ state, gate }).state;
-    return workflowCore.approveGate({ state, gate, approvedBy: "user" }).state;
-  };
-  let state = workflowCore.createWorkflow({ projectId: "real-dashboard-route" });
-  state = approve(state, "customer_intake", { record: "intake.json", capabilities });
-  state = approve(state, "design_and_structure", {
-    designRecord: "design.json", pageStructure: "pages.json", boardStatus: "delivered",
-  });
-  state = workflowCore.setApprovedDashboardSlices({
-    state, slices: ["products", "orders"], approvedBy: "user",
-  }).state;
-  state = workflowCore.authorizeWorkPackage({
-    state,
-    gates: ["frontend_code", "dashboard_integration"],
-    scope: "approved frontend and Dashboard slices",
-    authorizedBy: "user",
-  }).state;
-  state = workflowCore.startGate({ state, gate: "frontend_code" }).state;
-  state = workflowCore.recordDelivery({
-    state, gate: "frontend_code",
-    delivery: { deliveredFiles: ["app.tsx"], verification: ["PASS"], interfaceContract: "contract.json" },
-  }).state;
-  state = workflowCore.completeAuthorizedGate({ state, gate: "frontend_code" }).state;
+  const { capabilities, state } = createTrustedDashboardState();
 
   const route = planWebsiteRoute({
     capabilities, workflowState: state, requestedSlice: "dashboard_integration", dashboardSlice: "all",
@@ -264,4 +271,88 @@ test("real workflow transitions authorize Dashboard slices and bounded all routi
   assert.equal(route.action, "execute");
   assert.equal(route.continueWithoutConfirmation, true);
   assertStableBoundary(route, "all", ["products", "orders"]);
+});
+
+test("serialized or fully forged authorization is blocked until verified hydration restores provenance", () => {
+  const { capabilities, state } = createTrustedDashboardState();
+  const serialized = JSON.stringify(state);
+  const raw = JSON.parse(serialized);
+  const rawRoute = planWebsiteRoute({
+    capabilities, workflowState: raw, requestedSlice: "dashboard_integration", dashboardSlice: "all",
+  });
+  assert.equal(rawRoute.action, "blocked");
+  assert.equal(rawRoute.reason, "WORKFLOW_STATE_PROVENANCE_UNTRUSTED");
+  assertStableBoundary(rawRoute, null, []);
+
+  const history = [{ sequence: 1, eventId: "evt-1", previousEventId: null }];
+  const hydrated = workflowCore.hydrateVerifiedWorkflowState({
+    serializedState: serialized,
+    history,
+    verifyHistoryReceipt: ({ state: verifiedState, history: verifiedHistory }) => ({
+      verifiedState,
+      receipt: {
+        headEventId: verifiedHistory.at(-1).eventId,
+        eventCount: verifiedHistory.length,
+        verifiedAt: "2026-08-26T05:00:00.000Z",
+      },
+    }),
+  });
+  const hydratedRoute = planWebsiteRoute({
+    capabilities, workflowState: hydrated, requestedSlice: "dashboard_integration", dashboardSlice: "all",
+  });
+  assert.equal(hydratedRoute.action, "execute");
+  assert.equal(hydratedRoute.continueWithoutConfirmation, true);
+  assertStableBoundary(hydratedRoute, "all", ["products", "orders"]);
+});
+
+test("core-produced active repair passes while its serialized copy is blocked", () => {
+  const capabilities = product();
+  const approve = (state, gate, delivery) => {
+    state = workflowCore.startGate({ state, gate }).state;
+    state = workflowCore.recordDelivery({ state, gate, delivery }).state;
+    state = workflowCore.requestApproval({ state, gate }).state;
+    return workflowCore.approveGate({ state, gate, approvedBy: "user" }).state;
+  };
+  let state = workflowCore.createWorkflow({ projectId: "trusted-repair-route" });
+  state = approve(state, "customer_intake", { record: "intake.json", capabilities });
+  state = approve(state, "design_and_structure", {
+    designRecord: "design.json", pageStructure: "pages.json", boardStatus: "delivered",
+  });
+  state = workflowCore.setApprovedDashboardSlices({ state, slices: ["products"], approvedBy: "user" }).state;
+  state = approve(state, "frontend_code", {
+    deliveredFiles: ["app.tsx"], verification: ["PASS"], interfaceContract: "contract.json",
+  });
+  state = approve(state, "dashboard_integration", {
+    completedSlices: ["products"], frontendFiles: ["dashboard.tsx"],
+    backendFiles: ["dashboard-api.mjs"], verification: ["PASS"],
+  });
+  state = approve(state, "checkout_payment", {
+    pendingOrder: true, checkoutFlowVerified: true, verification: ["PASS"],
+  });
+  state = approve(state, "testing_upload_gate", { result: "PASS", verification: ["PASS"] });
+  state = approve(state, "aws_release", {
+    architectureType: "external_legacy", releaseVersion: "v1",
+    newEc2Instances: 0, newDatabases: 0, newBuckets: 0, newPorts: 0,
+    verifiedTarget: "existing-target", verifiedUrls: ["https://example.com"],
+    health: "passed", rollback: "v0",
+  });
+  state = workflowCore.openRepairSlice({
+    state, gate: "dashboard_integration", scope: "repair approved products slice", authorizedBy: "user",
+  }).state;
+
+  const route = planWebsiteRoute({
+    capabilities, workflowState: state, requestedSlice: "dashboard_integration",
+    dashboardSlice: "products", mode: "repair",
+  });
+  assert.equal(route.action, "execute");
+  assert.equal(route.continueWithoutConfirmation, true);
+  assertStableBoundary(route, "products", ["products"]);
+
+  const rawRoute = planWebsiteRoute({
+    capabilities, workflowState: JSON.parse(JSON.stringify(state)),
+    requestedSlice: "dashboard_integration", dashboardSlice: "products", mode: "repair",
+  });
+  assert.equal(rawRoute.action, "blocked");
+  assert.equal(rawRoute.reason, "WORKFLOW_STATE_PROVENANCE_UNTRUSTED");
+  assertStableBoundary(rawRoute, null, []);
 });

@@ -103,10 +103,8 @@ test('work-package approval cannot include intake design or production release',
 
 test('an authorized gate still requires complete delivery evidence',()=>{
   let state=createWorkflow({projectId:'evidence-shop'});
-  state.gates.customer_intake.status='approved';
-  state.gates.design_and_structure.status='approved';
-  state.gates.frontend_code.status='ready';
-  state.currentGate='frontend_code';
+  state=completeGate(state,'customer_intake',intake());
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
   state=authorizeWorkPackage({state,gates:['frontend_code'],authorizedBy:'user',scope:'frontend delivery'}).state;
   state=startGate({state,gate:'frontend_code'}).state;
   state=recordDelivery({state,gate:'frontend_code',delivery:{deliveredFiles:[],verification:[],interfaceContract:''}}).state;
@@ -248,6 +246,71 @@ test('canonical work-package and repair transitions persist exact authorization 
   }
 });
 
+test('trusted workflow provenance survives core transitions but not serialization until verified hydration',()=>{
+  assert.equal(typeof workflowCore.isTrustedWorkflowState,'function');
+  assert.equal(typeof workflowCore.hydrateVerifiedWorkflowState,'function');
+  const created=createWorkflow({projectId:'trusted-provenance'});
+  assert.equal(workflowCore.isTrustedWorkflowState(created),true);
+  const authorized=authorizeWorkPackage({
+    state:created,gates:['frontend_code'],scope:'approved frontend',authorizedBy:'user',
+    now:'2026-08-26T04:00:00.000Z',
+  }).state;
+  assert.equal(workflowCore.isTrustedWorkflowState(authorized),true);
+
+  const serialized=JSON.stringify(authorized);
+  const parsed=JSON.parse(serialized);
+  assert.equal(workflowCore.isTrustedWorkflowState(parsed),false);
+  const history=[{sequence:1,eventId:'evt-1',previousEventId:null}];
+  const hydrated=workflowCore.hydrateVerifiedWorkflowState({
+    serializedState:serialized,
+    history,
+    verifyHistoryReceipt:({state,history:verifiedHistory})=>({
+      verifiedState:state,
+      receipt:{
+        headEventId:verifiedHistory.at(-1).eventId,
+        eventCount:verifiedHistory.length,
+        verifiedAt:'2026-08-26T04:01:00.000Z',
+      },
+    }),
+  });
+  assert.deepEqual(hydrated,parsed);
+  assert.equal(workflowCore.isTrustedWorkflowState(hydrated),true);
+
+  assert.throws(()=>workflowCore.hydrateVerifiedWorkflowState({
+    serializedState:serialized,history,verifyHistoryReceipt:()=>true,
+  }),/WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID/);
+  assert.throws(()=>workflowCore.hydrateVerifiedWorkflowState({
+    serializedState:serialized,
+    history:[
+      {sequence:1,eventId:'evt-1',previousEventId:null},
+      {sequence:3,eventId:'evt-2',previousEventId:'wrong'},
+    ],
+    verifyHistoryReceipt:()=>({}),
+  }),/WORKFLOW_APPEND_ONLY_HISTORY_INVALID/);
+});
+
+test('Dashboard slice approval is limited to the ready frontend boundary',()=>{
+  let state=createWorkflow({projectId:'dashboard-slice-window'});
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities,'fixed-cores'));
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  assert.equal(state.currentGate,'frontend_code');
+  assert.equal(state.gates.frontend_code.status,'ready');
+
+  const started=startGate({state,gate:'frontend_code'}).state;
+  const startedSnapshot=structuredClone(started);
+  assert.throws(()=>workflowCore.setApprovedDashboardSlices({
+    state:started,slices:['products'],approvedBy:'user',
+  }),/DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED/);
+  assert.deepEqual(started,startedSnapshot);
+
+  const completed=completedCommerceWorkflow('dashboard-slice-completed');
+  const completedSnapshot=structuredClone(completed);
+  assert.throws(()=>workflowCore.setApprovedDashboardSlices({
+    state:completed,slices:['products'],approvedBy:'user',
+  }),/DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED/);
+  assert.deepEqual(completed,completedSnapshot);
+});
+
 test('lifecycle capabilities normalize once and persist through real intake approval',()=>{
   assert.equal(typeof workflowCore.normalizeWebsiteCapabilities,'function');
   const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};
@@ -264,8 +327,8 @@ test('lifecycle capability equality includes coupon, catalog, and inventory flag
   const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};
   let state=startGate({state:createWorkflow({projectId:'lifecycle-equality'}),gate:'customer_intake'}).state;
   state=recordDelivery({state,gate:'customer_intake',delivery:intake(capabilities,'fixed-cores')}).state;
-  state.gates.customer_intake.delivery.capabilities.requiresCoupons=false;
-  assert.throws(()=>requestApproval({state,gate:'customer_intake'}),/SITE_CAPABILITIES_MISMATCH/);
+  const mismatched={...state.gates.customer_intake.delivery,capabilities:{...capabilities,requiresCoupons:false}};
+  assert.throws(()=>workflowCore.validateDeliveryEvidence(state,'customer_intake',mismatched),/SITE_CAPABILITIES_MISMATCH/);
 });
 
 test('legacy mixed booking-payment state does not infer product lifecycle capabilities',()=>{
@@ -351,13 +414,13 @@ test('release evidence follows architecture and requires all zero-create counter
     {...base,architectureType:'aws_serverless',distributionId:'E123',functionOrApiIds:['fn'],dataStoreIds:['table']},
     {...base,architectureType:'aws_static',distributionId:'E456',bucketName:'existing-bucket'},
   ]){
-    let state=createWorkflow({projectId:`release-${delivery.architectureType}`});
-    state.gates.aws_release.status='in_progress';state.currentGate='aws_release';
+    let state=workflowAtRelease(`release-${delivery.architectureType}`);
+    state=startGate({state,gate:'aws_release'}).state;
     state=recordDelivery({state,gate:'aws_release',delivery}).state;
     assert.equal(requestApproval({state,gate:'aws_release'}).state.gates.aws_release.status,'waiting_for_approval');
   }
-  let state=createWorkflow({projectId:'bad-release'});
-  state.gates.aws_release.status='in_progress';state.currentGate='aws_release';
+  let state=workflowAtRelease('bad-release');
+  state=startGate({state,gate:'aws_release'}).state;
   state=recordDelivery({state,gate:'aws_release',delivery:{...base,newBuckets:1,architectureType:'aws_static',distributionId:'E456',bucketName:'existing-bucket'}}).state;
   assert.throws(()=>requestApproval({state,gate:'aws_release'}),/RELEASE_DELIVERY_EVIDENCE_MISSING/);
 });
@@ -367,7 +430,9 @@ test('state is atomic and transition history is append only',async()=>{
   try{
     const initial=createWorkflow({projectId:'shop',now:'2026-01-01T00:00:00.000Z'});
     await initializeWorkflow({projectRoot:root,state:initial,now:'2026-01-01T00:00:00.000Z'});
-    const transition=startGate({state:await loadWorkflow({projectRoot:root}),gate:'customer_intake',now:'2026-01-01T00:01:00.000Z'});
+    const loaded=await loadWorkflow({projectRoot:root});
+    assert.equal(workflowCore.isTrustedWorkflowState(loaded),false);
+    const transition=startGate({state:hydrateForTest(loaded),gate:'customer_intake',now:'2026-01-01T00:01:00.000Z'});
     await saveTransition({projectRoot:root,transition});
     assert.equal((await loadWorkflow({projectRoot:root})).gates.customer_intake.status,'in_progress');
     const history=await readFile(path.join(root,'workflow','history','workflow-events.jsonl'),'utf8');
@@ -562,9 +627,7 @@ test('legacy payment evidence requires provider query and exact amount-currency 
 test('ambiguous persisted payment workflow cannot approve checkout evidence as implicit legacy',()=>{
   let state=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'ambiguous-payment'}),requestedGate:'checkout_payment',imports:importedHistory(),importedBy:'operator'}).state;
   delete state.configuration.paymentArchitecture;
-  state=startGate({state,gate:'checkout_payment'}).state;
-  state=recordDelivery({state,gate:'checkout_payment',delivery:{pendingOrder:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']}}).state;
-  assert.throws(()=>requestApproval({state,gate:'checkout_payment'}),/PAYMENT_ARCHITECTURE_REQUIRED/);
+  assert.throws(()=>startGate({state,gate:'checkout_payment'}),/WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
 });
 
 const checkoutDelivery=(projectId)=>({
@@ -602,6 +665,28 @@ function completedCommerceWorkflow(projectId){
   state=completeGate(state,'checkout_payment',checkoutDelivery(projectId));
   state=completeGate(state,'testing_upload_gate',{result:'PASS',verification:['PASS']});
   return completeGate(state,'aws_release',releaseDelivery);
+}
+
+function hydrateForTest(state){
+  const history=[{sequence:1,eventId:'evt-1',previousEventId:null}];
+  return workflowCore.hydrateVerifiedWorkflowState({
+    serializedState:JSON.stringify(state),
+    history,
+    verifyHistoryReceipt:({state:verifiedState})=>({
+      verifiedState,
+      receipt:{headEventId:'evt-1',eventCount:1,verifiedAt:'2026-08-26T00:00:00.000Z'},
+    }),
+  });
+}
+
+function workflowAtRelease(projectId){
+  let state=createWorkflow({projectId});
+  state=completeGate(state,'customer_intake',intake());
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  state=completeGate(state,'frontend_code',{deliveredFiles:['index.html'],verification:['PASS'],interfaceContract:'contract.json'});
+  state=markNotApplicable({state,gate:'dashboard_integration',reason:'content site has no dashboard'}).state;
+  state=markNotApplicable({state,gate:'checkout_payment',reason:'content site has no checkout'}).state;
+  return completeGate(state,'testing_upload_gate',{result:'PASS',verification:['PASS']});
 }
 
 function completedStaticWorkflow(projectId){
@@ -671,7 +756,7 @@ test('completed workflow and repair API reject approved statuses without full ev
   invalid.status='complete';
   assert.equal(typeof workflowCore.validateCompletedWorkflowState,'function');
   assert.throws(()=>workflowCore.validateCompletedWorkflowState(invalid),/COMPLETED_GATE_EVIDENCE_INVALID/);
-  assert.throws(()=>workflowCore.openRepairSlice({state:invalid,gate:'checkout_payment',scope:'unsafe repair',authorizedBy:'user'}),/COMPLETED_GATE_EVIDENCE_INVALID/);
+  assert.throws(()=>workflowCore.openRepairSlice({state:invalid,gate:'checkout_payment',scope:'unsafe repair',authorizedBy:'user'}),/WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
 });
 
 test('completed static workflow rejects dashboard repair as capability expansion',()=>{

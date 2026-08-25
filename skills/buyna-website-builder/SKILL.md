@@ -47,8 +47,16 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    verifiable missing history through
    `importVerifiedHistory`; if a required record is unavailable, request one
    grouped evidence input.
+   A serialized state is not trusted authorization. Before routing a persisted
+   work package or repair, call `hydrateVerifiedWorkflowState` with its append-only
+   history and a trusted receipt-verifier Adapter. Never accept a caller boolean,
+   string, or JSON marker as provenance; `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`
+   requires verified hydration or a fresh core transition.
    After design/page-structure approval, persist the exact approved Dashboard
-   slice list through `setApprovedDashboardSlices`; never write
+   slice list through `setApprovedDashboardSlices` only while `currentGate` is
+   `frontend_code` and that gate is `ready`, before frontend start or delivery.
+   `DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED` means return to approved scope instead
+   of rewriting a later or completed workflow. Never write
    `configuration.dashboardSlices` directly. Create bounded execution approval
    only through `authorizeWorkPackage`. These workflow transitions own the
    actor, scope, timestamp, and event evidence consumed by routing.
@@ -76,11 +84,16 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    continue to the next ready included gate. Otherwise render the current
    decision point once.
 
-The routing script accepts JSON on stdin and returns JSON on stdout:
+The routing script accepts JSON on stdin and returns JSON on stdout for routes
+that do not claim persisted work-package or repair authorization:
 
 ```powershell
 node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
 ```
+
+For authorized persisted work, hydrate and route in the same trusted runtime;
+serialization intentionally removes the opaque provenance held by the workflow
+core.
 
 ## Fixed Versus Project-Owned
 

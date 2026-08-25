@@ -27,10 +27,18 @@ Input:
   package includes `dashboard_integration`.
 
 Persist Dashboard slices with `setApprovedDashboardSlices` after approved
-design/page-structure evidence. Persist bounded work with `authorizeWorkPackage`
+design/page-structure evidence, only at `currentGate=frontend_code` while the
+frontend gate is `ready`. A later, started, delivered, completed, or deployed
+state returns `DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED`. Persist bounded work with `authorizeWorkPackage`
 and repair scope with `openRepairSlice`. The router requires `workflow transition evidence`
 for each record (exact actor, scope, timestamp, and event); a hand-built
 configuration object is blocked before module selection.
+
+Opaque provenance is runtime-owned. Serialized workflow JSON is not trusted.
+Before a persisted work package or active repair can continue, the host must call
+`hydrateVerifiedWorkflowState` with a trusted receipt verifier Adapter and
+append-only history. A boolean, string, or caller JSON marker is not a verifier.
+Unhydrated authorization returns `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`.
 
 Output:
 

@@ -39,6 +39,12 @@ test("Builder is the single entrypoint and exposes bounded Dashboard selection w
   assert.match(builder, /authorizeWorkPackage/);
   assert.match(builder, /openRepairSlice/);
   assert.match(routing, /workflow transition evidence/i);
+  assert.match(builder, /hydrateVerifiedWorkflowState/);
+  assert.match(routing, /WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
+  assert.match(routing, /append-only history.*receipt verifier|receipt verifier.*append-only history/is);
+  assert.match(routing, /serialized.*not trusted|not trust.*serialized/is);
+  assert.match(builder, /currentGate.*frontend_code.*ready/is);
+  assert.match(builder, /DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED/);
 });
 
 test("S3 Skill links the fixed queue and executor while transport remains an Adapter", () => {

@@ -14,6 +14,22 @@ const dashboardSliceValues=Object.freeze([
   'dashboard','merchant_identity','products','categories','services','media','page_editor',
   'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings',
 ]);
+const trustedWorkflowStates=new WeakMap();
+
+function canonicalValue(value){
+  if(Array.isArray(value))return value.map(canonicalValue);
+  if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalValue(value[key])]));
+  return value;
+}
+
+function workflowFingerprint(state){return JSON.stringify(canonicalValue(state))}
+function trustWorkflowState(state){trustedWorkflowStates.set(state,workflowFingerprint(state));return state}
+export function isTrustedWorkflowState(state){
+  return Boolean(state&&typeof state==='object'&&trustedWorkflowStates.get(state)===workflowFingerprint(state));
+}
+function requireTrustedWorkflowState(state){
+  if(!isTrustedWorkflowState(state))throw new Error('WORKFLOW_STATE_PROVENANCE_UNTRUSTED');
+}
 
 function requiredText(value,code){
   const result=String(value??'').trim();
@@ -72,7 +88,7 @@ export function createWorkflow({projectId,now=new Date().toISOString(),workflowV
   const id=requiredText(projectId,'PROJECT_ID_REQUIRED');
   if(!Array.isArray(dashboardSlices)||dashboardSlices.length)throw new Error('DASHBOARD_SLICES_REQUIRE_APPROVED_TRANSITION');
   const gates=Object.fromEntries(gateOrder.map((gate,index)=>[gate,{status:index===0?'ready':'locked'}]));
-  return{schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[]},deferredMaterials:[]};
+  return trustWorkflowState({schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[]},deferredMaterials:[]});
 }
 
 export const WORKFLOW_GATES=gateOrder;
@@ -102,7 +118,7 @@ export function getInteractionPolicy({state}={}){
   });
 }
 
-function copyState(state){return structuredClone(state)}
+function copyState(state){requireTrustedWorkflowState(state);return structuredClone(state)}
 function exactObjectKeys(value,keys,code){
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error(code);
   const actual=Reflect.ownKeys(value);
@@ -116,7 +132,7 @@ function gateState(state,gate){
   if(state.currentGate!==gate)throw new Error('GATE_NOT_CURRENT');
   return state.gates[gate];
 }
-function result(state,event){return{state,event}}
+function result(state,event){return{state:trustWorkflowState(state),event}}
 export function setInteractionMode({state,mode,selectedBy='user',now=new Date().toISOString()}={}){
   const next=copyState(state),selected=normalizeInteractionMode(mode),actor=requiredText(selectedBy,'MODE_SELECTOR_REQUIRED');
   next.configuration??={};
@@ -228,6 +244,7 @@ export function setApprovedDashboardSlices({state,slices,approvedBy,now=new Date
   const design=next.gates?.design_and_structure;
   if(design?.status!=='approved'||!design.delivery)throw new Error('DASHBOARD_SLICE_DESIGN_APPROVAL_REQUIRED');
   validateDeliveryEvidence(next,'design_and_structure',design.delivery);
+  if(next.currentGate!=='frontend_code'||next.gates?.frontend_code?.status!=='ready'||next.gates.frontend_code.delivery!==undefined)throw new Error('DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED');
   if(!next.configuration?.capabilities?.requiresDashboard)throw new Error('DASHBOARD_SLICE_CAPABILITY_REQUIRED');
   if(!nonEmptyArray(slices))throw new Error('DASHBOARD_SLICES_REQUIRED');
   const selected=slices.map(value=>requiredText(value,'DASHBOARD_SLICE_INVALID'));
@@ -306,6 +323,37 @@ function validateNotApplicableCapability(state,gate){
 
 function validTimestamp(value){
   return Boolean(String(value??'').trim())&&!Number.isNaN(Date.parse(value));
+}
+
+function validateAppendOnlyHistory(history){
+  if(!nonEmptyArray(history))throw new Error('WORKFLOW_APPEND_ONLY_HISTORY_INVALID');
+  let previous=null;
+  for(let index=0;index<history.length;index+=1){
+    const record=history[index];
+    exactObjectKeys(record,['sequence','eventId','previousEventId'],'WORKFLOW_APPEND_ONLY_HISTORY_INVALID');
+    if(record.sequence!==index+1||requiredText(record.eventId,'WORKFLOW_APPEND_ONLY_HISTORY_INVALID')!==record.eventId
+      ||record.previousEventId!==previous)throw new Error('WORKFLOW_APPEND_ONLY_HISTORY_INVALID');
+    previous=record.eventId;
+  }
+}
+
+export function hydrateVerifiedWorkflowState({serializedState,history,verifyHistoryReceipt}={}){
+  if(typeof serializedState!=='string'||!serializedState.trim())throw new Error('SERIALIZED_WORKFLOW_STATE_REQUIRED');
+  let state;
+  try{state=JSON.parse(serializedState)}catch{throw new Error('SERIALIZED_WORKFLOW_STATE_INVALID')}
+  if(!state||typeof state!=='object'||Array.isArray(state))throw new Error('SERIALIZED_WORKFLOW_STATE_INVALID');
+  validateAppendOnlyHistory(history);
+  if(typeof verifyHistoryReceipt!=='function')throw new Error('WORKFLOW_HISTORY_VERIFIER_REQUIRED');
+  const verification=verifyHistoryReceipt({state:structuredClone(state),history:structuredClone(history)});
+  exactObjectKeys(verification,['verifiedState','receipt'],'WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID');
+  const receipt=verification.receipt;
+  exactObjectKeys(receipt,['headEventId','eventCount','verifiedAt'],'WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID');
+  const head=history.at(-1);
+  if(workflowFingerprint(verification.verifiedState)!==workflowFingerprint(state)
+    ||receipt.headEventId!==head.eventId||receipt.eventCount!==history.length
+    ||!validTimestamp(receipt.verifiedAt))throw new Error('WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID');
+  validateWorkflowReadinessEvidence(state);
+  return trustWorkflowState(state);
 }
 
 function validateDashboardSliceApproval(state){
@@ -508,7 +556,7 @@ export function importVerifiedHistory({state,requestedGate,imports,importedBy,no
   next.updatedAt=now;
   const summary={event:'verified_history_imported',gates:imports.map(item=>item.gate),requestedGate,importedBy:actor,at:now};
   events.push(summary);
-  return{state:next,event:summary,events};
+  return{state:trustWorkflowState(next),event:summary,events};
 }
 
 export function openRepairSlice({state,gate,scope,authorizedBy,now=new Date().toISOString()}={}){

@@ -13,6 +13,7 @@ const { planWebsiteRoute, resolveRouteDependencyClosure } = await import(
 const {
   approveGate,
   createWorkflow,
+  hydrateVerifiedWorkflowState,
   recordDelivery,
   requestApproval,
   setApprovedDashboardSlices,
@@ -126,7 +127,7 @@ function stateAt(currentGate, capabilities, workPackageGates = []) {
       },
     };
   }
-  return {
+  const state = {
     projectId: "route-test",
     currentGate,
     configuration,
@@ -137,6 +138,16 @@ function stateAt(currentGate, capabilities, workPackageGates = []) {
         : { status: index === currentIndex ? "ready" : "locked" },
     ])),
   };
+  if (!workPackageGates.length) return state;
+  const history = [{ sequence: 1, eventId: "evt-1", previousEventId: null }];
+  return hydrateVerifiedWorkflowState({
+    serializedState: JSON.stringify(state),
+    history,
+    verifyHistoryReceipt: ({ state: verifiedState }) => ({
+      verifiedState,
+      receipt: { headEventId: "evt-1", eventCount: 1, verifiedAt: "2026-08-26T00:00:00.000Z" },
+    }),
+  });
 }
 
 function assertManifestEvidence(route) {
