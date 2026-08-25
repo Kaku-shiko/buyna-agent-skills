@@ -67,6 +67,12 @@ const REFUND_STATUSES = new Set([
   SETTLEMENT_STATUSES.REFUNDED,
 ]);
 
+const RESERVATION_RELEASE_STATUSES = new Set([
+  SETTLEMENT_STATUSES.FAILED,
+  SETTLEMENT_STATUSES.EXPIRED,
+  SETTLEMENT_STATUSES.CANCELLED,
+]);
+
 function validateTrustedEvent(verified) {
   if (verified?.trusted !== true) fail('PROVIDER_EVENT_NOT_TRUSTED');
   if (!ALLOWED_PROVIDER_EVENT_SOURCES.has(verified.source)) {
@@ -148,6 +154,9 @@ function settlementAdapterMethods(status, capabilities) {
     if (capabilities.refundCoupon) {
       names.push('applyRefundCouponPolicyOnce');
     }
+  } else if (RESERVATION_RELEASE_STATUSES.has(status)) {
+    names.push('releaseInventoryOnce');
+    if (capabilities.coupon) names.push('releaseCouponOnce');
   }
   return names;
 }
@@ -226,6 +235,16 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
             await tx.applyRefundCouponPolicyOnce(refundEffect);
           }
           await tx.appendGmvOutbox(refundEffect);
+        } else if (RESERVATION_RELEASE_STATUSES.has(verified.status)) {
+          const releaseEffect = {
+            order,
+            eventId: verified.eventId,
+            reason: `checkout_${verified.status}`,
+          };
+          await tx.releaseInventoryOnce(releaseEffect);
+          if (enabledCapabilities.coupon) {
+            await tx.releaseCouponOnce(releaseEffect);
+          }
         }
 
         return {

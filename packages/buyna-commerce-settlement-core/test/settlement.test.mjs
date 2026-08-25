@@ -67,6 +67,12 @@ function createHarness({ event = {}, order = {}, capabilities } = {}) {
         async applyCouponOnce() {
           calls.push('coupon');
         },
+        async releaseInventoryOnce() {
+          calls.push('inventory-release');
+        },
+        async releaseCouponOnce() {
+          calls.push('coupon-release');
+        },
         async upsertPaidCustomer() {
           calls.push('customer');
         },
@@ -112,6 +118,20 @@ test('applies every legal pending-payment terminal transition', async (t) => {
         paymentStatus: status,
         eventId: 'event-1',
       });
+    });
+  }
+});
+
+test('failed, expired, and cancelled settlements release inventory and coupon reservations', async (t) => {
+  for (const status of ['failed', 'expired', 'cancelled']) {
+    await t.test(status, async () => {
+      const { module, calls } = createHarness({
+        event: { status },
+        capabilities: { coupon: true },
+      });
+      await module.settle(SCOPE);
+      assert.equal(calls.filter((call) => call === 'inventory-release').length, 1);
+      assert.equal(calls.filter((call) => call === 'coupon-release').length, 1);
     });
   }
 });
