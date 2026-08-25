@@ -230,4 +230,3 @@ Every code batch must show red-green-refactor evidence and pass:
 
 The final merged tree must pass every package test and repository validation
 from a clean worktree before it is pushed to GitHub `main`.
-

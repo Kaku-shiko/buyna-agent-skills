@@ -286,4 +286,3 @@ Commit: `test: verify fixed commerce state batch`
 
 Create the TDD plan for inventory, coupon, catalog, and Dashboard operation
 state from the approved spec. Do not implement Batch 2 inside Task 5.
-
