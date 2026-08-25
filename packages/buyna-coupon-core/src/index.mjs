@@ -667,6 +667,7 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
       if (!current) throw failure('COUPON_NOT_FOUND', 'coupon was not found');
       assertScope(current, scope.projectId, scope.sellerId);
       if (current.couponId !== couponId) adapterInvalid('locked coupon identity is invalid');
+      validateAuthoritativeCoupon(current);
       assertTransition(current.state, targetState);
       if (targetState === STATES.ACTIVE) validateWindow(current, nowIso(clock));
       const next = {

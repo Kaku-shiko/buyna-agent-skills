@@ -1033,3 +1033,42 @@ test('rejects replay envelopes with a missing or different event identity', asyn
     });
   }
 });
+
+test('rejects invalid authoritative policy before activate, pause, or archive', async () => {
+  const activation = moduleWith();
+  const draft = await activation.coupons.createDraft({
+    eventId: 'event-invalid-draft-create',
+    couponId: 'coupon-invalid-draft',
+    code: 'INVALID-DRAFT',
+    discount: { type: 'fixed', amount: 100 },
+  });
+  activation.store.mutateCoupon(draft.couponId, (coupon) => ({
+    ...coupon,
+    discount: { type: 'fixed', amount: -1 },
+  }));
+  await assert.rejects(
+    activation.coupons.activate({
+      eventId: 'event-invalid-draft-activate',
+      couponId: draft.couponId,
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(activation.store.inspectCoupon(draft.couponId).state, 'draft');
+  assert.equal(activation.store.inspectEvent('event-invalid-draft-activate'), undefined);
+
+  for (const operation of ['pause', 'archive']) {
+    const fixture = moduleWith();
+    await activeCoupon(fixture.coupons);
+    fixture.store.mutateCoupon('coupon-1', (coupon) => ({
+      ...coupon,
+      policyVersion: '',
+    }));
+    const eventId = `event-invalid-active-${operation}`;
+    await assert.rejects(
+      fixture.coupons[operation]({ eventId, couponId: 'coupon-1' }),
+      { code: 'COUPON_ADAPTER_INVALID' },
+    );
+    assert.equal(fixture.store.inspectCoupon('coupon-1').state, 'active');
+    assert.equal(fixture.store.inspectEvent(eventId), undefined);
+  }
+});
