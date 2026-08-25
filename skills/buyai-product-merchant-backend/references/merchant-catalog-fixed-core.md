@@ -22,19 +22,32 @@ routes.
 - `setProductStock`
 - `setProductVisibility`
 - `archiveProduct`
+- `transitionProduct`
+- `restoreProduct`
+- `setFeaturedProducts`
 - `reorderProducts`
 - `listCategories`
 - `createCategory`
 - `updateCategory`
 - `setCategoryVisibility`
 - `archiveCategory`
+- `transitionCategory`
+- `restoreCategory`
+- `reorderCategories`
 - `createVariant`
 - `updateVariant`
+- `transitionVariant`
 
 The module fixes field allowlists, filter/sort fields, normalization, soft
 deletion, and transactional product ordering. A project may add an Adapter or
 approved route mapping, but must not bypass merchant scope or replace archive
 with hard deletion.
+
+When the persisted route includes stock/SKU capability, compose this service
+with `packages/buyna-inventory-core`; catalog fields describe the SKU while the
+inventory module owns reservation, commit, release, and oversell rejection.
+When coupons are enabled, use `buyai-coupon-commerce` instead of adding coupon
+algorithms to catalog routes.
 
 Compose image upload, replacement, deletion, ordering, and orphan cleanup with
 `packages/buyna-merchant-file-core`. The project may configure image limits and

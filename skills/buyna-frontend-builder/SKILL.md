@@ -23,21 +23,28 @@ core.
 2. Inspect existing routes/components and preserve approved project patterns.
 3. Implement the approved public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope. Do not add another pre-code approval when the combined design-and-structure package already contains the Dashboard composition.
    For product commerce, include the approved cart presentation and connect it
-   to a mock Adapter matching `buyna-cart-core`. Use its fixed right-side
-   `CartButton` and `CartDrawer` components as the default commerce behavior;
-   do not implement cart pricing rules in components.
+   to a mock Adapter matching `buyna-cart-core`. Import its fixed drawer state
+   and transitions, then generate the button, drawer markup, position, motion,
+   responsive treatment, and styles from the approved project design. Do not
+   implement cart pricing rules in components.
 4. Implement all approved desktop and mobile interactions with clearly marked mock data.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.
 6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
 7. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
 
 For a product merchant Dashboard, use `packages/buyna-merchant-dashboard-core`
-for the fixed capability contract and `packages/buyna-merchant-dashboard-headless`
+for the fixed capability and page-operation contracts and
+`packages/buyna-merchant-dashboard-headless`
 for reusable drawer, navigation, table, status, pagination, dialog, and
 responsive interaction behavior. These modules contain no approved visual
 theme. Generate the Dashboard stylesheet and component presentation inside the
 merchant project from its approved design. Do not use or recreate a shared
 Buyna Dashboard skin.
+
+Every interactive Dashboard page creates its own operation instance through
+`createDashboardOperation`; components render its semantic state while the
+project owns all visible loading, empty, error, permission, dialog, and save
+presentation.
 
 ## Dashboard UI Boundary
 

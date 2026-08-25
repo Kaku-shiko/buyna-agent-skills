@@ -24,7 +24,13 @@ const runRoute = (input) => {
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  return JSON.parse(result.stdout);
+  const route = JSON.parse(result.stdout);
+  assert.deepEqual(route.manifestVerification, {
+    profile: "website-builder",
+    verified: true,
+  });
+  delete route.manifestVerification;
+  return route;
 };
 
 const runRouteError = (input) => {
@@ -226,7 +232,7 @@ test("product commerce without provider payment executes checkout-flow and skips
     targetGate: "checkout_payment",
     requestedSlice: "checkout_payment",
     skills: ["buyai-product-merchant-backend", "buyai-checkout-address-ux"],
-    fixedModules: ["buyna-workflow-state-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core"],
+    fixedModules: ["buyna-workflow-state-core", "buyna-merchant-catalog-core", "buyna-inventory-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core"],
     notApplicableGates: [],
     continueWithoutConfirmation: true,
     commerceArchitecture: "checkout-flow-only",
@@ -245,7 +251,7 @@ test("product GlobePay executes fixed checkout then transport adapters then sett
     targetGate: "checkout_payment",
     requestedSlice: "checkout_payment",
     skills: ["buyai-product-merchant-backend", "buyai-checkout-address-ux", "buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce"],
-    fixedModules: ["buyna-workflow-state-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
+    fixedModules: ["buyna-workflow-state-core", "buyna-merchant-catalog-core", "buyna-inventory-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
     notApplicableGates: [],
     continueWithoutConfirmation: false,
     commerceArchitecture: "checkout-flow+transport-adapters+settlement",
@@ -267,7 +273,7 @@ test("explicit legacy payment routes the legacy service without fixed checkout o
     targetGate: "checkout_payment",
     requestedSlice: "checkout_payment",
     skills: ["buyai-product-merchant-backend", "buyai-checkout-address-ux", "buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce"],
-    fixedModules: ["buyna-workflow-state-core", "buyna-cart-core", "buyna-order-core"],
+    fixedModules: ["buyna-workflow-state-core", "buyna-merchant-catalog-core", "buyna-inventory-core", "buyna-cart-core", "buyna-order-core"],
     notApplicableGates: [],
     continueWithoutConfirmation: false,
     commerceArchitecture: "legacy-globepay-service",
@@ -424,6 +430,8 @@ test("mixed product and booking commerce routes both backends exactly once", () 
   assert.equal(new Set(route.skills).size, route.skills.length);
   assert.deepEqual(route.fixedModules, [
     "buyna-workflow-state-core",
+    "buyna-merchant-catalog-core",
+    "buyna-inventory-core",
     "buyna-cart-core",
     "buyna-order-core",
     "buyna-checkout-flow-core",
@@ -443,7 +451,7 @@ test("dependency-ready checkout repair enters checkout directly without replayin
     targetGate: "checkout_payment",
     requestedSlice: "checkout_payment",
     skills: ["buyai-checkout-address-ux", "buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce"],
-    fixedModules: ["buyna-workflow-state-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
+    fixedModules: ["buyna-workflow-state-core", "buyna-merchant-catalog-core", "buyna-inventory-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
     notApplicableGates: [],
     continueWithoutConfirmation: true,
     commerceArchitecture: "checkout-flow+transport-adapters+settlement",
@@ -463,7 +471,7 @@ test("completed deployed workflow returns an explicit checkout repair reopen act
     targetGate: "checkout_payment",
     requestedSlice: "checkout_payment",
     skills: ["buyai-checkout-address-ux", "buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce"],
-    fixedModules: ["buyna-workflow-state-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
+    fixedModules: ["buyna-workflow-state-core", "buyna-merchant-catalog-core", "buyna-inventory-core", "buyna-cart-core", "buyna-order-core", "buyna-checkout-flow-core", "buyna-commerce-settlement-core"],
     notApplicableGates: [],
     continueWithoutConfirmation: false,
     commerceArchitecture: "checkout-flow+transport-adapters+settlement",

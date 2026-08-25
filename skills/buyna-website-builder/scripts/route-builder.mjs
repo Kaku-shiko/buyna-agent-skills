@@ -10,6 +10,16 @@ const workflowCoreUrl = workflowCoreUrls.find((candidate) => existsSync(fileURLT
 if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED");
 const { validateWorkflowReadinessEvidence } = await import(workflowCoreUrl.href);
 
+const manifestUrls = [
+  new URL("../../../repository-manifest.json", import.meta.url),
+  new URL("../../../../repository-manifest.json", import.meta.url),
+];
+const manifestUrl = manifestUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
+if (!manifestUrl) throw new Error("REPOSITORY_MANIFEST_REQUIRED");
+const repositoryManifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
+const websiteBuilderProfile = repositoryManifest.profiles?.["website-builder"];
+if (!websiteBuilderProfile) throw new Error("WEBSITE_BUILDER_PROFILE_REQUIRED");
+
 const gates = Object.freeze([
   "customer_intake",
   "design_and_structure",
@@ -28,6 +38,11 @@ const capabilityKeys = Object.freeze([
   "requiresPayment",
   "requiresBooking",
 ]);
+const lifecycleCapabilityKeys = Object.freeze([
+  "requiresCatalog",
+  "requiresInventory",
+  "requiresCoupons",
+]);
 const paymentArchitectures = Object.freeze(["fixed-cores", "legacy-globepay-service"]);
 const dependencyRules = Object.freeze({
   "buyai-product-merchant-backend": ({ commerceArchitecture }) => ({
@@ -43,6 +58,18 @@ const dependencyRules = Object.freeze({
     paymentSafety: commerceArchitecture === "legacy-globepay-service"
       ? ["provider-query", "exact-amount-currency", "idempotency"]
       : [],
+  }),
+  "buyai-coupon-commerce": () => ({
+    skills: [],
+    fixedModules: ["buyna-coupon-core"],
+    legacyServices: [],
+    paymentSafety: [],
+  }),
+  "buyai-dashboard-data-interaction": () => ({
+    skills: [],
+    fixedModules: ["buyna-merchant-dashboard-core"],
+    legacyServices: [],
+    paymentSafety: [],
   }),
   "buyai-globepay-payment": ({ commerceArchitecture }) => ({
     skills: [],
@@ -75,13 +102,58 @@ function normalizeCapabilities(value) {
     if (typeof input[key] !== "boolean") throw new Error("CAPABILITIES_REQUIRED");
     capabilities[key] = input[key];
   }
+  const productCommerce = capabilities.siteType === "commerce"
+    || capabilities.siteType === "mixed"
+    || capabilities.requiresCart;
+  const defaults = {
+    requiresCatalog: productCommerce,
+    requiresInventory: productCommerce,
+    requiresCoupons: false,
+  };
+  for (const key of lifecycleCapabilityKeys) {
+    if (input[key] !== undefined && typeof input[key] !== "boolean") throw new Error("CAPABILITIES_REQUIRED");
+    capabilities[key] = input[key] ?? defaults[key];
+  }
   if (capabilities.requiresCart && !capabilities.requiresCheckout) throw new Error("CART_REQUIRES_CHECKOUT");
   if (capabilities.requiresPayment && !capabilities.requiresCheckout) throw new Error("PAYMENT_REQUIRES_CHECKOUT");
+  if (capabilities.requiresInventory && !capabilities.requiresCatalog) throw new Error("INVENTORY_REQUIRES_CATALOG");
+  if (capabilities.requiresCoupons && !capabilities.requiresCheckout) throw new Error("COUPON_REQUIRES_CHECKOUT");
   return capabilities;
 }
 
 function capabilitiesEqual(left, right) {
-  return left.siteType === right.siteType && capabilityKeys.every((key) => left[key] === right[key]);
+  return left.siteType === right.siteType
+    && [...capabilityKeys, ...lifecycleCapabilityKeys].every((key) => left[key] === right[key]);
+}
+
+function addUnique(target, values) {
+  for (const value of values) if (!target.includes(value)) target.push(value);
+}
+
+function lifecycleModules(capabilities, { dashboard = false } = {}) {
+  const modules = [];
+  if (capabilities.requiresCatalog) modules.push("buyna-merchant-catalog-core");
+  if (capabilities.requiresInventory) modules.push("buyna-inventory-core");
+  if (capabilities.requiresCoupons) modules.push("buyna-coupon-core");
+  if (dashboard && capabilities.requiresDashboard) modules.push("buyna-merchant-dashboard-core");
+  return modules;
+}
+
+function withManifestVerification(route) {
+  for (const skill of route.skills ?? []) {
+    if (!repositoryManifest.skills?.includes(skill) || !websiteBuilderProfile.skills?.includes(skill)) {
+      throw new Error(`WEBSITE_BUILDER_SKILL_NOT_REGISTERED:${skill}`);
+    }
+  }
+  for (const fixedModule of route.fixedModules ?? []) {
+    if (!repositoryManifest.packages?.includes(fixedModule) || !websiteBuilderProfile.packages?.includes(fixedModule)) {
+      throw new Error(`WEBSITE_BUILDER_MODULE_NOT_REGISTERED:${fixedModule}`);
+    }
+  }
+  return {
+    ...route,
+    manifestVerification: { profile: "website-builder", verified: true },
+  };
 }
 
 export function resolveRouteDependencyClosure(route) {
@@ -92,9 +164,6 @@ export function resolveRouteDependencyClosure(route) {
   const legacyServices = [];
   const paymentSafety = [];
   const queue = [...selected.skills];
-  const addUnique = (target, values) => {
-    for (const value of values) if (!target.includes(value)) target.push(value);
-  };
   while (queue.length) {
     const skill = queue.shift();
     if (skills.includes(skill)) continue;
@@ -123,7 +192,7 @@ function notApplicableGates(capabilities) {
 }
 
 function capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities }) {
-  return {
+  return withManifestVerification({
     action: "blocked",
     targetGate: workflowState.currentGate ?? requestedGate,
     requestedSlice,
@@ -134,19 +203,26 @@ function capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSli
     continueWithoutConfirmation: false,
     commerceArchitecture: null,
     externalActions: { git: false, aws: false },
-  };
+  });
 }
 
 function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
   const fixedModules = ["buyna-workflow-state-core"];
   if (gate === "customer_intake") return { skills: ["buyna-customer-intake"], fixedModules, commerceArchitecture: null };
   if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure"], fixedModules, commerceArchitecture: null };
-  if (gate === "frontend_code") return { skills: ["buyna-frontend-builder"], fixedModules, commerceArchitecture: null };
+  if (gate === "frontend_code") {
+    addUnique(fixedModules, lifecycleModules(capabilities, { dashboard: true }));
+    return { skills: ["buyna-frontend-builder"], fixedModules, commerceArchitecture: null };
+  }
   if (gate === "dashboard_integration") {
     const skills = [];
-    if (capabilities.requiresCart || capabilities.siteType === "commerce") skills.push("buyai-product-merchant-backend");
+    if (capabilities.requiresCatalog || capabilities.requiresInventory || capabilities.requiresCart) {
+      skills.push("buyai-product-merchant-backend");
+    }
     if (capabilities.requiresBooking) skills.push("buyai-booking-service-backend");
+    if (capabilities.requiresCoupons) skills.push("buyai-coupon-commerce");
     skills.push("buyai-dashboard-data-interaction");
+    addUnique(fixedModules, lifecycleModules(capabilities, { dashboard: true }));
     return { skills, fixedModules, commerceArchitecture: null };
   }
   if (gate === "testing_upload_gate") return { skills: ["buyna-testing-quality"], fixedModules, commerceArchitecture: null };
@@ -157,6 +233,9 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
     if (capabilities.requiresCart) skills.push("buyai-product-merchant-backend");
     if (capabilities.requiresBooking) skills.push("buyai-booking-service-backend");
   }
+  if (capabilities.requiresCoupons) skills.push("buyai-coupon-commerce");
+  addUnique(fixedModules, lifecycleModules(capabilities));
+  if (capabilities.requiresCart) addUnique(fixedModules, ["buyna-cart-core", "buyna-order-core"]);
   const fixedCorePayment = capabilities.requiresPayment && paymentArchitecture === "fixed-cores";
   if (capabilities.requiresCheckout && (!capabilities.requiresPayment || fixedCorePayment)) {
     skills.push("buyai-checkout-address-ux");
@@ -164,7 +243,6 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
   } else if (capabilities.requiresCheckout) {
     skills.push("buyai-checkout-address-ux");
   }
-  if (capabilities.requiresCart) fixedModules.splice(1, 0, "buyna-cart-core", "buyna-order-core");
   if (capabilities.requiresPayment) {
     skills.push("buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce");
     if (fixedCorePayment) fixedModules.push("buyna-commerce-settlement-core");
@@ -208,7 +286,7 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   const activeRepair = completed && workflowState.activeRepair?.gate === requestedGate && ["ready", "in_progress"].includes(workflowState.activeRepair.status);
   const skippedGates = notApplicableGates(capabilities);
   if (completed && workflowState.gates[requestedGate].status === "not_applicable") {
-    return {
+    return withManifestVerification({
       action: "blocked",
       targetGate: requestedGate,
       requestedSlice,
@@ -219,7 +297,7 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
       continueWithoutConfirmation: false,
       commerceArchitecture: null,
       externalActions: { git: false, aws: false },
-    };
+    });
   }
   const requestedStatus = workflowState.gates[requestedGate].status;
   const targetGate = completed ? requestedGate : ["ready", "in_progress"].includes(requestedStatus) ? requestedGate : workflowState.currentGate;
@@ -235,10 +313,10 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     commerceArchitecture: selected.commerceArchitecture,
     externalActions: { git: false, aws: targetGate === "aws_release" && releaseIntent === true },
   };
-  if (completed && !activeRepair) return { action: "reopen_repair", ...base, repairTransition: { type: "openRepairSlice", gate: targetGate } };
-  if (skippedGates.includes(targetGate)) return { action: "mark_not_applicable", ...base, reason: "CAPABILITY_NOT_REQUIRED", skills: [], fixedModules: ["buyna-workflow-state-core"], commerceArchitecture: null };
-  if (targetGate === "aws_release" && releaseIntent !== true) return { action: "blocked", ...base, reason: "RELEASE_INTENT_REQUIRED", skills: [], externalActions: { git: false, aws: false } };
-  return { action: "execute", ...base };
+  if (completed && !activeRepair) return withManifestVerification({ action: "reopen_repair", ...base, repairTransition: { type: "openRepairSlice", gate: targetGate } });
+  if (skippedGates.includes(targetGate)) return withManifestVerification({ action: "mark_not_applicable", ...base, reason: "CAPABILITY_NOT_REQUIRED", skills: [], fixedModules: ["buyna-workflow-state-core"], commerceArchitecture: null });
+  if (targetGate === "aws_release" && releaseIntent !== true) return withManifestVerification({ action: "blocked", ...base, reason: "RELEASE_INTENT_REQUIRED", skills: [], externalActions: { git: false, aws: false } });
+  return withManifestVerification({ action: "execute", ...base });
 }
 
 const isCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

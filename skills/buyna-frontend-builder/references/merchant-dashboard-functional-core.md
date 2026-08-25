@@ -11,6 +11,9 @@ interaction behavior. This fixes program behavior without fixing appearance.
   labels, and `aria-expanded` behavior.
 - Table mapping, loading/empty/error/permission states, pagination, status
   semantics, confirmation-dialog behavior, and mobile-safe interaction.
+- `createDashboardOperation` read/edit/save state, request identity,
+  duplicate-save suppression, retry/cancel, and stale-response rejection for
+  every interactive page.
 - API/router adapters and the separation between UI and backend rules.
 
 ## Project-Owned Design
@@ -23,7 +26,8 @@ and density through `validateDashboardTheme`.
 
 The project owns colors, fonts, spacing, radii, borders, shadows, icon set,
 navigation appearance, page composition, card treatment, table presentation,
-motion, imagery, and brand expression. A sidebar may look like a rail, panel,
+dialog/drawer markup, motion, responsive visual treatment, imagery, and brand
+expression. A sidebar may look like a rail, panel,
 topbar, or hybrid according to the approved design while preserving the fixed
 navigation and mobile drawer behavior.
 

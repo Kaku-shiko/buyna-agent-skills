@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna.ai Coupon Commerce"
+  short_description: "Connect merchant coupons to fixed checkout behavior"
+  default_prompt: "Use $buyai-coupon-commerce for the approved coupon capability. Import buyna-coupon-core, generate only the scoped Store/API Adapter and project-owned presentation, and return evidence to the Website Builder without repeating its approval."

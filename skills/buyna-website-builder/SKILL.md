@@ -69,14 +69,21 @@ node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
 - `buyna-workflow-state-core`: gate state, approvals, work packages, verified
   history import.
 - `buyna-cart-core` and `buyna-order-core`: product cart/order behavior,
-  including drawer interaction state and safe transitions, never a fixed
-  markup, theme, layout, or CSS implementation.
+  including drawer interaction state and safe transitions.
+- `buyna-merchant-catalog-core`, `buyna-inventory-core`, and
+  `buyna-coupon-core`: product/category lifecycle, stock reservation, and the
+  optional persisted coupon capability.
+- `buyna-merchant-dashboard-core`: operation state for every interactive
+  Dashboard page.
 - `buyna-checkout-flow-core`: minimum fields, method selection, review,
   submission, snapshot, and local order lock.
 - `buyna-commerce-settlement-core`: trusted result reconciliation, legal
   paid/refund transitions, idempotency, and transactional effects.
 - Project: database/provider Adapters, routes, labels, pricing configuration,
-  forms, components, theme, layout, CSS, and other presentation.
+  localized copy, markup, components, colors, fonts, spacing, shell, page
+  composition, transitions, responsive visual treatment, CSS, and other
+  presentation. Fixed drawer/table/dialog behavior never supplies a shared
+  Dashboard skin.
 
 Payment-capable new builds use the fixed checkout core, GlobePay transport and
 verification Adapters, then the settlement core. Every new-path request carries

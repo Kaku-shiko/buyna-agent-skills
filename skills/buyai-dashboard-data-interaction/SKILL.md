@@ -7,6 +7,13 @@ description: "Connect one approved Buyna.ai merchant Dashboard page or related s
 
 Complete one approved Dashboard page or closely related interaction slice at a time without redesigning its UI.
 
+For every interactive page, call
+`packages/buyna-merchant-dashboard-core.createDashboardOperation`. The fixed
+operation state owns legal loading/ready/empty/error/forbidden and
+editing/saving/saved/validation transitions, duplicate-save suppression, and
+stale-response rejection. Generate the page Adapter and presentation; do not
+regenerate this state machine.
+
 ## Entry Gate
 
 Require runnable Dashboard source, desktop/mobile states, marked mock adapter, API contract, passing frontend checks, and explicit approval. Otherwise stop and return to `buyna-frontend-builder` Phase 4.
@@ -27,6 +34,8 @@ For the current page only:
 4. Route domain logic to `buyai-product-merchant-backend` or
    `buyai-booking-service-backend`. Product/category slices must use the fixed
    `packages/buyna-merchant-catalog-core` selected by the product Skill.
+   Stock/SKU slices use `packages/buyna-inventory-core`; persisted coupon
+   slices route once to `buyai-coupon-commerce` and `packages/buyna-coupon-core`.
    Orders and order-detail slices must use
    `packages/buyna-order-core`; payment status remains owned by the GlobePay
    status service.
@@ -52,6 +61,9 @@ For the 订单/预约 slice, require the approved detail UI and API contract to 
 
 - Do not preload or implement later pages.
 - Preserve the approved UI and API contract; return conflicts for focused approval.
+- Keep fixed operation/drawer/table/dialog behavior separate from the
+  project-owned markup, colors, fonts, spacing, shell, page composition,
+  transitions, responsive visual treatment, and CSS.
 - Keep credentials and business rules server-side.
 - Reuse approved AWS resources; do not introduce Supabase, Lovable, replacement databases, buckets, or instances.
 - Do not replace a mock before its endpoint and failure behavior pass.

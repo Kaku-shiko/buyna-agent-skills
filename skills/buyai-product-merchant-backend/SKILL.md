@@ -23,7 +23,10 @@ source code, API contract, verification, or user approval is missing, stop and
 return to `buyna-frontend-builder` Phase 4. Do not create database models,
 migrations, storage rules, APIs, or backend business logic.
 
-After the gate passes, read `references/product-commerce-rules.md`. Confirm languages, currency, product source, variants/SKUs, and image limit. Do not ask for missing product prices; default their source to merchant Dashboard maintenance.
+After the gate passes, read `references/product-commerce-rules.md` and use the
+persisted languages, currency, product source, variants/SKUs, image limit, and
+lifecycle capabilities. Do not repeat those confirmations. Do not ask for
+missing product prices; default their source to merchant Dashboard maintenance.
 
 For 商品管理 or 分类管理, also read
 `references/merchant-catalog-fixed-core.md` and call
@@ -31,6 +34,13 @@ For 商品管理 or 分类管理, also read
 filter/sort rules, stock/visibility/archive operations, or transactional
 ordering. Generate only the project route and database Adapter required by the
 approved API contract.
+
+When persisted `requiresInventory=true`, call
+`packages/buyna-inventory-core` for reserve/commit/release and generate only
+the transaction-safe project Store Adapter. When persisted
+`requiresCoupons=true`, route to the single `buyai-coupon-commerce` Skill and
+`packages/buyna-coupon-core`. If coupons are false, skip only coupon work; cart,
+checkout, and order work remain applicable.
 
 For shopping-cart, checkout-order creation, seller Orders, order detail, or
 order CSV, read `references/cart-order-fixed-cores.md`. Call
@@ -116,6 +126,9 @@ Check build, UTF-8, login, mandatory `project_id + seller_id` ownership on every
 
 When catalog behavior is in scope, run
 `npm test --prefix packages/buyna-merchant-catalog-core` before project tests.
+When stock/SKU or coupons are in scope, also run
+`npm test --prefix packages/buyna-inventory-core` or
+`npm test --prefix packages/buyna-coupon-core` respectively.
 When cart or order behavior is in scope, also run the matching fixed-package
 tests before project integration tests.
 

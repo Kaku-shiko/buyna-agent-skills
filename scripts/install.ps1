@@ -9,15 +9,18 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $sourceRoot = Join-Path $repositoryRoot 'skills'
 $moduleSourceRoot = Join-Path $repositoryRoot 'packages'
-$manifest = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'repository-manifest.json') | ConvertFrom-Json
+$manifestSourcePath = Join-Path $repositoryRoot 'repository-manifest.json'
+$manifest = Get-Content -Raw -LiteralPath $manifestSourcePath | ConvertFrom-Json
 
 if ($Scope -eq 'User') {
-    $destinationRoot = Join-Path $env:USERPROFILE '.codex\skills'
-    $moduleDestinationRoot = Join-Path $env:USERPROFILE '.codex\packages'
+    $installationRoot = Join-Path $env:USERPROFILE '.codex'
+    $destinationRoot = Join-Path $installationRoot 'skills'
+    $moduleDestinationRoot = Join-Path $installationRoot 'packages'
 } else {
     $resolvedProjectPath = [IO.Path]::GetFullPath($ProjectPath)
-    $destinationRoot = Join-Path $resolvedProjectPath '.agents\skills'
-    $moduleDestinationRoot = Join-Path $resolvedProjectPath 'packages'
+    $installationRoot = $resolvedProjectPath
+    $destinationRoot = Join-Path $installationRoot '.agents\skills'
+    $moduleDestinationRoot = Join-Path $installationRoot 'packages'
 }
 
 New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
@@ -87,6 +90,8 @@ foreach ($obsoleteSkill in $obsoleteSkills) {
     Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
     Write-Host "Installed fixed module: $moduleName"
 }
+
+Copy-Item -LiteralPath $manifestSourcePath -Destination (Join-Path $installationRoot 'repository-manifest.json') -Force
 
 Write-Host ""
 Write-Host "Installation complete: $destinationRoot"

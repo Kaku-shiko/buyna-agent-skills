@@ -9,8 +9,11 @@ Input:
 
 - `capabilities`: an external assertion of `siteType` plus boolean
   `requiresDashboard`, `requiresCart`, `requiresCheckout`, `requiresPayment`,
-  and `requiresBooking`. After intake, the identical persisted workflow value is
-  authoritative; a mismatch returns `CAPABILITY_SCOPE_CHANGE_REQUIRED`.
+  `requiresBooking`, `requiresCatalog`, `requiresInventory`, and
+  `requiresCoupons`. After intake, the identical normalized persisted workflow
+  value is authoritative; a mismatch returns
+  `CAPABILITY_SCOPE_CHANGE_REQUIRED`. Older records default catalog and
+  inventory on for product commerce and coupons off.
 - `workflowState`: canonical gate status plus real delivery/approval evidence
   for every prior gate in active or completed history.
 - `requestedSlice`: one canonical gate ID or `local_preview`.
@@ -20,6 +23,8 @@ Input:
 Output:
 
 - `targetGate`, `skills`, and `fixedModules` are the minimum ready route.
+- `manifestVerification` confirms every selected Skill and fixed module is in
+  the installed `website-builder` profile.
 - `notApplicableGates` contains only canonical optional gates.
 - `continueWithoutConfirmation` inherits the saved bounded work package.
 - `externalActions.git` and `externalActions.aws` are explicit.
@@ -48,6 +53,15 @@ is entered directly; otherwise the router returns `currentGate`.
   `requiresCheckout=true`, `requiresPayment=false`; execute cart, order, and
   checkout-flow work. GlobePay, status sync, GMV payment effects, and settlement
   are outside this route.
+- Product/category management: `requiresCatalog=true` selects
+  `buyna-merchant-catalog-core`.
+- Stock or SKU management: `requiresInventory=true` selects
+  `buyna-inventory-core` and requires catalog capability.
+- Coupons: `requiresCoupons=true` selects the one
+  `buyai-coupon-commerce` entrypoint and `buyna-coupon-core`; false skips only
+  coupons and never skips checkout.
+- Every `requiresDashboard=true` frontend or Dashboard integration route
+  selects `buyna-merchant-dashboard-core` operation state.
 - Product with provider payment: execute cart/order, checkout-flow core,
   GlobePay transport/verification Adapters, then settlement core and GMV.
 - Paid booking: `requiresBooking=true`, `requiresCheckout=true`, and
@@ -103,3 +117,11 @@ route; legacy behavior is never inferred from omission.
 Local preview sets Git and AWS actions false. `aws_release` returns blocked
 until `releaseIntent=true`; repository contribution/publication is a separate
 explicit request.
+
+## Presentation Boundary
+
+Fixed modules own state, validation, idempotency, and drawer/table/dialog/page
+operation behavior. Project generation owns persistence/API Adapters,
+configuration, localized copy, markup, components, colors, fonts, spacing,
+shell, page composition, transitions, responsive visual treatment, and CSS.
+No route selects a shared Dashboard skin.
