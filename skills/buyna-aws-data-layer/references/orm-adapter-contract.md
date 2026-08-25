@@ -36,6 +36,9 @@ An adapter must implement:
   list(input),
   getById(input),
   transaction(work),
+  getByIdForUpdate(input),
+  listAllForUpdate(input),
+  lockingTransaction(work),
   claimIdempotency(input),
   completeIdempotency(input)
 }
@@ -50,6 +53,32 @@ allowlist and inject scope columns inside the adapter.
 `transaction` must commit only after `work` succeeds, roll back on every thrown
 error, and return the work result. Its transaction adapter must satisfy the
 same interface.
+
+Lifecycle, featured-selection, and full-ordering operations must use the
+explicit locking API:
+
+```js
+await data.lockingTransaction(async transactionData => {
+  const products = transactionData.lockingRepository({
+    entity: 'products',
+    allowedFilters: ['status'],
+    allowedWrite: ['status', 'featured', 'sort_order']
+  });
+  const product = await products.getByIdForUpdate(productId);
+  const completeScope = await products.listAllForUpdate({filters: {}});
+  // Validate the complete locked state before writing through this repository.
+});
+```
+
+`lockingRepository` is available only inside `lockingTransaction`; callers
+cannot silently substitute ordinary reads. The node-postgres adapter uses one
+checked-out client, begins a `SERIALIZABLE` transaction, and performs scoped
+`FOR UPDATE` reads. `listAllForUpdate` must lock the complete matching merchant
+set without pagination, in deterministic ID order. Both locked reads must
+include `project_id` and `seller_id`, use parameterized values, and quote only
+server-configured identifiers. The transaction must commit on success, roll
+back on failure, and always release its client. Ordinary `transaction` and
+`repository` remain available for compatible non-locking work.
 
 `claimIdempotency` must rely on a PostgreSQL unique constraint covering
 `project_id`, `seller_id`, `idempotency_key`, and `operation`. Return

@@ -52,10 +52,35 @@ export function createNodePostgresAdapter({pool,entities,idempotencyTable='merch
         const result=await client.query(text,[input.id,input.scope.projectId,input.scope.sellerId]);
         return result.rows[0]??null;
       },
+      async getByIdForUpdate(input){
+        const config=entityConfig(entities,input.entity),scope=scopeConfig(config),idColumn=config.idColumn??'id';
+        const text=`SELECT * FROM ${quoteName(config.table)} WHERE ${quoteName(idColumn)} = $1 AND ${quoteName(scope.project)} = $2 AND ${quoteName(scope.seller)} = $3 FOR UPDATE`;
+        const result=await client.query(text,[input.id,input.scope.projectId,input.scope.sellerId]);
+        return result.rows[0]??null;
+      },
+      async listAllForUpdate(input){
+        const config=entityConfig(entities,input.entity),scope=scopeConfig(config),idColumn=config.idColumn??'id';
+        const values=[input.scope.projectId,input.scope.sellerId];
+        const where=[`${quoteName(scope.project)} = $1`,`${quoteName(scope.seller)} = $2`];
+        for(const [field,value] of Object.entries(input.filters??{})){
+          const column=config.filters?.[field];if(!column)fail('FILTER_NOT_CONFIGURED');
+          values.push(value);where.push(`${quoteName(column)} = $${values.length}`);
+        }
+        const text=`SELECT * FROM ${quoteName(config.table)} WHERE ${where.join(' AND ')} ORDER BY ${quoteName(idColumn)} ASC FOR UPDATE`;
+        const result=await client.query(text,values);
+        return{rows:result.rows};
+      },
       async transaction(work){
         if(typeof client.connect!=='function')fail('TRANSACTION_REQUIRES_POOL');
         const connection=await client.connect();
         try{await connection.query('BEGIN');const result=await work(create(connection));await connection.query('COMMIT');return result}
+        catch(error){await connection.query('ROLLBACK');throw error}
+        finally{connection.release()}
+      },
+      async lockingTransaction(work){
+        if(typeof client.connect!=='function')fail('TRANSACTION_REQUIRES_POOL');
+        const connection=await client.connect();
+        try{await connection.query('BEGIN ISOLATION LEVEL SERIALIZABLE');const result=await work(create(connection));await connection.query('COMMIT');return result}
         catch(error){await connection.query('ROLLBACK');throw error}
         finally{connection.release()}
       },

@@ -62,3 +62,46 @@ test('repository create supplies server-owned scope and rejects caller-owned fie
   assert.deepEqual(received,{entity:'products',scope:{projectId:'project-a',sellerId:'seller-a'},data:{name:'Tea',price:1200}});
   await assert.rejects(()=>products.create({name:'Tea',seller_id:'seller-b'}),/WRITE_FIELD_NOT_ALLOWED/);
 });
+
+test('locking transaction exposes only scoped locked repository reads while preserving writes',async()=>{
+  const calls=[];
+  const lockedAdapter={
+    async getByIdForUpdate(input){calls.push(['get',input]);return{id:input.id}},
+    async listAllForUpdate(input){calls.push(['list',input]);return{rows:[{id:'p1'}]}},
+    async create(input){calls.push(['create',input]);return{id:'p2'}},
+    async updateById(input){calls.push(['update',input]);return{id:input.id,...input.data}},
+  };
+  const adapter={async lockingTransaction(work){calls.push(['locking-begin']);const result=await work(lockedAdapter);calls.push(['locking-commit']);return result}};
+  const core=createMerchantDataCore({adapter,projectId:'project-a',sellerId:'seller-a'});
+
+  const result=await core.lockingTransaction(async tx=>{
+    const products=tx.lockingRepository({entity:'products',allowedFilters:['status'],allowedWrite:['name']});
+    const one=await products.getByIdForUpdate('p1');
+    const all=await products.listAllForUpdate({filters:{status:'active'}});
+    await products.updateById('p1',{name:'Tea'});
+    await products.create({name:'Coffee'});
+    return{one,all};
+  });
+
+  assert.deepEqual(result,{one:{id:'p1'},all:[{id:'p1'}]});
+  for(const [,input] of calls.filter(call=>['get','list','create','update'].includes(call[0]))){
+    assert.deepEqual(input.scope,{projectId:'project-a',sellerId:'seller-a'});
+  }
+  assert.deepEqual(calls.map(call=>call[0]),['locking-begin','get','list','update','create','locking-commit']);
+});
+
+test('locking repository validates filters and fails closed without locking adapter methods',async()=>{
+  const core=createMerchantDataCore({
+    adapter:{async lockingTransaction(work){return work({})}},
+    projectId:'project-a',
+    sellerId:'seller-a',
+  });
+  await assert.rejects(
+    ()=>core.lockingTransaction(tx=>tx.lockingRepository({entity:'products',allowedFilters:['status']}).listAllForUpdate({filters:{seller_id:'other'}})),
+    error=>error.code==='FILTER_NOT_ALLOWED',
+  );
+  await assert.rejects(
+    ()=>core.lockingTransaction(tx=>tx.lockingRepository({entity:'products'}).getByIdForUpdate('p1')),
+    error=>error.code==='MISSING_ADAPTER_GETBYIDFORUPDATE',
+  );
+});
