@@ -1,0 +1,10 @@
+{
+  "name": "@buyna/delivery-state-core",
+  "version": "0.1.0",
+  "description": "Framework-neutral scoped notification delivery state",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "scripts": {
+    "test": "node --test test/delivery-state.test.mjs"
+  }
+}
