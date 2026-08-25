@@ -117,6 +117,8 @@ neither is merchant runtime configuration.
 - `bd01264 fix: harden checkout submission state` (final-review behavior repair)
 - `3dcd75d fix: persist checkout review identity` (final-review behavior repair;
   checkout rerun: 8 passed, root rerun: 21 passed, repository validation passed)
+- `0231553 fix: add durable checkout redirect handoff` (final-review lifecycle
+  repair; checkout rerun: 9 passed, root rerun: 21 passed, repository validation passed)
 
 Batch 2 plan:
 `docs/superpowers/plans/2026-08-25-fixed-state-logic-batch-2.md`

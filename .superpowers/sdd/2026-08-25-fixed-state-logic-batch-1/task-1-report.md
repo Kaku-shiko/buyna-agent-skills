@@ -184,6 +184,9 @@ git diff --check
 Results: checkout 9 passed/0 failed; root 21 passed/0 failed; repository
 validation and diff check passed.
 
+Lifecycle-handoff commit: `0231553a6b1c9df7c743ec304412b3501efed696`
+(`fix: add durable checkout redirect handoff`).
+
 ## Self-review
 
 - `CHECKOUT_STATES` is frozen and exposes all specified lifecycle values.
