@@ -1,0 +1,10 @@
+{
+  "name": "@buyna/merchant-context-core",
+  "version": "0.1.0",
+  "description": "Framework-neutral server-owned merchant context resolution",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "scripts": {
+    "test": "node --test test/merchant-context.test.mjs"
+  }
+}
