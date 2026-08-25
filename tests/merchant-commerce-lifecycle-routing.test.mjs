@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -404,6 +404,73 @@ test("canonical coupon Skill and generated-UI boundary are repository-visible", 
     "skills/buyai-checkout-address-ux/SKILL.md",
   ]) {
     assert.match(read(path), /returned[\s\S]{0,180}(authoritative|do not|never)|do not[\s\S]{0,180}reinvoke/i);
+  }
+});
+
+test("Builder default prompt establishes new-build or recovery state before capability routing", () => {
+  const prompt = read("skills/buyna-website-builder/agents/openai.yaml");
+  const newBuild = prompt.indexOf("New build");
+  const repairResume = prompt.indexOf("Repair or resume");
+  const persistedRoute = prompt.indexOf("persisted capabilities");
+
+  assert.ok(newBuild >= 0);
+  assert.match(prompt, /New build[\s\S]*createWorkflow[\s\S]*customer_intake/);
+  assert.ok(repairResume > newBuild);
+  assert.match(prompt, /Repair or resume[\s\S]*load[\s\S]*importVerifiedHistory/);
+  assert.ok(persistedRoute > repairResume);
+  assert.match(prompt, /persisted capabilities[\s\S]*route-builder\.mjs/);
+
+  const newState = createWorkflow({ projectId: "prompt-new-build" });
+  const newRoute = planWebsiteRoute({
+    capabilities: staticCapabilities,
+    workflowState: newState,
+    requestedSlice: "frontend_code",
+  });
+  assert.equal(newRoute.targetGate, "customer_intake");
+  assert.deepEqual(newRoute.skills, ["buyna-customer-intake"]);
+
+  const resumedState = workflowAtGate("dashboard_integration", productCapabilities());
+  const resumedRoute = planWebsiteRoute({
+    capabilities: resumedState.configuration.capabilities,
+    workflowState: resumedState,
+    requestedSlice: "dashboard_integration",
+    mode: "resume",
+  });
+  assert.equal(resumedRoute.targetGate, "dashboard_integration");
+});
+
+test("user installation prefers the current namespaced manifest over a stale legacy manifest", () => {
+  const target = mkdtempSync(join(tmpdir(), "buyna-user-manifest-"));
+  try {
+    const codexRoot = join(target, ".codex");
+    const routerRoot = join(codexRoot, "skills", "buyna-website-builder", "scripts");
+    const workflowRoot = join(codexRoot, "packages", "buyna-workflow-state-core", "src");
+    const manifestRoot = join(codexRoot, "buyna");
+    mkdirSync(routerRoot, { recursive: true });
+    mkdirSync(workflowRoot, { recursive: true });
+    mkdirSync(manifestRoot, { recursive: true });
+    copyFileSync(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root), join(routerRoot, "route-builder.mjs"));
+    copyFileSync(new URL("packages/buyna-workflow-state-core/src/index.mjs", root), join(workflowRoot, "index.mjs"));
+    copyFileSync(new URL("repository-manifest.json", root), join(manifestRoot, "repository-manifest.json"));
+    writeFileSync(join(codexRoot, "repository-manifest.json"), JSON.stringify({
+      schemaVersion: 0,
+      skills: [],
+      packages: [],
+      profiles: { "website-builder": { skills: [], packages: [] } },
+    }));
+
+    const run = spawnSync(process.execPath, [join(routerRoot, "route-builder.mjs")], {
+      input: JSON.stringify({
+        capabilities: staticCapabilities,
+        workflowState: stateAt("frontend_code", staticCapabilities),
+        requestedSlice: "local_preview",
+      }),
+      encoding: "utf8",
+    });
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assertManifestEvidence(JSON.parse(run.stdout));
+  } finally {
+    rmSync(target, { recursive: true, force: true });
   }
 });
 

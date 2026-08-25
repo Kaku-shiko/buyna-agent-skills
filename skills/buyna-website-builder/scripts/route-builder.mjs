@@ -15,8 +15,8 @@ const {
 } = await import(workflowCoreUrl.href);
 
 const manifestUrls = [
-  new URL("../../../repository-manifest.json", import.meta.url),
   new URL("../../../buyna/repository-manifest.json", import.meta.url),
+  new URL("../../../repository-manifest.json", import.meta.url),
   new URL("../../../../repository-manifest.json", import.meta.url),
 ];
 const manifestUrl = manifestUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
