@@ -36,6 +36,8 @@ buyna-agent-skills/
 ├── packages/
 │   ├── buyna-merchant-dashboard-core/       # fixed functions and state contracts
 │   ├── buyna-merchant-dashboard-headless/   # fixed interactions, no visual theme
+│   ├── buyna-checkout-flow-core/             # fixed checkout state behavior
+│   ├── buyna-commerce-settlement-core/       # fixed trusted settlement state
 │   ├── buyna-merchant-catalog-core/
 │   ├── buyna-cart-core/
 │   ├── buyna-order-core/
@@ -87,7 +89,13 @@ flowchart TD
     G --> GR[recurring]
 ```
 
-流程图表示调用顺序，不表示一次性执行。每个节点完成后都要保存结果并等待用户明确确认；不适用的节点必须记录为 `不适用`，不能静默跳过。
+流程图表示调用顺序，不表示一次性执行。已批准的有边界工作包可在包含的代码步骤和最低测试通过后继续；只有范围变化、设计、生产发布/流量切换、付费激活、费用、破坏性操作或真实阻塞需要再次确认。不适用的节点必须记录为 `不适用`，不能静默跳过。
+
+### 固定结账与结算状态模块
+
+`buyna-checkout-flow-core` 与 `buyna-commerce-settlement-core` 提供固定的
+checkout 和 settlement 状态行为。每个项目只生成自己的表单展示、provider Adapter
+和 database Adapter；共享模块不包含 CSS、商家标识、支付传输或数据库实现。
 
 ## 5. 第一次安装
 

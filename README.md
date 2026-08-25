@@ -25,6 +25,13 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 `skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
 
+### 固定结账与结算状态模块
+
+`buyna-checkout-flow-core` 与 `buyna-commerce-settlement-core` 是固定的
+checkout 和 settlement 状态行为；website-builder 完整安装会从清单安装两者。
+每个项目生成自己的表单展示、provider Adapter 和 database Adapter，不能在这些
+共享状态模块中加入 CSS、商家标识或支付/数据库实现。
+
 当前预留：
 
 - `planned-skills/buyna-erp/`
