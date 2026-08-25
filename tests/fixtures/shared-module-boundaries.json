@@ -89,11 +89,11 @@
       "\\barn:(?:aws|aws-cn|aws-us-gov):",
       "\\bi-[0-9a-f]{8,17}\\b"
     ],
-    "rawSecretValuePatterns": [
+    "rawSecretSignatures": [
       "\\bAKIA[0-9A-Z]{16}\\b",
       "-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
       "[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}",
-      "^Bearer\\s+[A-Za-z0-9._~+/=-]{8,}$"
+      "\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}"
     ]
   }
 }

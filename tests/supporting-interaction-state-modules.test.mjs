@@ -41,72 +41,158 @@ function tokenizeJavaScript(source) {
   const tokens = [];
   let index = 0;
   const push = (type, value) => tokens.push({ type, value });
+  const regexPrefixIdentifiers = new Set([
+    "await", "case", "delete", "in", "instanceof", "of", "return", "throw",
+    "typeof", "void", "yield",
+  ]);
+  const regexPrefixPunctuators = new Set([
+    "(", "{", "[", ",", ";", "=", ":", "?", "!", "~", "+", "-", "*",
+    "%", "&", "|", "^", "&&", "||", "??", "=>",
+  ]);
 
-  while (index < source.length) {
-    const character = source[index];
-    const next = source[index + 1];
-    if (/\s/u.test(character)) {
-      index += 1;
-      continue;
-    }
-    if (character === "/" && next === "/") {
-      index += 2;
-      while (index < source.length && source[index] !== "\n") index += 1;
-      continue;
-    }
-    if (character === "/" && next === "*") {
-      index += 2;
-      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
-        index += 1;
+  function readQuoted(quote) {
+    let value = "";
+    index += 1;
+    while (index < source.length) {
+      if (source[index] === "\\") {
+        value += source[index];
+        if (index + 1 < source.length) value += source[index + 1];
+        index += 2;
+        continue;
       }
-      index = Math.min(index + 2, source.length);
-      continue;
-    }
-    if (character === "'" || character === '"' || character === "`") {
-      const quote = character;
-      let value = "";
+      if (source[index] === quote) {
+        index += 1;
+        break;
+      }
+      value += source[index];
       index += 1;
-      while (index < source.length) {
-        if (source[index] === "\\") {
-          value += source[index];
-          if (index + 1 < source.length) value += source[index + 1];
-          index += 2;
-          continue;
-        }
-        if (source[index] === quote) {
-          index += 1;
-          break;
-        }
+    }
+    push("string", value);
+  }
+
+  function regexCanStart() {
+    const previous = tokens.at(-1);
+    if (!previous) return true;
+    if (previous.type === "identifier") return regexPrefixIdentifiers.has(previous.value);
+    return regexPrefixPunctuators.has(previous.value);
+  }
+
+  function readRegex() {
+    let value = "/";
+    let inCharacterClass = false;
+    index += 1;
+    while (index < source.length) {
+      const character = source[index];
+      value += character;
+      index += 1;
+      if (character === "\\" && index < source.length) {
         value += source[index];
         index += 1;
+        continue;
       }
-      push("string", value);
-      continue;
+      if (character === "[") inCharacterClass = true;
+      if (character === "]") inCharacterClass = false;
+      if (character === "/" && !inCharacterClass) break;
     }
-    if (/[A-Za-z_$]/u.test(character)) {
-      const start = index;
+    while (index < source.length && /[A-Za-z]/u.test(source[index])) {
+      value += source[index];
       index += 1;
-      while (index < source.length && /[A-Za-z0-9_$]/u.test(source[index])) index += 1;
-      push("identifier", source.slice(start, index));
-      continue;
     }
-    if (/[0-9]/u.test(character)) {
-      const start = index;
-      index += 1;
-      while (index < source.length && /[0-9A-Za-z_.]/u.test(source[index])) index += 1;
-      push("number", source.slice(start, index));
-      continue;
-    }
-    const operator = ["===", "!==", "=>", "==", "!=", ">=", "<=", "?.", "??", "&&", "||", "**", "++", "--", "+=", "-=", "*=", "/="]
-      .find((candidate) => source.startsWith(candidate, index));
-    if (operator) {
-      push("punctuator", operator);
-      index += operator.length;
-      continue;
-    }
-    push("punctuator", character);
-    index += 1;
+    push("regex", value);
   }
+
+  function scan(stopAtTemplateExpressionEnd = false) {
+    let nestedBraceDepth = 0;
+    while (index < source.length) {
+      const character = source[index];
+      const next = source[index + 1];
+      if (stopAtTemplateExpressionEnd && character === "}" && nestedBraceDepth === 0) {
+        index += 1;
+        return;
+      }
+      if (/\s/u.test(character)) {
+        index += 1;
+        continue;
+      }
+      if (character === "/" && next === "/") {
+        index += 2;
+        while (index < source.length && source[index] !== "\n") index += 1;
+        continue;
+      }
+      if (character === "/" && next === "*") {
+        index += 2;
+        while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
+          index += 1;
+        }
+        index = Math.min(index + 2, source.length);
+        continue;
+      }
+      if (character === "'" || character === '"') {
+        readQuoted(character);
+        continue;
+      }
+      if (character === "`") {
+        index += 1;
+        let chunk = "";
+        while (index < source.length) {
+          if (source[index] === "\\") {
+            chunk += source[index];
+            if (index + 1 < source.length) chunk += source[index + 1];
+            index += 2;
+            continue;
+          }
+          if (source[index] === "`") {
+            if (chunk) push("string", chunk);
+            index += 1;
+            break;
+          }
+          if (source[index] === "$" && source[index + 1] === "{") {
+            if (chunk) push("string", chunk);
+            chunk = "";
+            index += 2;
+            scan(true);
+            continue;
+          }
+          chunk += source[index];
+          index += 1;
+        }
+        continue;
+      }
+      if (character === "/" && regexCanStart()) {
+        readRegex();
+        continue;
+      }
+      if (/[A-Za-z_$]/u.test(character)) {
+        const start = index;
+        index += 1;
+        while (index < source.length && /[A-Za-z0-9_$]/u.test(source[index])) index += 1;
+        push("identifier", source.slice(start, index));
+        continue;
+      }
+      if (/[0-9]/u.test(character)) {
+        const start = index;
+        index += 1;
+        while (index < source.length && /[0-9A-Za-z_.]/u.test(source[index])) index += 1;
+        push("number", source.slice(start, index));
+        continue;
+      }
+      const operator = ["===", "!==", "=>", "==", "!=", ">=", "<=", "?.", "??", "&&", "||", "**", "++", "--", "+=", "-=", "*=", "/="]
+        .find((candidate) => source.startsWith(candidate, index));
+      if (operator) {
+        push("punctuator", operator);
+        index += operator.length;
+        continue;
+      }
+      if (stopAtTemplateExpressionEnd && character === "{") nestedBraceDepth += 1;
+      if (stopAtTemplateExpressionEnd && character === "}" && nestedBraceDepth > 0) {
+        nestedBraceDepth -= 1;
+      }
+      push("punctuator", character);
+      index += 1;
+    }
+  }
+
+  scan();
   return tokens;
 }
 
@@ -139,25 +225,56 @@ function extractModuleSpecifiers(tokens) {
   return specifiers;
 }
 
-function locallyDeclaredFunctions(tokens) {
-  const names = new Set();
-  for (let index = 0; index < tokens.length - 1; index += 1) {
-    if (tokens[index].value === "function" && tokens[index + 1].type === "identifier") {
-      names.add(tokens[index + 1].value);
+function buildLexicalScopes(tokens) {
+  const scopes = [{ parent: null, bindings: new Set() }];
+  const stack = [0];
+  for (const token of tokens) {
+    if (token.value === "}" && stack.length > 1) stack.pop();
+    token.scope = stack.at(-1);
+    if (token.value === "{") {
+      const openedScope = scopes.length;
+      scopes.push({ parent: stack.at(-1), bindings: new Set() });
+      token.openedScope = openedScope;
+      stack.push(openedScope);
     }
   }
-  return names;
+
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    if (tokens[index].value === "function" && tokens[index + 1].type === "identifier") {
+      scopes[tokens[index].scope].bindings.add(tokens[index + 1].value);
+    }
+    if (["const", "let", "var"].includes(tokens[index].value)
+      && tokens[index + 1]?.type === "identifier" && tokens[index + 2]?.value === "=") {
+      const statementEnd = tokens.findIndex((token, cursor) => (
+        cursor > index + 2 && token.value === ";"
+      ));
+      const statement = tokens.slice(index + 3, statementEnd === -1 ? tokens.length : statementEnd);
+      if (statement.some((token) => token.value === "function" || token.value === "=>")) {
+        scopes[tokens[index].scope].bindings.add(tokens[index + 1].value);
+      }
+    }
+  }
+  return scopes;
+}
+
+function scopeHasBinding(scopes, startScope, name) {
+  let scope = startScope;
+  while (scope !== null && scope !== undefined) {
+    if (scopes[scope].bindings.has(name)) return true;
+    scope = scopes[scope].parent;
+  }
+  return false;
 }
 
 function executableBoundaries(tokens) {
   const violations = new Set();
-  const localFunctions = locallyDeclaredFunctions(tokens);
+  const scopes = buildLexicalScopes(tokens);
   for (let index = 0; index < tokens.length; index += 1) {
     const current = tokens[index];
     const previous = tokens[index - 1];
     const next = tokens[index + 1];
     if (current.value === "fetch" && next?.value === "("
-      && previous?.value !== "." && !localFunctions.has("fetch")) {
+      && previous?.value !== "." && !scopeHasBinding(scopes, current.scope, "fetch")) {
       violations.add("providerTransport");
     }
     if (current.value === "globalThis" && next?.value === "."
@@ -207,15 +324,17 @@ function assignedKey(tokens, operatorIndex) {
   return null;
 }
 
-function hasRawSecretLiteral(tokens, policy) {
-  const valuePatterns = policy.rawSecretValuePatterns.map((pattern) => new RegExp(pattern, "iu"));
-  if (tokens.some((token) => token.type === "string"
-    && valuePatterns.some((pattern) => pattern.test(token.value)))) return true;
+function hasRawSecretLiteral(tokens, source, policy) {
+  const signatures = policy.rawSecretSignatures.map((pattern) => new RegExp(pattern, "iu"));
+  if (signatures.some((pattern) => pattern.test(source))) return true;
 
   for (let index = 0; index < tokens.length - 1; index += 1) {
     if (!["=", ":"].includes(tokens[index].value)) continue;
-    if (tokens[index].value === ":" && !["{", ","].includes(tokens[index - 2]?.value)) {
-      continue;
+    if (tokens[index].value === ":") {
+      const computed = tokens[index - 1]?.value === "]"
+        && tokens[index - 2]?.type === "string" && tokens[index - 3]?.value === "[";
+      const container = tokens[index - (computed ? 4 : 2)]?.value;
+      if (!["{", ","].includes(container)) continue;
     }
     const value = tokens[index + 1];
     const key = assignedKey(tokens, index);
@@ -267,7 +386,9 @@ function supportingBoundaryViolations(files, policy, readSource) {
         violations.push({ file, boundary });
       }
     }
-    if (hasRawSecretLiteral(tokens, policy)) violations.push({ file, boundary: "rawSecretLiteral" });
+    if (hasRawSecretLiteral(tokens, source, policy)) {
+      violations.push({ file, boundary: "rawSecretLiteral" });
+    }
   }
   return violations;
 }
@@ -402,7 +523,7 @@ test("supporting module source rejects executable infrastructure, UI, route, and
     .supportingInteractionSourceBoundary;
   assert.ok(policy, "supporting interaction source boundary is declared");
   for (const requiredPolicy of [
-    "productionIdentifierPatterns", "rawSecretValuePatterns",
+    "productionIdentifierPatterns", "rawSecretSignatures",
   ]) {
     assert.ok(Array.isArray(policy[requiredPolicy]), `${requiredPolicy} is declared`);
   }
@@ -422,7 +543,7 @@ test("supporting source boundary catches executable mutations but permits valida
     .supportingInteractionSourceBoundary;
   assert.ok(policy, "supporting interaction source boundary is declared");
   for (const requiredPolicy of [
-    "productionIdentifierPatterns", "rawSecretValuePatterns",
+    "productionIdentifierPatterns", "rawSecretSignatures",
   ]) {
     assert.ok(Array.isArray(policy[requiredPolicy]), `${requiredPolicy} is declared`);
   }
@@ -440,6 +561,9 @@ test("supporting source boundary catches executable mutations but permits valida
     ["undici.mjs", "import { request } from 'undici';", "providerTransportImport"],
     ["require-http.mjs", "const https = require('node:https');", "providerTransportImport"],
     ["fetch.mjs", "export const send = () => fetch('/provider');", "providerTransport"],
+    ["template-fetch.mjs", "export const send = `${fetch('/provider')}`;", "providerTransport"],
+    ["nested-global-fetch.mjs", "function outer(){ function fetch(value){ return value; } fetch('/local'); } fetch('/provider');", "providerTransport"],
+    ["sibling-fetch.mjs", "function left(){ function fetch(value){ return value; } fetch('/local'); } function right(){ fetch('/provider'); }", "providerTransport"],
     ["sql-call.mjs", "export const load = client => client.query('SELECT * FROM sessions');", "sqlOrOrm"],
     ["aws-call.mjs", "export const command = new PutObjectCommand({});", "awsSdkCall"],
     ["merchant.mjs", "export const merchant = 'medinance';", "merchantIdentifier"],
@@ -447,14 +571,17 @@ test("supporting source boundary catches executable mutations but permits valida
     ["production-arn.mjs", "export const target = 'arn:aws:s3:::merchant-files';", "productionIdentifier"],
     ["production-instance.mjs", "export const target = 'i-0123456789abcdef0';", "productionIdentifier"],
     ["access-key.mjs", "export const value = 'AKIA1234567890ABCDEF';", "rawSecretLiteral"],
+    ["commented-access-key.mjs", "// leaked AKIA1234567890ABCDEF", "rawSecretLiteral"],
     ["pem.mjs", "export const value = '-----BEGIN PRIVATE KEY-----';", "rawSecretLiteral"],
     ["jwt.mjs", "export const value = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEifQ.abcdefghijklmnop';", "rawSecretLiteral"],
     ["bearer.mjs", "export const header = 'Bearer literalcredential123';", "rawSecretLiteral"],
+    ["embedded-bearer.mjs", "export const header = 'Authorization: Bearer literalcredential123';", "rawSecretLiteral"],
     ["assigned-token.mjs", "const token = 'literalcredential123'; export { token };", "rawSecretLiteral"],
     ["direct-password.mjs", "password = 'literalcredential123';", "rawSecretLiteral"],
     ["property-token.mjs", "state.token = 'literalcredential123';", "rawSecretLiteral"],
-    ["bracket-cookie.mjs", "state['cookie'] = 'literalcredential123';", "rawSecretLiteral"],
+    ["bracket-cookie.mjs", "config['cookie'] = 'literalcredential123';", "rawSecretLiteral"],
     ["object-credential.mjs", "export const state = { credential: 'literalcredential123' };", "rawSecretLiteral"],
+    ["computed-token.mjs", "export const state = { ['token']: 'literalcredential123' };", "rawSecretLiteral"],
   ];
 
   try {
@@ -467,12 +594,24 @@ test("supporting source boundary catches executable mutations but permits valida
         "const chosen = condition ? credential : 'literalcredential123';",
         "const password = ''; const authToken = '<TOKEN>'; const credential = '${CREDENTIAL}';",
         "function fetch(input) { return input; } fetch('/local-only');",
+        "function scoped() { function fetch(input) { return input; } return fetch('/local-only'); }",
         "const importExample = 'import pg from \\\"pg\\\"';",
         "const callExample = 'fetch(\\\"/provider\\\")';",
+        "const regexExample = /fetch\\(.*\\)/;",
         "// import React from 'react'; fetch('/ignored');",
         "/* const token = 'ignored'; client.query('SELECT * FROM ignored'); */",
-        "export { compared, chosen, password, authToken, credential, importExample, callExample };",
+        "export { compared, chosen, password, authToken, credential, scoped, importExample, callExample, regexExample };",
       ].join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      join(directory, "allowed-nested-fetch.mjs"),
+      "function outer(){ function fetch(value){ return value; } function nested(){ return fetch('/local'); } return nested(); } export { outer };",
+      "utf8",
+    );
+    writeFileSync(
+      join(directory, "allowed-regex.mjs"),
+      "export const fetchPattern = /fetch\\(.*\\)/;",
       "utf8",
     );
     const files = readdirSync(directory).map((name) => join(directory, name));
@@ -489,7 +628,7 @@ test("supporting source boundary catches executable mutations but permits valida
         `${name} is rejected as ${boundary}`,
       );
     }
-    assert.ok(!violations.some((violation) => violation.file.endsWith("allowed-validation.mjs")));
+    assert.ok(!violations.some((violation) => violation.file.includes("allowed-")));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
