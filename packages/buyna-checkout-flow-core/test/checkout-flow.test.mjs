@@ -23,10 +23,12 @@ test('draft validation requires configured minimum fields and one approved payme
     ()=>flow.validateDraft({fields:{buyer_name:'Ada',email:''},paymentMethod:'wechat'}),
     error=>error.code==='CHECKOUT_MINIMUM_FIELDS_MISSING',
   );
-  assert.throws(
-    ()=>flow.validateDraft({fields:{buyer_name:'Ada',email:'ada@example.test',notes:''},paymentMethod:'card_number'}),
-    error=>error.code==='CHECKOUT_SENSITIVE_FIELD',
-  );
+  for(const field of ['card_number','cvv','token']){
+    assert.throws(
+      ()=>flow.validateDraft({fields:{buyer_name:'Ada',email:'ada@example.test',[field]:'sensitive'},paymentMethod:'wechat'}),
+      error=>error.code==='CHECKOUT_SENSITIVE_FIELD',
+    );
+  }
   assert.throws(
     ()=>flow.validateDraft({fields:{buyer_name:'Ada',email:'ada@example.test',notes:''}}),
     error=>error.code==='CHECKOUT_PAYMENT_METHOD_REQUIRED',
