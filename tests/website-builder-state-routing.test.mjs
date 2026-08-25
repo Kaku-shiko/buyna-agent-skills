@@ -154,7 +154,17 @@ const stateAt = (currentGate, {
   const projectId = "routing-shop";
   const configuration = {capabilities, dashboardSlices: []};
   if (paymentArchitecture) configuration.paymentArchitecture = paymentArchitecture;
-  if (workPackageGates.length) configuration.workPackage = {gates: workPackageGates, authorizedBy: "user"};
+  if (workPackageGates.length) configuration.workPackage = {
+    gates: workPackageGates,
+    scope: "approved website route test",
+    authorizedBy: "user",
+    authorizedAt: "2026-08-26T00:00:00.000Z",
+    completedGates: [],
+    authorizationEvidence: {
+      source: "workflow_transition", event: "work_package_authorized", gates: [...workPackageGates],
+      scope: "approved website route test", authorizedBy: "user", authorizedAt: "2026-08-26T00:00:00.000Z",
+    },
+  };
   return {
     projectId,
     currentGate,
@@ -480,6 +490,35 @@ test("completed deployed workflow returns an explicit checkout repair reopen act
     commerceArchitecture: "checkout-flow+transport-adapters+settlement",
     repairTransition: { type: "openRepairSlice", gate: "checkout_payment" },
     externalActions: { git: false, aws: false },
+  });
+});
+
+test("completed workflow blocks a caller-fabricated repair record without transition evidence", () => {
+  const workflowState = completedWorkflow(productGlobepay);
+  workflowState.activeRepair = {
+    gate: "checkout_payment",
+    status: "ready",
+    scope: "caller fabricated checkout repair",
+    authorizedBy: "user",
+    authorizedAt: "2026-08-26T00:00:00.000Z",
+  };
+  assert.deepEqual(runRoute({
+    capabilities: productGlobepay,
+    workflowState,
+    requestedSlice: "checkout_payment",
+    releaseIntent: false,
+    mode: "repair",
+  }), {
+    action: "blocked",
+    targetGate: "checkout_payment",
+    requestedSlice: "checkout_payment",
+    reason: "REPAIR_AUTHORIZATION_EVIDENCE_INVALID",
+    skills: [],
+    fixedModules: ["buyna-workflow-state-core"],
+    notApplicableGates: [],
+    continueWithoutConfirmation: false,
+    commerceArchitecture: null,
+    externalActions: {git: false, aws: false},
   });
 });
 

@@ -128,6 +128,126 @@ const intake=(capabilities=contentCapabilities,paymentArchitecture)=>({
   ...(paymentArchitecture?{paymentArchitecture}:{}),
 });
 
+test('Dashboard slices require a sanctioned approval transition after design evidence',()=>{
+  assert.throws(
+    ()=>createWorkflow({projectId:'forged-dashboard-slices',dashboardSlices:['products']}),
+    /DASHBOARD_SLICES_REQUIRE_APPROVED_TRANSITION/,
+  );
+  let state=createWorkflow({projectId:'approved-dashboard-slices'});
+  assert.throws(
+    ()=>workflowCore.setApprovedDashboardSlices({state,slices:['products'],approvedBy:'user'}),
+    /DASHBOARD_SLICE_DESIGN_APPROVAL_REQUIRED/,
+  );
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities,'fixed-cores'));
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  const original=structuredClone(state);
+  const transition=workflowCore.setApprovedDashboardSlices({
+    state,
+    slices:['products','orders'],
+    approvedBy:'user',
+    now:'2026-08-26T01:00:00.000Z',
+  });
+  assert.deepEqual(state,original);
+  assert.deepEqual(transition.state.configuration.dashboardSlices,['products','orders']);
+  assert.deepEqual(transition.state.configuration.dashboardSliceApproval,{
+    slices:['products','orders'],
+    approvedBy:'user',
+    approvedAt:'2026-08-26T01:00:00.000Z',
+    authorizationEvidence:{
+      source:'workflow_transition',
+      event:'dashboard_slices_approved',
+      slices:['products','orders'],
+      approvedBy:'user',
+      approvedAt:'2026-08-26T01:00:00.000Z',
+    },
+  });
+  assert.deepEqual(transition.event,{
+    event:'dashboard_slices_approved',
+    slices:['products','orders'],
+    approvedBy:'user',
+    at:'2026-08-26T01:00:00.000Z',
+  });
+  for(const mutate of [
+    (record)=>{record.authorizationEvidence.approvedBy='other';},
+    (record)=>{record.authorizationEvidence.slices=['products'];},
+    (record)=>{record.authorizationEvidence.approvedAt='2026-08-26T01:01:00.000Z';},
+    (record)=>{record.extra=true;},
+  ]){
+    const mismatch=structuredClone(transition.state);
+    mutate(mismatch.configuration.dashboardSliceApproval);
+    assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(mismatch),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+  }
+  assert.throws(
+    ()=>workflowCore.setApprovedDashboardSlices({state:transition.state,slices:['unknown_slice'],approvedBy:'user'}),
+    /DASHBOARD_SLICE_INVALID/,
+  );
+});
+
+test('workflow readiness rejects fabricated authorization and slice records without transition evidence',()=>{
+  let state=createWorkflow({projectId:'authorization-evidence'});
+  state.configuration.workPackage={
+    gates:['dashboard_integration'],scope:'all Dashboard work',authorizedBy:'user',
+    authorizedAt:'2026-08-26T01:00:00.000Z',completedGates:[],
+  };
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(state),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+
+  state=createWorkflow({projectId:'slice-evidence'});
+  state.configuration.dashboardSlices=['products'];
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(state),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+});
+
+test('canonical work-package and repair transitions persist exact authorization evidence',()=>{
+  let state=createWorkflow({projectId:'canonical-work-package'});
+  const authorized=authorizeWorkPackage({
+    state,gates:['dashboard_integration'],scope:'approved Dashboard slice',authorizedBy:'user',
+    now:'2026-08-26T02:00:00.000Z',
+  });
+  assert.deepEqual(authorized.state.configuration.workPackage.authorizationEvidence,{
+    source:'workflow_transition',event:'work_package_authorized',
+    gates:['dashboard_integration'],scope:'approved Dashboard slice',
+    authorizedBy:'user',authorizedAt:'2026-08-26T02:00:00.000Z',
+  });
+  assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(authorized.state));
+  const forged=structuredClone(authorized.state);
+  delete forged.configuration.workPackage.authorizationEvidence;
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(forged),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+  for(const mutate of [
+    (record)=>{record.authorizationEvidence.authorizedBy='other';},
+    (record)=>{record.authorizationEvidence.scope='other scope';},
+    (record)=>{record.authorizationEvidence.gates=['frontend_code'];},
+    (record)=>{record.authorizationEvidence.authorizedAt='2026-08-26T02:01:00.000Z';},
+    (record)=>{record.authorizationEvidence.extra=true;},
+  ]){
+    const mismatch=structuredClone(authorized.state);
+    mutate(mismatch.configuration.workPackage);
+    assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(mismatch),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+  }
+
+  const completed=completedCommerceWorkflow('canonical-repair-evidence');
+  const repair=workflowCore.openRepairSlice({
+    state:completed,gate:'dashboard_integration',scope:'repair approved Dashboard slice',
+    authorizedBy:'user',now:'2026-08-26T03:00:00.000Z',
+  });
+  assert.deepEqual(repair.state.activeRepair.authorizationEvidence,{
+    source:'workflow_transition',event:'repair_slice_opened',gate:'dashboard_integration',
+    scope:'repair approved Dashboard slice',authorizedBy:'user',authorizedAt:'2026-08-26T03:00:00.000Z',
+  });
+  const forgedRepair=structuredClone(repair.state);
+  delete forgedRepair.activeRepair.authorizationEvidence;
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(forgedRepair),/COMPLETED_GATE_EVIDENCE_INVALID/);
+  for(const mutate of [
+    (record)=>{record.authorizationEvidence.authorizedBy='other';},
+    (record)=>{record.authorizationEvidence.scope='other scope';},
+    (record)=>{record.authorizationEvidence.gate='frontend_code';},
+    (record)=>{record.authorizationEvidence.authorizedAt='2026-08-26T03:01:00.000Z';},
+    (record)=>{record.authorizationEvidence.extra=true;},
+  ]){
+    const mismatch=structuredClone(repair.state);
+    mutate(mismatch.activeRepair);
+    assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(mismatch),/COMPLETED_GATE_EVIDENCE_INVALID/);
+  }
+});
+
 test('lifecycle capabilities normalize once and persist through real intake approval',()=>{
   assert.equal(typeof workflowCore.normalizeWebsiteCapabilities,'function');
   const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};
@@ -175,9 +295,10 @@ test('frontend code cannot request approval without files passing checks and an 
 });
 
 test('dashboard integration stays incomplete until every required slice has code and passing verification',()=>{
-  let state=createWorkflow({projectId:'shop-three',dashboardSlices:['merchant_identity','products','orders']});
+  let state=createWorkflow({projectId:'shop-three'});
   state=completeGate(state,'customer_intake',intake(commerceCapabilities,'fixed-cores'));
   state=completeGate(state,'design_and_structure',{designRecord:'workflow/records/design.json',pageStructure:'workflow/records/page-structure.json',boardStatus:'delivered'});
+  state=workflowCore.setApprovedDashboardSlices({state,slices:['merchant_identity','products','orders'],approvedBy:'user'}).state;
   state=completeGate(state,'frontend_code',{deliveredFiles:['src/index.tsx'],verification:[{status:'passed'}],interfaceContract:'workflow/records/frontend-contract.json'});
   state=startGate({state,gate:'dashboard_integration'}).state;
   state=recordDelivery({state,gate:'dashboard_integration',delivery:{completedSlices:['merchant_identity','products'],frontendFiles:['src/api.ts'],backendFiles:['server.ts'],verification:[{status:'passed'}]}}).state;
@@ -515,6 +636,10 @@ test('completed workflow opens a separate authorized repair slice without rewrit
     scope:'repair verified checkout behavior',
     authorizedBy:'user',
     authorizedAt:'2026-08-25T03:00:00.000Z',
+    authorizationEvidence:{
+      source:'workflow_transition',event:'repair_slice_opened',gate:'checkout_payment',
+      scope:'repair verified checkout behavior',authorizedBy:'user',authorizedAt:'2026-08-25T03:00:00.000Z',
+    },
   });
   assert.equal(transition.event.event,'repair_slice_opened');
 });

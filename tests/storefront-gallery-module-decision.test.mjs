@@ -47,6 +47,14 @@ const expectedRecord = {
       path: "tests/merchant-commerce-lifecycle-routing.test.mjs",
       reason: "workflow_gate_index",
     },
+    {
+      path: "tests/supporting-interaction-skill-contract.test.mjs",
+      reason: "generated_presentation_boundary_test",
+    },
+    {
+      path: "tests/supporting-interaction-state-routing.test.mjs",
+      reason: "deferred_module_route_assertion",
+    },
   ],
   forbiddenImportsChecked: true,
   visualFiles: [],

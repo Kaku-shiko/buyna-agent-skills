@@ -19,6 +19,14 @@ const paths = {
   operations: "skills/buyna-skill-operations/SKILL.md",
 };
 
+function assertNoFixedVisualRequirements(content) {
+  const positiveLines = content.split(/\r?\n/).filter((line) =>
+    !/\b(?:do not|does not|never|no |not |without|remain(?:s)? project-generated|generated per project|outside)\b/i.test(line)
+  ).join("\n");
+  assert.doesNotMatch(positiveLines, /\b(?:fixed|standard|shared|common|canonical)\s+(?:login screen|Dashboard shell|gallery theme|file-card component)\b/i);
+  assert.doesNotMatch(positiveLines, /\b(?:fixed|standard|shared|common|canonical)\s+(?:colors?|fonts?|spacing|icons?|visual markup|layout|skin|theme)\b/i);
+}
+
 test("Builder is the single entrypoint and exposes bounded Dashboard selection without a new phase", () => {
   const builder = read(paths.builder);
   const routing = read(paths.routing);
@@ -27,6 +35,10 @@ test("Builder is the single entrypoint and exposes bounded Dashboard selection w
   assert.match(routing, /dashboardSlice.*persisted.*configuration\.dashboardSlices/is);
   assert.match(routing, /DASHBOARD_SLICE_REQUIRED/);
   assert.match(routing, /DASHBOARD_FULL_SCOPE_APPROVAL_REQUIRED/);
+  assert.match(builder, /setApprovedDashboardSlices/);
+  assert.match(builder, /authorizeWorkPackage/);
+  assert.match(builder, /openRepairSlice/);
+  assert.match(routing, /workflow transition evidence/i);
 });
 
 test("S3 Skill links the fixed queue and executor while transport remains an Adapter", () => {
@@ -88,6 +100,14 @@ test("onboarding registers context lookup inputs and operations verifies accepte
 test("shared contracts fix behavior without prescribing a visual skin", () => {
   const all = Object.values(paths).map(read).join("\n");
   assert.match(all, /generated per project/i);
-  assert.doesNotMatch(all, /shared (?:login screen|Dashboard shell|gallery theme|file-card component)/i);
-  assert.doesNotMatch(all, /fixed (?:colors|fonts|spacing|icons|visual markup)/i);
+  assertNoFixedVisualRequirements(all);
+  for (const mutation of [
+    "Use a shared login screen for every merchant.",
+    "The standard Dashboard shell is required.",
+    "Import the fixed gallery theme.",
+    "All projects use one common file-card component.",
+    "Use fixed colors, fonts, layout, spacing, and icons.",
+  ]) {
+    assert.throws(() => assertNoFixedVisualRequirements(`${all}\n${mutation}`));
+  }
 });

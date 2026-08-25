@@ -15,6 +15,7 @@ const {
   createWorkflow,
   recordDelivery,
   requestApproval,
+  setApprovedDashboardSlices,
   startGate,
 } = await import(new URL("packages/buyna-workflow-state-core/src/index.mjs", root));
 
@@ -105,10 +106,25 @@ const deliveryFor = (gate, capabilities, paymentArchitecture) => ({
 function stateAt(currentGate, capabilities, workPackageGates = []) {
   const currentIndex = gates.indexOf(currentGate);
   const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
-  const configuration = { capabilities, dashboardSlices: capabilities.requiresDashboard ? ["orders"] : [] };
+  const dashboardSlices = capabilities.requiresDashboard ? ["orders"] : [];
+  const configuration = { capabilities, dashboardSlices };
+  if (dashboardSlices.length) configuration.dashboardSliceApproval = {
+    slices: [...dashboardSlices], approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
+    authorizationEvidence: {
+      source: "workflow_transition", event: "dashboard_slices_approved", slices: [...dashboardSlices],
+      approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
+    },
+  };
   if (paymentArchitecture) configuration.paymentArchitecture = paymentArchitecture;
   if (workPackageGates.length) {
-    configuration.workPackage = { gates: workPackageGates, authorizedBy: "user" };
+    configuration.workPackage = {
+      gates: workPackageGates, scope: "approved lifecycle route test", authorizedBy: "user",
+      authorizedAt: "2026-08-26T00:00:00.000Z", completedGates: [],
+      authorizationEvidence: {
+        source: "workflow_transition", event: "work_package_authorized", gates: [...workPackageGates],
+        scope: "approved lifecycle route test", authorizedBy: "user", authorizedAt: "2026-08-26T00:00:00.000Z",
+      },
+    };
   }
   return {
     projectId: "route-test",
@@ -139,13 +155,13 @@ function approveCurrentGate(state, gate, delivery) {
 
 function workflowAtGate(targetGate, capabilities) {
   const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
-  let state = createWorkflow({
-    projectId: "route-test",
-    dashboardSlices: capabilities.requiresDashboard ? ["orders"] : [],
-  });
+  let state = createWorkflow({ projectId: "route-test" });
   state = approveCurrentGate(state, "customer_intake", deliveryFor("customer_intake", capabilities, paymentArchitecture));
   if (targetGate === "design_and_structure") return state;
   state = approveCurrentGate(state, "design_and_structure", deliveryFor("design_and_structure", capabilities, paymentArchitecture));
+  if (capabilities.requiresDashboard) state = setApprovedDashboardSlices({
+    state, slices: ["orders"], approvedBy: "user",
+  }).state;
   if (targetGate === "frontend_code") return state;
   state = approveCurrentGate(state, "frontend_code", deliveryFor("frontend_code", capabilities, paymentArchitecture));
   if (targetGate === "dashboard_integration") return state;

@@ -5,6 +5,7 @@ const root = new URL("../", import.meta.url);
 const { planWebsiteRoute } = await import(
   new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root)
 );
+const workflowCore = await import(new URL("packages/buyna-workflow-state-core/src/index.mjs", root));
 
 const gates = [
   "customer_intake",
@@ -53,8 +54,25 @@ function deliveryFor(gate, capabilities) {
 function stateAt(currentGate, capabilities, dashboardSlices = [], workPackageGates = []) {
   const currentIndex = gates.indexOf(currentGate);
   const configuration = { capabilities, dashboardSlices };
+  if (dashboardSlices.length) configuration.dashboardSliceApproval = {
+    slices: [...dashboardSlices], approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
+    authorizationEvidence: {
+      source: "workflow_transition", event: "dashboard_slices_approved", slices: [...dashboardSlices],
+      approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
+    },
+  };
   if (capabilities.requiresPayment) configuration.paymentArchitecture = "fixed-cores";
-  if (workPackageGates.length) configuration.workPackage = { gates: workPackageGates, authorizedBy: "user" };
+  if (workPackageGates.length) configuration.workPackage = {
+    gates: workPackageGates,
+    scope: "approved route test package",
+    authorizedBy: "user",
+    authorizedAt: "2026-08-26T00:00:00.000Z",
+    completedGates: [],
+    authorizationEvidence: {
+      source: "workflow_transition", event: "work_package_authorized", gates: [...workPackageGates],
+      scope: "approved route test package", authorizedBy: "user", authorizedAt: "2026-08-26T00:00:00.000Z",
+    },
+  };
   return {
     projectId: "supporting-route-test",
     currentGate,
@@ -188,4 +206,62 @@ test("every blocked capability route preserves stable Dashboard fields", () => {
   });
   assert.equal(route.reason, "CAPABILITY_SCOPE_CHANGE_REQUIRED");
   assertStableBoundary(route, null, []);
+});
+
+test("fabricated work-package and Dashboard slice configuration are blocked with stable reasons", () => {
+  const capabilities = product();
+  const rawWorkPackage = stateAt("dashboard_integration", capabilities, ["products"], ["dashboard_integration"]);
+  delete rawWorkPackage.configuration.workPackage.authorizationEvidence;
+  const workPackageRoute = planWebsiteRoute({
+    capabilities, workflowState: rawWorkPackage, requestedSlice: "dashboard_integration", dashboardSlice: "all",
+  });
+  assert.equal(workPackageRoute.action, "blocked");
+  assert.equal(workPackageRoute.reason, "WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID");
+  assertStableBoundary(workPackageRoute, null, []);
+
+  const rawSlices = stateAt("dashboard_integration", capabilities, ["products"]);
+  delete rawSlices.configuration.dashboardSliceApproval;
+  const sliceRoute = planWebsiteRoute({
+    capabilities, workflowState: rawSlices, requestedSlice: "dashboard_integration", dashboardSlice: "products",
+  });
+  assert.equal(sliceRoute.action, "blocked");
+  assert.equal(sliceRoute.reason, "DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID");
+  assertStableBoundary(sliceRoute, null, []);
+});
+
+test("real workflow transitions authorize Dashboard slices and bounded all routing end to end", () => {
+  const capabilities = product();
+  const approve = (state, gate, delivery) => {
+    state = workflowCore.startGate({ state, gate }).state;
+    state = workflowCore.recordDelivery({ state, gate, delivery }).state;
+    state = workflowCore.requestApproval({ state, gate }).state;
+    return workflowCore.approveGate({ state, gate, approvedBy: "user" }).state;
+  };
+  let state = workflowCore.createWorkflow({ projectId: "real-dashboard-route" });
+  state = approve(state, "customer_intake", { record: "intake.json", capabilities });
+  state = approve(state, "design_and_structure", {
+    designRecord: "design.json", pageStructure: "pages.json", boardStatus: "delivered",
+  });
+  state = workflowCore.setApprovedDashboardSlices({
+    state, slices: ["products", "orders"], approvedBy: "user",
+  }).state;
+  state = workflowCore.authorizeWorkPackage({
+    state,
+    gates: ["frontend_code", "dashboard_integration"],
+    scope: "approved frontend and Dashboard slices",
+    authorizedBy: "user",
+  }).state;
+  state = workflowCore.startGate({ state, gate: "frontend_code" }).state;
+  state = workflowCore.recordDelivery({
+    state, gate: "frontend_code",
+    delivery: { deliveredFiles: ["app.tsx"], verification: ["PASS"], interfaceContract: "contract.json" },
+  }).state;
+  state = workflowCore.completeAuthorizedGate({ state, gate: "frontend_code" }).state;
+
+  const route = planWebsiteRoute({
+    capabilities, workflowState: state, requestedSlice: "dashboard_integration", dashboardSlice: "all",
+  });
+  assert.equal(route.action, "execute");
+  assert.equal(route.continueWithoutConfirmation, true);
+  assertStableBoundary(route, "all", ["products", "orders"]);
 });

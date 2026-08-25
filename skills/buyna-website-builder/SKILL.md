@@ -47,6 +47,11 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    verifiable missing history through
    `importVerifiedHistory`; if a required record is unavailable, request one
    grouped evidence input.
+   After design/page-structure approval, persist the exact approved Dashboard
+   slice list through `setApprovedDashboardSlices`; never write
+   `configuration.dashboardSlices` directly. Create bounded execution approval
+   only through `authorizeWorkPackage`. These workflow transitions own the
+   actor, scope, timestamp, and event evidence consumed by routing.
 3. Run `scripts/route-builder.mjs` with the capabilities persisted in the loaded
    workflow state, the same capabilities as the external request assertion,
    requested slice, release intent, and `dashboardSlice` when the target is
@@ -123,6 +128,8 @@ After design approval, one bounded work package may include `frontend_code`,
 `dashboard_integration`, `checkout_payment`, and `testing_upload_gate`. Each
 gate still validates delivery evidence, while ready included gates continue
 without repeated confirmation.
+Call `authorizeWorkPackage`; do not hand-build `configuration.workPackage`.
+Completed repair authorization likewise comes only from `openRepairSlice`.
 
 Every returned child inherits `configuration.workPackage`, the approved
 fixed-module selection, and the approved Adapter contract. It must not repeat

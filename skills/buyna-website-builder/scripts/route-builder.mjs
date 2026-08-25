@@ -175,6 +175,20 @@ function verifyReadiness(workflowState) {
   return state;
 }
 
+function authorizationEvidenceFailure(error) {
+  const allowed = new Set([
+    "WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID",
+    "REPAIR_AUTHORIZATION_EVIDENCE_INVALID",
+    "DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID",
+  ]);
+  let current = error;
+  while (current instanceof Error) {
+    if (allowed.has(current.message)) return current.message;
+    current = current.cause;
+  }
+  return null;
+}
+
 function notApplicableGates(capabilities) {
   const result = [];
   if (!capabilities.requiresDashboard) result.push("dashboard_integration");
@@ -299,8 +313,28 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboard
 export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build", dashboardSlice = null } = {}) {
   if (!requestedSlices.includes(requestedSlice)) throw new Error("REQUESTED_SLICE_INVALID");
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
-  const workflowState = verifyReadiness(rawState);
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
+  let workflowState;
+  try {
+    workflowState = verifyReadiness(rawState);
+  } catch (error) {
+    const reason = authorizationEvidenceFailure(error);
+    if (!reason) throw error;
+    let capabilities;
+    try { capabilities = normalizeWebsiteCapabilities(rawCapabilities); } catch { capabilities = null; }
+    return withManifestVerification({
+      action: "blocked",
+      targetGate: rawState?.currentGate ?? requestedGate,
+      requestedSlice,
+      reason,
+      skills: [],
+      fixedModules: ["buyna-workflow-state-core"],
+      notApplicableGates: capabilities ? notApplicableGates(capabilities) : [],
+      continueWithoutConfirmation: false,
+      commerceArchitecture: null,
+      externalActions: { git: false, aws: false },
+    });
+  }
   const persistedRawCapabilities = workflowState.configuration?.capabilities;
   const capabilityMigration = legacyMixedMigration(persistedRawCapabilities);
   const persistedCapabilities = persistedRawCapabilities

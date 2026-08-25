@@ -26,6 +26,12 @@ Input:
   `workflowState.configuration.dashboardSlices`, or `all` when the bounded work
   package includes `dashboard_integration`.
 
+Persist Dashboard slices with `setApprovedDashboardSlices` after approved
+design/page-structure evidence. Persist bounded work with `authorizeWorkPackage`
+and repair scope with `openRepairSlice`. The router requires `workflow transition evidence`
+for each record (exact actor, scope, timestamp, and event); a hand-built
+configuration object is blocked before module selection.
+
 Output:
 
 - `targetGate`, `skills`, and `fixedModules` are the minimum ready route.

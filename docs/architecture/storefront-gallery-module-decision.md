@@ -41,6 +41,14 @@ are not implemented by this decision record.
     {
       "path": "tests/merchant-commerce-lifecycle-routing.test.mjs",
       "reason": "workflow_gate_index"
+    },
+    {
+      "path": "tests/supporting-interaction-skill-contract.test.mjs",
+      "reason": "generated_presentation_boundary_test"
+    },
+    {
+      "path": "tests/supporting-interaction-state-routing.test.mjs",
+      "reason": "deferred_module_route_assertion"
     }
   ],
   "forbiddenImportsChecked": true,
@@ -52,8 +60,9 @@ are not implemented by this decision record.
 
 The scan excludes Skills and architecture documents because requirement prose
 is not a runnable consumer. It excludes this decision test itself so the test
-cannot become self-evidence. All current matches are unrelated workflow gate
-indexes named `currentIndex`; the Dashboard Escape handler is also not a
+cannot become self-evidence. Current matches are unrelated workflow gate
+indexes named `currentIndex` or explicit tests that keep gallery presentation
+project-generated and the deferred package out of routes. None is a runnable
 storefront gallery consumer.
 
 Reconsider the module only when deleting one candidate implementation would

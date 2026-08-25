@@ -10,6 +10,10 @@ const gateOrder=Object.freeze([
 const interactionModes=Object.freeze(['team','developer']);
 const workPackageGates=Object.freeze(['frontend_code','dashboard_integration','checkout_payment','testing_upload_gate']);
 const paymentArchitectures=Object.freeze(['fixed-cores','legacy-globepay-service']);
+const dashboardSliceValues=Object.freeze([
+  'dashboard','merchant_identity','products','categories','services','media','page_editor',
+  'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings',
+]);
 
 function requiredText(value,code){
   const result=String(value??'').trim();
@@ -66,13 +70,15 @@ function selectPaymentArchitecture(state,capabilities,value){
 
 export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.2.0',dashboardSlices=[],interactionMode='team'}={}){
   const id=requiredText(projectId,'PROJECT_ID_REQUIRED');
+  if(!Array.isArray(dashboardSlices)||dashboardSlices.length)throw new Error('DASHBOARD_SLICES_REQUIRE_APPROVED_TRANSITION');
   const gates=Object.fromEntries(gateOrder.map((gate,index)=>[gate,{status:index===0?'ready':'locked'}]));
-  return{schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[...new Set(dashboardSlices.map(value=>requiredText(value,'INVALID_DASHBOARD_SLICE')))]},deferredMaterials:[]};
+  return{schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[]},deferredMaterials:[]};
 }
 
 export const WORKFLOW_GATES=gateOrder;
 export const INTERACTION_MODES=interactionModes;
 export const PAYMENT_ARCHITECTURES=paymentArchitectures;
+export const DASHBOARD_SLICES=dashboardSliceValues;
 
 const commonInteractionPolicy=Object.freeze({
   maxActionQuestionsPerTurn:1,
@@ -97,6 +103,14 @@ export function getInteractionPolicy({state}={}){
 }
 
 function copyState(state){return structuredClone(state)}
+function exactObjectKeys(value,keys,code){
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error(code);
+  const actual=Reflect.ownKeys(value);
+  if(actual.some(key=>typeof key!=='string')||actual.length!==keys.length||keys.some(key=>!actual.includes(key)))throw new Error(code);
+}
+function sameStringArray(left,right){
+  return Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((value,index)=>value===right[index]);
+}
 function gateState(state,gate){
   if(!gateOrder.includes(gate))throw new Error('UNKNOWN_GATE');
   if(state.currentGate!==gate)throw new Error('GATE_NOT_CURRENT');
@@ -209,6 +223,28 @@ export function approveGate({state,gate,approvedBy,now=new Date().toISOString()}
   return result(next,{event:'gate_approved',gate,approvedBy:actor,at:now});
 }
 
+export function setApprovedDashboardSlices({state,slices,approvedBy,now=new Date().toISOString()}={}){
+  const next=copyState(state);
+  const design=next.gates?.design_and_structure;
+  if(design?.status!=='approved'||!design.delivery)throw new Error('DASHBOARD_SLICE_DESIGN_APPROVAL_REQUIRED');
+  validateDeliveryEvidence(next,'design_and_structure',design.delivery);
+  if(!next.configuration?.capabilities?.requiresDashboard)throw new Error('DASHBOARD_SLICE_CAPABILITY_REQUIRED');
+  if(!nonEmptyArray(slices))throw new Error('DASHBOARD_SLICES_REQUIRED');
+  const selected=slices.map(value=>requiredText(value,'DASHBOARD_SLICE_INVALID'));
+  if(new Set(selected).size!==selected.length||selected.some(value=>!dashboardSliceValues.includes(value)))throw new Error('DASHBOARD_SLICE_INVALID');
+  const actor=requiredText(approvedBy,'APPROVER_REQUIRED');
+  if(!validTimestamp(now))throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  next.configuration.dashboardSlices=[...selected];
+  next.configuration.dashboardSliceApproval={
+    slices:[...selected],approvedBy:actor,approvedAt:now,
+    authorizationEvidence:{
+      source:'workflow_transition',event:'dashboard_slices_approved',slices:[...selected],approvedBy:actor,approvedAt:now,
+    },
+  };
+  next.updatedAt=now;
+  return result(next,{event:'dashboard_slices_approved',slices:[...selected],approvedBy:actor,at:now});
+}
+
 export function authorizeWorkPackage({state,gates,authorizedBy,scope,now=new Date().toISOString()}={}){
   const next=copyState(state);
   if(!nonEmptyArray(gates))throw new Error('WORK_PACKAGE_GATES_REQUIRED');
@@ -216,12 +252,18 @@ export function authorizeWorkPackage({state,gates,authorizedBy,scope,now=new Dat
   if(selected.some(gate=>!workPackageGates.includes(gate)))throw new Error('WORK_PACKAGE_GATE_REQUIRES_EXPLICIT_APPROVAL');
   const actor=requiredText(authorizedBy,'APPROVER_REQUIRED');
   next.configuration??={};
+  const normalizedScope=requiredText(scope,'WORK_PACKAGE_SCOPE_REQUIRED');
+  if(!validTimestamp(now))throw new Error('WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
   next.configuration.workPackage={
     gates:selected,
-    scope:requiredText(scope,'WORK_PACKAGE_SCOPE_REQUIRED'),
+    scope:normalizedScope,
     authorizedBy:actor,
     authorizedAt:now,
     completedGates:[],
+    authorizationEvidence:{
+      source:'workflow_transition',event:'work_package_authorized',gates:[...selected],scope:normalizedScope,
+      authorizedBy:actor,authorizedAt:now,
+    },
   };
   next.updatedAt=now;
   return result(next,{event:'work_package_authorized',gates:selected,authorizedBy:actor,at:now});
@@ -229,6 +271,7 @@ export function authorizeWorkPackage({state,gates,authorizedBy,scope,now=new Dat
 
 export function completeAuthorizedGate({state,gate,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate),workPackage=next.configuration?.workPackage;
+  validateWorkPackageAuthorization(next);
   if(current.status!=='in_progress')throw new Error('GATE_NOT_IN_PROGRESS');
   if(!current.delivery)throw new Error('DELIVERY_REQUIRED');
   if(!workPackage||!workPackage.gates?.includes(gate))throw new Error('GATE_NOT_AUTHORIZED_BY_WORK_PACKAGE');
@@ -265,6 +308,73 @@ function validTimestamp(value){
   return Boolean(String(value??'').trim())&&!Number.isNaN(Date.parse(value));
 }
 
+function validateDashboardSliceApproval(state){
+  const slices=state.configuration?.dashboardSlices;
+  if(!Array.isArray(slices))throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  const evidence=state.configuration?.dashboardSliceApproval;
+  if(slices.length===0){
+    if(evidence!==undefined)throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+    return;
+  }
+  if(new Set(slices).size!==slices.length||slices.some(value=>typeof value!=='string'||!dashboardSliceValues.includes(value)))throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  exactObjectKeys(evidence,['slices','approvedBy','approvedAt','authorizationEvidence'],'DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  const actor=requiredText(evidence.approvedBy,'DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  if(!sameStringArray(evidence.slices,slices)||!validTimestamp(evidence.approvedAt))throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  const authorization=evidence.authorizationEvidence;
+  exactObjectKeys(authorization,['source','event','slices','approvedBy','approvedAt'],'DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  if(authorization.source!=='workflow_transition'||authorization.event!=='dashboard_slices_approved'
+    ||!sameStringArray(authorization.slices,slices)||authorization.approvedBy!==actor
+    ||authorization.approvedAt!==evidence.approvedAt)throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+  const design=state.gates?.design_and_structure;
+  if(design?.status!=='approved'||!design.delivery)throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
+}
+
+function validateWorkPackageAuthorization(state){
+  const workPackage=state.configuration?.workPackage;
+  if(workPackage===undefined)return;
+  exactObjectKeys(workPackage,['gates','scope','authorizedBy','authorizedAt','completedGates','authorizationEvidence'],'WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+  if(!nonEmptyArray(workPackage.gates)||new Set(workPackage.gates).size!==workPackage.gates.length
+    ||workPackage.gates.some(gate=>!workPackageGates.includes(gate))||!Array.isArray(workPackage.completedGates)
+    ||new Set(workPackage.completedGates).size!==workPackage.completedGates.length
+    ||workPackage.completedGates.some(gate=>!workPackage.gates.includes(gate)))throw new Error('WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+  const scope=requiredText(workPackage.scope,'WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+  const actor=requiredText(workPackage.authorizedBy,'WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+  if(!validTimestamp(workPackage.authorizedAt))throw new Error('WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+  const evidence=workPackage.authorizationEvidence;
+  exactObjectKeys(evidence,['source','event','gates','scope','authorizedBy','authorizedAt'],'WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+  if(evidence.source!=='workflow_transition'||evidence.event!=='work_package_authorized'
+    ||!sameStringArray(evidence.gates,workPackage.gates)||evidence.scope!==scope
+    ||evidence.authorizedBy!==actor||evidence.authorizedAt!==workPackage.authorizedAt)throw new Error('WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID');
+}
+
+function validateRepairAuthorization(state){
+  const repair=state.activeRepair;
+  if(repair===undefined)return;
+  const complete=repair.status==='complete';
+  exactObjectKeys(repair,complete
+    ?['gate','status','scope','authorizedBy','authorizedAt','authorizationEvidence','delivery','completedBy','completedAt']
+    :['gate','status','scope','authorizedBy','authorizedAt','authorizationEvidence'],'REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  if((!complete&&!['ready','in_progress'].includes(repair.status))||!workPackageGates.includes(repair.gate))throw new Error('REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  const scope=requiredText(repair.scope,'REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  const actor=requiredText(repair.authorizedBy,'REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  if(!validTimestamp(repair.authorizedAt))throw new Error('REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  const evidence=repair.authorizationEvidence;
+  exactObjectKeys(evidence,['source','event','gate','scope','authorizedBy','authorizedAt'],'REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  if(evidence.source!=='workflow_transition'||evidence.event!=='repair_slice_opened'||evidence.gate!==repair.gate
+    ||evidence.scope!==scope||evidence.authorizedBy!==actor||evidence.authorizedAt!==repair.authorizedAt)throw new Error('REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+  if(complete){
+    requiredText(repair.completedBy,'REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+    if(!validTimestamp(repair.completedAt)||!repair.delivery||typeof repair.delivery!=='object'||Array.isArray(repair.delivery))throw new Error('REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
+    validateDeliveryEvidence(state,repair.gate,repair.delivery);
+  }
+}
+
+function validateAuthorizationConfiguration(state){
+  validateDashboardSliceApproval(state);
+  validateWorkPackageAuthorization(state);
+  validateRepairAuthorization(state);
+}
+
 function validateNotApplicableEvidence(state,gate,current){
   validateNotApplicableCapability(state,gate);
   requiredText(current.reason,'NOT_APPLICABLE_REASON_REQUIRED');
@@ -287,6 +397,7 @@ export function validateCompletedWorkflowState(state){
   try{
     if(!state||typeof state!=='object'||Array.isArray(state)||state.currentGate!==null)throw new Error('WORKFLOW_NOT_COMPLETE');
     if(!state.gates||typeof state.gates!=='object'||Array.isArray(state.gates))throw new Error('GATE_STATE_REQUIRED');
+    validateAuthorizationConfiguration(state);
     for(const gate of gateOrder){
       const current=state.gates[gate];
       validateTerminalGateEvidence(state,gate,current);
@@ -319,6 +430,7 @@ export function validateWorkflowReadinessEvidence(state){
   if(state?.currentGate===null)return validateCompletedWorkflowState(state);
   try{
     if(!state||typeof state!=='object'||Array.isArray(state))throw new Error('WORKFLOW_STATE_REQUIRED');
+    validateAuthorizationConfiguration(state);
     if(!state.gates||typeof state.gates!=='object'||Array.isArray(state.gates))throw new Error('GATE_STATE_REQUIRED');
     const currentIndex=gateOrder.indexOf(state.currentGate);
     if(currentIndex<0)throw new Error('CURRENT_GATE_INVALID');
@@ -406,12 +518,18 @@ export function openRepairSlice({state,gate,scope,authorizedBy,now=new Date().to
   validateRepairCapability(next,gate);
   if(next.activeRepair&&!['complete','cancelled'].includes(next.activeRepair.status))throw new Error('REPAIR_SLICE_ALREADY_ACTIVE');
   const actor=requiredText(authorizedBy,'APPROVER_REQUIRED');
+  const normalizedScope=requiredText(scope,'WORK_PACKAGE_SCOPE_REQUIRED');
+  if(!validTimestamp(now))throw new Error('REPAIR_AUTHORIZATION_EVIDENCE_INVALID');
   next.activeRepair={
     gate,
     status:'ready',
-    scope:requiredText(scope,'WORK_PACKAGE_SCOPE_REQUIRED'),
+    scope:normalizedScope,
     authorizedBy:actor,
     authorizedAt:now,
+    authorizationEvidence:{
+      source:'workflow_transition',event:'repair_slice_opened',gate,scope:normalizedScope,
+      authorizedBy:actor,authorizedAt:now,
+    },
   };
   next.updatedAt=now;
   return result(next,{event:'repair_slice_opened',gate,authorizedBy:actor,at:now});
@@ -419,6 +537,7 @@ export function openRepairSlice({state,gate,scope,authorizedBy,now=new Date().to
 
 export function completeRepairSlice({state,delivery,completedBy,now=new Date().toISOString()}={}){
   const next=copyState(state),repair=next.activeRepair;
+  validateRepairAuthorization(next);
   if(!repair||!['ready','in_progress'].includes(repair.status))throw new Error('REPAIR_SLICE_NOT_ACTIVE');
   if(!delivery||typeof delivery!=='object'||Array.isArray(delivery))throw new Error('DELIVERY_REQUIRED');
   validateDeliveryEvidence(next,repair.gate,delivery);
