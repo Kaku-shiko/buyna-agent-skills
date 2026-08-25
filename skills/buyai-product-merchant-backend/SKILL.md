@@ -38,14 +38,23 @@ order CSV, read `references/cart-order-fixed-cores.md`. Call
 project Store/Database Adapters, routes, pricing configuration, custom-field
 mapping, and notification templates.
 
-When checkout is an approved capability, also call
-`packages/buyna-checkout-flow-core`; it owns minimum-field, payment-method,
-review, submission, snapshot, and local order-lock states. When payment is an
-approved capability, call `packages/buyna-commerce-settlement-core`; it owns
-trusted paid/refund transitions and idempotent transactional effects. A
-no-payment product route uses cart/order modules and marks the payment node
-provider portion skipped while `checkout_payment` remains applicable. Project code supplies only the applicable Adapters,
-configuration, API wiring, and presentation.
+Select one checkout recipe from the persisted workflow:
+
+- With no provider payment, use `packages/buyna-checkout-flow-core` with the
+  cart/order modules for local review, submission, snapshot, and order lock.
+- With `paymentArchitecture: fixed-cores`, use
+  `packages/buyna-checkout-flow-core` to lock the local order and
+  `packages/buyna-commerce-settlement-core` for trusted paid/refund transitions
+  and idempotent transactional effects.
+- With `paymentArchitecture: legacy-globepay-service`, use the legacy-only
+  `createGlobepayService` Interface after the cart/order modules. Provider Query
+  must confirm success, reconcile the exact local amount and currency, and feed
+  one idempotent write. This recipe imports neither checkout-flow nor settlement
+  core orchestration.
+
+The no-payment route marks only the provider portion skipped while
+`checkout_payment` remains applicable. Project code supplies only the Adapters,
+configuration, API wiring, and presentation for the selected recipe.
 
 For a mixed product-and-booking capability set, the Builder returns this Skill
 and `buyai-booking-service-backend` once each. This Skill keeps product/cart/order

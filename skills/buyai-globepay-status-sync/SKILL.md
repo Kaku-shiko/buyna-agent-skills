@@ -22,31 +22,31 @@ idempotency key inside one project-owned database transaction. Never call it
 with redirect/browser state as a trusted event, and never treat its output as a
 completed write until the transaction and post-write read both succeed.
 
-For the new fixed-core path, the project verification Adapter supplies a trusted
-notify/query event with server-owned `projectId + sellerId`; pass it directly to
-`packages/buyna-commerce-settlement-core`. The core reconciles exact local
-order, amount, and currency before a legal transition and idempotent effects.
-Project code supplies only provider/database Adapters, configuration, routes,
-and presentation.
+Select one status recipe from the persisted workflow:
 
-When an existing project explicitly records
-`paymentArchitecture: legacy-globepay-service`,
-`createGlobepayService(...).syncPaymentStatus(...)` remains a legacy-only
-maintenance Interface described by
-`buyai-globepay-payment/references/service-adapter-contract.md`. The legacy
-paid path verifies notify authenticity, confirms success through provider Query,
-and reconciles the Query's exact amount and currency to the local order. The legacy
-service and `paymentArchitecture: fixed-cores` path are selected separately;
-missing or unknown architecture blocks status mutation.
+- With `paymentArchitecture: fixed-cores`, the project verification Adapter
+  supplies a trusted notify/query event with server-owned
+  `projectId + sellerId` to `packages/buyna-commerce-settlement-core`. The core
+  reconciles the exact local order, amount, and currency before one idempotent
+  transition and its transactional effects.
+- With `paymentArchitecture: legacy-globepay-service`, use the legacy-only
+  `createGlobepayService(...).syncPaymentStatus(...)` Interface described by
+  `buyai-globepay-payment/references/service-adapter-contract.md`. Verify notify
+  authenticity, confirm success through provider Query, reconcile its exact
+  amount and currency to the local order, and perform one idempotent write. This
+  recipe imports neither `buyna-checkout-flow-core` nor
+  `buyna-commerce-settlement-core` orchestration.
+
+Missing or unknown architecture blocks status mutation. Project code supplies
+only the provider/database Adapters, configuration, routes, and presentation
+for the selected recipe.
 
 ## Required Flow
 
-Notify and return query call one idempotent writer. It finds local order by provider id, sets paid/refunded status, stores raw data, creates paid record once, updates stock/capacity once, and logs write failures.
-For product commerce, implement this writer through
-`packages/buyna-commerce-settlement-core`; provider and PostgreSQL code are
-project Adapters. The core owns order/amount/currency reconciliation, legal
-paid/refund transitions, idempotency, and transactional effects; project code
-owns only provider/database Adapters, configuration, routes, and presentation.
+Notify and return query call the writer selected by the persisted architecture.
+It finds the local order by provider id, sets paid/refunded status, stores raw
+data, creates the paid record once, updates stock/capacity once, and logs write
+failures.
 
 `paid_at` uses provider/local payment time when available, not refresh time. Expiration must not override verified success.
 

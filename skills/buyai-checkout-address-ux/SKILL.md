@@ -11,12 +11,11 @@ Use for buyer/customer forms, shipping UX, Japan postal auto-fill, mobile input,
 
 Confirm buyer language, admin language, seller country, shipping/service country, flow type, and required fields. Inspect form state, validation, checkout/payment actions, order schema, order detail, and CSV.
 
-For every approved product or booking checkout, resolve
-`buyna-checkout-flow-core` from the project `packages/` or
-`$env:USERPROFILE/.codex/packages/`. Product commerce also resolves
-`buyna-cart-core` and `buyna-order-core`; paid booking uses its booking Adapter
-and does not require cart. Return `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED`
-when a selected core is missing.
+Read the saved workflow capabilities and payment architecture. Product commerce
+resolves `buyna-cart-core` and `buyna-order-core`; paid booking uses its booking
+Adapter and does not require cart. Resolve selected modules from the project
+`packages/` or `$env:USERPROFILE/.codex/packages/`. Return
+`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when a selected core is missing.
 
 Read `references/checkout-address-rules.md` for labels, schemas, and postal-code behavior.
 
@@ -24,14 +23,23 @@ Read `references/checkout-address-rules.md` for labels, schemas, and postal-code
 
 Use `buyai-product-merchant-backend` for product checkout, `buyai-booking-service-backend` for booking forms, `buyai-globepay-payment` for payment, and `buyai-storefront-layout-ux` for mobile/readability.
 
-For product commerce, use `packages/buyna-cart-core` for cart state. For product
-or booking, use `packages/buyna-checkout-flow-core` for the fixed progression: minimum fields
-valid → payment method selected → order review → submitting → `order_locked`.
-The checkout core creates the immutable submission snapshot and locks the local
-`pending_payment` order/booking through the selected order or booking Adapter
-before provider payment begins. Generate only project presentation, field/configuration
-mapping, persistence Adapter, routes, and approved shipping/discount/tax
-configuration.
+For product commerce, use `packages/buyna-cart-core` for cart state. Select one
+checkout recipe from the persisted workflow:
+
+- With no provider payment, use `packages/buyna-checkout-flow-core` for the local
+  form, review, snapshot, and order-lock progression.
+- With `paymentArchitecture: fixed-cores`, use
+  `packages/buyna-checkout-flow-core`; it creates the immutable submission
+  snapshot and locks the local `pending_payment` order/booking before transport.
+- With `paymentArchitecture: legacy-globepay-service`, use the legacy-only
+  `createGlobepayService` Interface for the approved existing project. Its paid
+  result requires provider Query, exact local amount/currency reconciliation,
+  and an idempotent write. This recipe imports neither
+  `buyna-checkout-flow-core` nor `buyna-commerce-settlement-core` orchestration.
+
+Generate only project presentation, field/configuration mapping, persistence
+Adapter, routes, and approved shipping/discount/tax configuration for the
+selected recipe.
 
 Preserve the fixed commerce sequence: right-side cart → buyer form → order review →
 provider payment → server-verified result. The review step must show all items,

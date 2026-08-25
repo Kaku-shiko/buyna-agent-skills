@@ -29,6 +29,38 @@ const capabilityKeys = Object.freeze([
   "requiresBooking",
 ]);
 const paymentArchitectures = Object.freeze(["fixed-cores", "legacy-globepay-service"]);
+const dependencyRules = Object.freeze({
+  "buyai-product-merchant-backend": ({ commerceArchitecture }) => ({
+    skills: ["buyai-checkout-address-ux"],
+    fixedModules: ["buyna-cart-core", "buyna-order-core"],
+    legacyServices: [],
+    paymentSafety: [],
+  }),
+  "buyai-checkout-address-ux": ({ commerceArchitecture }) => ({
+    skills: [],
+    fixedModules: commerceArchitecture === "legacy-globepay-service" ? [] : ["buyna-checkout-flow-core"],
+    legacyServices: commerceArchitecture === "legacy-globepay-service" ? ["createGlobepayService"] : [],
+    paymentSafety: commerceArchitecture === "legacy-globepay-service"
+      ? ["provider-query", "exact-amount-currency", "idempotency"]
+      : [],
+  }),
+  "buyai-globepay-payment": ({ commerceArchitecture }) => ({
+    skills: [],
+    fixedModules: commerceArchitecture === "checkout-flow+transport-adapters+settlement"
+      ? ["buyna-checkout-flow-core", "buyna-commerce-settlement-core"]
+      : [],
+    legacyServices: commerceArchitecture === "legacy-globepay-service" ? ["createGlobepayService"] : [],
+    paymentSafety: ["provider-query", "exact-amount-currency", "idempotency"],
+  }),
+  "buyai-globepay-status-sync": ({ commerceArchitecture }) => ({
+    skills: [],
+    fixedModules: commerceArchitecture === "checkout-flow+transport-adapters+settlement"
+      ? ["buyna-commerce-settlement-core"]
+      : [],
+    legacyServices: commerceArchitecture === "legacy-globepay-service" ? ["createGlobepayService"] : [],
+    paymentSafety: ["provider-query", "exact-amount-currency", "idempotency"],
+  }),
+});
 
 function requiredObject(value, code) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(code);
@@ -50,6 +82,31 @@ function normalizeCapabilities(value) {
 
 function capabilitiesEqual(left, right) {
   return left.siteType === right.siteType && capabilityKeys.every((key) => left[key] === right[key]);
+}
+
+export function resolveRouteDependencyClosure(route) {
+  const selected = requiredObject(route, "ROUTE_REQUIRED");
+  if (!Array.isArray(selected.skills) || !Array.isArray(selected.fixedModules)) throw new Error("ROUTE_DEPENDENCIES_REQUIRED");
+  const skills = [];
+  const fixedModules = [...selected.fixedModules];
+  const legacyServices = [];
+  const paymentSafety = [];
+  const queue = [...selected.skills];
+  const addUnique = (target, values) => {
+    for (const value of values) if (!target.includes(value)) target.push(value);
+  };
+  while (queue.length) {
+    const skill = queue.shift();
+    if (skills.includes(skill)) continue;
+    skills.push(skill);
+    const rule = dependencyRules[skill]?.(selected);
+    if (!rule) continue;
+    addUnique(queue, rule.skills);
+    addUnique(fixedModules, rule.fixedModules);
+    addUnique(legacyServices, rule.legacyServices);
+    addUnique(paymentSafety, rule.paymentSafety);
+  }
+  return { skills, fixedModules, legacyServices, paymentSafety };
 }
 
 function verifyReadiness(workflowState) {

@@ -7,6 +7,7 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 const routerPath = fileURLToPath(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root));
+const routeBuilder = await import(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root));
 const gates = [
   "customer_intake",
   "design_and_structure",
@@ -271,6 +272,53 @@ test("explicit legacy payment routes the legacy service without fixed checkout o
     continueWithoutConfirmation: false,
     commerceArchitecture: "legacy-globepay-service",
     externalActions: { git: false, aws: false },
+  });
+});
+
+test("recursive Skill dependencies keep fixed-core and legacy payment architectures disjoint", () => {
+  const fixedRoute = runRoute({
+    capabilities: productGlobepay,
+    workflowState: stateAt("checkout_payment", { capabilities: productGlobepay }),
+    requestedSlice: "checkout_payment",
+    releaseIntent: false,
+  });
+  const legacyRoute = runRoute({
+    capabilities: productGlobepay,
+    workflowState: stateAt("checkout_payment", {
+      capabilities: productGlobepay,
+      paymentArchitecture: "legacy-globepay-service",
+    }),
+    requestedSlice: "checkout_payment",
+    releaseIntent: false,
+  });
+
+  assert.deepEqual(routeBuilder.resolveRouteDependencyClosure(fixedRoute), {
+    skills: fixedRoute.skills,
+    fixedModules: fixedRoute.fixedModules,
+    legacyServices: [],
+    paymentSafety: ["provider-query", "exact-amount-currency", "idempotency"],
+  });
+  assert.deepEqual(routeBuilder.resolveRouteDependencyClosure(legacyRoute), {
+    skills: legacyRoute.skills,
+    fixedModules: legacyRoute.fixedModules,
+    legacyServices: ["createGlobepayService"],
+    paymentSafety: ["provider-query", "exact-amount-currency", "idempotency"],
+  });
+});
+
+test("recursive Skill dependencies preserve checkout-flow-only commerce without payment settlement", () => {
+  const route = runRoute({
+    capabilities: productNoPayment,
+    workflowState: stateAt("checkout_payment", { capabilities: productNoPayment }),
+    requestedSlice: "checkout_payment",
+    releaseIntent: false,
+  });
+
+  assert.deepEqual(routeBuilder.resolveRouteDependencyClosure(route), {
+    skills: route.skills,
+    fixedModules: route.fixedModules,
+    legacyServices: [],
+    paymentSafety: [],
   });
 });
 
@@ -540,12 +588,15 @@ test("Builder structural surfaces keep trigger, authority, legacy boundary, and 
   assert.match(phasePayment, /trusted provider.*notify\/query.*exact amount.*currency/is);
   assert.match(phasePayment, /paymentArchitecture.*fixed-cores/is);
   assert.match(checkout, /booking.*buyna-checkout-flow-core|buyna-checkout-flow-core.*booking/is);
+  assert.match(checkout, /paymentArchitecture: fixed-cores.*buyna-checkout-flow-core.*paymentArchitecture: legacy-globepay-service.*createGlobepayService/is);
   assert.match(globepayCheckout, /fixed-cores.*buyna-checkout-flow-core.*legacy-globepay-service.*createGlobepayService/is);
   assert.match(product, /inherit.*configuration\.workPackage|configuration\.workPackage.*inherit/is);
+  assert.match(product, /paymentArchitecture: fixed-cores.*buyna-checkout-flow-core.*buyna-commerce-settlement-core.*paymentArchitecture: legacy-globepay-service.*createGlobepayService/is);
   assert.match(payment, /createGlobepayService.*legacy-only|legacy-only.*createGlobepayService/is);
   assert.match(status, /createGlobepayService.*legacy-only|legacy-only.*createGlobepayService/is);
   assert.match(payment, /legacy-globepay-service/);
   assert.match(status, /legacy-globepay-service/);
+  assert.match(status, /paymentArchitecture: fixed-cores.*buyna-commerce-settlement-core.*paymentArchitecture: legacy-globepay-service.*createGlobepayService/is);
   assert.match(legacyServiceContract, /legacy-only/i);
   assert.match(legacyServiceContract, /query.*exact amount.*currency/is);
   for (const path of ["SKILL.md", "agents/openai.yaml", "references/routing-map.md", "references/phase-06-payment.md", "references/workflow-state-contract.md", "scripts/route-builder.mjs"]) {
