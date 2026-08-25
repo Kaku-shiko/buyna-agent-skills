@@ -91,6 +91,12 @@ modules; Task 7 verifies the full batch.
   `retry({ itemId })`, `setProgress({ itemId, attemptId, loaded, total })`,
   `reorder({ itemIds })`, `setCover({ itemId })`, `cancel({ itemId })`, and
   `snapshot()`.
+- `retry()` and `cancel()` are the sole public entrypoints for their respective
+  actions. Each delegates exactly once to the internal reducer's `retry` or
+  `cancel` event. Public `transition()` rejects those two event names with
+  `UPLOAD_QUEUE_CONVENIENCE_METHOD_REQUIRED`; project code cannot call both a
+  convenience method and its internal event to allocate a second attempt or
+  effect.
 - Produce: `createUploadEffectExecutor({ projectId, sellerId, effectStore,
   handlers })` with `execute(effect)`.
 - Every state-changing call returns `{ snapshot, effects }`. Every effect has
@@ -229,7 +235,12 @@ modules; Task 7 verifies the full batch.
     a confirmed object directly;
   - two concurrent executor calls with one idempotency key call the handler at
     most once; a completed replay returns the saved result and never calls the
-    handler again.
+    handler again;
+  - one `retry()` call invokes the internal reducer once and allocates exactly
+    one attempt/effect; one `cancel()` call invokes it once and emits at most one
+    abort effect. Direct public `transition({ event: 'retry' })` and
+    `transition({ event: 'cancel' })` fail with
+    `UPLOAD_QUEUE_CONVENIENCE_METHOD_REQUIRED` before any state change.
 
 - [ ] **Step 6: Run tests and verify RED for the new behavior**
 
@@ -381,6 +392,10 @@ modules; Task 7 verifies the full batch.
 - Consume: the Task 2 authenticated identity shape.
 - Produce:
   `createMerchantContextResolver({ requestAdapter, sessionAdapter, directory })`.
+- Every `resolve()` call freshly invokes `getObservedHost()` and
+  `getAuthenticatedIdentity()` and performs both directory lookups. The
+  resolver may reuse immutable configuration/Adapter objects but never caches
+  or reuses an identity/context result across calls or hosts.
 - `resolve(input?)` accepts no ownership values. It rejects input containing
   `host`, `projectId`, `sellerId`, `subjectId`, or `role` with
   `MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN`.
@@ -452,6 +467,9 @@ modules; Task 7 verifies the full batch.
   Assert that no context is returned and no later business Adapter is called
   after any denial. Test two sellers sharing one EC2/RDS foundation but with
   distinct host records; shared infrastructure must not weaken seller scope.
+  Call one resolver twice with different server-observed hosts and trusted
+  identities; assert both Adapter call sequences run and the first context is
+  never returned for the second request.
 
 - [ ] **Step 5: Verify RED, implement fail-closed comparison, then verify GREEN**
 
@@ -738,9 +756,14 @@ package and keep gallery behavior generated per project.
   - onboarding registers exact host and membership inputs for context
     resolution;
   - operations verifies all accepted manifest modules and the deferred gallery;
-  - every child Skill inherits Builder `configuration.workPackage` and the
-    already resolved auth/context, does not rerun identity resolution, and does
-    not reopen approval inside the approved slice.
+  - every child Skill inherits Builder `configuration.workPackage`, approved
+    fixed-module selection, and approved Adapter contract, so it does not
+    repeat onboarding or reopen user confirmation inside the approved slice;
+  - inheritance never includes a resolved runtime identity/context. Every
+    protected request must obtain a fresh trusted result from the auth-session
+    Adapter and call `buyna-merchant-context-core` with that request's current
+    server-observed host before any business Adapter. The test rejects cached,
+    global, startup-time, cross-request, or cross-host context reuse.
 
   The Skill contract test must also reject a fixed login screen, Dashboard
   shell, gallery theme, file-card component, colors/fonts/spacing/icons, or
@@ -791,9 +814,12 @@ package and keep gallery behavior generated per project.
   Point each Skill at one authoritative package/Adapter contract:
 
   - S3 Skill: queue effects plus existing confirm/replace/delete/cleanup service;
-  - Dashboard Skill: auth session then merchant context before business APIs;
-  - product/booking backend: consume the immutable context, never repeat login
-    state or object-key algorithms;
+  - Dashboard Skill: for every protected request, obtain a fresh trusted auth
+    result and resolve merchant context from the current server-observed host
+    before business APIs;
+  - product/booking backend: consume that request-local immutable context,
+    never cache/reuse it across requests or hosts, and never repeat onboarding,
+    user confirmation, login algorithms, or object-key algorithms;
   - frontend: import headless behavior and generate all visible UI/UX;
   - onboarding: register host/membership records used by context resolution;
   - operations: install/check the accepted manifest modules.
@@ -871,6 +897,10 @@ package and keep gallery behavior generated per project.
   `retry` after failure allocates a new `attemptId` and therefore a new
   deterministic effect/request key. In both cases the executor's unique
   idempotency record prevents duplicate external effects for one key.
+  Execute two protected-request fixtures sequentially and assert the auth
+  Adapter, current-host Adapter, and both directory lookups are called once per
+  request. No context object from request one may satisfy request two, even when
+  both requests use the same process and Adapter instances.
 
 - [ ] **Step 2: Run the new integration test and classify the initial result**
 
