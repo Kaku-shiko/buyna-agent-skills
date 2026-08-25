@@ -449,3 +449,76 @@ test('concurrent featured replacements serialize and leave exactly one complete 
   assert.equal(records.get('products').get('p2').featured,true);
   assert.equal(calls.filter(call=>call[0]==='lockingTransaction').length,2);
 });
+
+test('product and variant stock reject fractional, unsafe, and non-finite quantities in every write path',async()=>{
+  const {core}=fakeCore({
+    products:[
+      {id:'draft-product',status:'draft',price:100,currency:'JPY',stock:1},
+      {id:'active-product',status:'active',price:100,currency:'JPY',stock:1},
+    ],
+    product_variants:[
+      {id:'draft-variant',status:'draft',product_id:'active-product',sku_code:'DRAFT',price:100,currency:'JPY',stock_quantity:1},
+      {id:'active-variant',status:'active',product_id:'active-product',sku_code:'ACTIVE',price:100,currency:'JPY',stock_quantity:1},
+    ],
+  });
+  const service=createMerchantCatalogService({dataCore:core});
+  const invalidStocks=[1.5,Number.MAX_SAFE_INTEGER+1,NaN,Infinity];
+
+  for(const stock of invalidStocks){
+    await assert.rejects(()=>service.createProduct({name:'Draft',price:100,status:'draft',stock}),error=>error.code==='INVALID_PRODUCT_STOCK');
+    await assert.rejects(()=>service.createProduct({name:'Active',price:100,status:'active',stock}),error=>error.code==='INVALID_PRODUCT_STOCK');
+    await assert.rejects(()=>service.updateProduct({productId:'draft-product',stock}),error=>error.code==='INVALID_PRODUCT_STOCK');
+    await assert.rejects(()=>service.updateProduct({productId:'active-product',stock}),error=>error.code==='INVALID_PRODUCT_STOCK');
+    await assert.rejects(()=>service.setProductStock({productId:'draft-product',stock}),error=>error.code==='INVALID_PRODUCT_STOCK');
+    await assert.rejects(()=>service.createVariant({productId:'active-product',skuCode:'DRAFT-NEW',price:100,status:'draft',stock}),error=>error.code==='INVALID_VARIANT_STOCK');
+    await assert.rejects(()=>service.createVariant({productId:'active-product',skuCode:'ACTIVE-NEW',price:100,status:'active',stock}),error=>error.code==='INVALID_VARIANT_STOCK');
+    await assert.rejects(()=>service.updateVariant({variantId:'draft-variant',stock}),error=>error.code==='INVALID_VARIANT_STOCK');
+    await assert.rejects(()=>service.updateVariant({variantId:'active-variant',stock}),error=>error.code==='INVALID_VARIANT_STOCK');
+  }
+});
+
+test('active parents cannot leave active state while scoped active children exist',async()=>{
+  const {core}=fakeCore({
+    categories:[{id:'c1',status:'active'}],
+    products:[{id:'p1',status:'active',category_id:'c1',price:100,currency:'JPY'}],
+    product_variants:[{id:'v1',status:'active',product_id:'p1',sku_code:'SKU-1',price:100,currency:'JPY'}],
+  });
+  const service=createMerchantCatalogService({dataCore:core});
+
+  await assert.rejects(()=>service.transitionCategory({categoryId:'c1',toStatus:'draft'}),error=>error.code==='CATALOG_CATEGORY_HAS_ACTIVE_PRODUCTS');
+  await assert.rejects(()=>service.archiveCategory({categoryId:'c1'}),error=>error.code==='CATALOG_CATEGORY_HAS_ACTIVE_PRODUCTS');
+  await assert.rejects(()=>service.transitionProduct({productId:'p1',toStatus:'draft'}),error=>error.code==='CATALOG_PRODUCT_HAS_ACTIVE_VARIANTS');
+  await assert.rejects(()=>service.archiveProduct({productId:'p1'}),error=>error.code==='CATALOG_PRODUCT_HAS_ACTIVE_VARIANTS');
+
+  await service.transitionVariant({variantId:'v1',toStatus:'draft'});
+  await service.transitionProduct({productId:'p1',toStatus:'draft'});
+  await service.transitionCategory({categoryId:'c1',toStatus:'draft'});
+});
+
+test('serialized parent deactivation and child activation never leave an active child under an inactive parent',async()=>{
+  const productCase=fakeCore({
+    products:[{id:'p1',status:'active',price:100,currency:'JPY'}],
+    product_variants:[{id:'v1',status:'draft',product_id:'p1',sku_code:'SKU-1',price:100,currency:'JPY'}],
+  });
+  const productService=createMerchantCatalogService({dataCore:productCase.core});
+  const productResults=await Promise.allSettled([
+    productService.transitionVariant({variantId:'v1',toStatus:'active'}),
+    productService.transitionProduct({productId:'p1',toStatus:'draft'}),
+  ]);
+  assert.equal(productResults.filter(result=>result.status==='fulfilled').length,1);
+  assert.equal(productResults.filter(result=>result.status==='rejected').length,1);
+  assert.equal(productCase.records.get('product_variants').get('v1').status==='active',productCase.records.get('products').get('p1').status==='active');
+
+  const categoryCase=fakeCore({
+    categories:[{id:'c1',status:'active'}],
+    products:[{id:'p1',status:'draft',category_id:'c1',price:100,currency:'JPY'}],
+  });
+  const categoryService=createMerchantCatalogService({dataCore:categoryCase.core});
+  const categoryResults=await Promise.allSettled([
+    categoryService.transitionProduct({productId:'p1',toStatus:'active'}),
+    categoryService.transitionCategory({categoryId:'c1',toStatus:'draft'}),
+  ]);
+  assert.equal(categoryResults.filter(result=>result.status==='fulfilled').length,1);
+  assert.equal(categoryResults.filter(result=>result.status==='rejected').length,1);
+  assert.equal(categoryCase.records.get('products').get('p1').status==='active',categoryCase.records.get('categories').get('c1').status==='active');
+});

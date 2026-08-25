@@ -48,3 +48,42 @@ test('official postgres dataCore composes unlocked reads and draft creates with 
   assert.equal(calls.filter(call=>call.text==='COMMIT').length,3);
   assert.equal(calls.filter(call=>call.text==='release').length,3);
 });
+
+test('parent deactivation uses scoped locked child filters through the official postgres adapter',async()=>{
+  const calls=[];
+  const product={id:'p1',project_id:'project-a',seller_id:'seller-a',status:'active',price:100,currency:'JPY'};
+  const category={id:'c1',project_id:'project-a',seller_id:'seller-a',status:'active'};
+  const connection={
+    async query(text,values){
+      calls.push({text,values});
+      if(text==='BEGIN ISOLATION LEVEL SERIALIZABLE'||text==='COMMIT'||text==='ROLLBACK')return{rows:[]};
+      if(text.includes('FROM "product_variants"'))return{rows:[]};
+      if(text.includes('FROM "products"')&&text.includes('"category_id" = $4'))return{rows:[]};
+      if(text.includes('FROM "products"'))return{rows:[product]};
+      if(text.includes('FROM "categories"'))return{rows:[category]};
+      if(text.startsWith('UPDATE "products"')){product.status=values[0];return{rows:[{...product}]}}
+      if(text.startsWith('UPDATE "categories"')){category.status=values[0];return{rows:[{...category}]}}
+      return{rows:[]};
+    },
+    release(){calls.push({text:'release'})},
+  };
+  const pool={async query(){return{rows:[]}},async connect(){return connection}};
+  const adapter=createNodePostgresAdapter({pool,entities:{
+    products:{table:'products',filters:{status:'status',category_id:'category_id'},write:{status:'status',deleted_at:'deleted_at',archived_at:'archived_at',restored_at:'restored_at'}},
+    categories:{table:'categories',write:{status:'status',deleted_at:'deleted_at',archived_at:'archived_at',restored_at:'restored_at'}},
+    product_variants:{table:'product_variants',filters:{product_id:'product_id',status:'status'}},
+  }});
+  const catalog=createMerchantCatalogService({dataCore:createMerchantDataCore({adapter,projectId:'project-a',sellerId:'seller-a'})});
+
+  await catalog.transitionProduct({productId:'p1',toStatus:'draft'});
+  product.status='active';
+  product.category_id='c1';
+  await catalog.transitionCategory({categoryId:'c1',toStatus:'draft'});
+
+  const variantLock=calls.find(call=>call.text.includes?.('FROM "product_variants"'));
+  assert.match(variantLock.text,/"project_id" = \$1 AND "seller_id" = \$2 AND "product_id" = \$3 AND "status" = \$4/);
+  assert.deepEqual(variantLock.values,['project-a','seller-a','p1','active']);
+  const productLock=calls.find(call=>call.text.includes?.('FROM "products"')&&call.text.includes('"category_id" = $4'));
+  assert.match(productLock.text,/"project_id" = \$1 AND "seller_id" = \$2 AND "status" = \$3 AND "category_id" = \$4/);
+  assert.deepEqual(productLock.values,['project-a','seller-a','active','c1']);
+});

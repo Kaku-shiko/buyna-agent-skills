@@ -80,6 +80,15 @@ server-configured identifiers. The transaction must commit on success, roll
 back on failure, and always release its client. Ordinary `transaction` and
 `repository` remain available for compatible non-locking work.
 
+Parent-state guards use the same locked filter contract. Catalog entity
+configuration must expose `products.status`, `products.category_id`,
+`product_variants.status`, and `product_variants.product_id` as server-owned
+filter mappings. Before an active category or product leaves active state, the
+service calls `listAllForUpdate` for its active children. The locking Adapter
+must keep these filtered reads in the same `SERIALIZABLE` transaction so an
+empty result is also protected from a concurrent child-activation phantom;
+ordinary paginated reads are not a valid substitute.
+
 `claimIdempotency` must rely on a PostgreSQL unique constraint covering
 `project_id`, `seller_id`, `idempotency_key`, and `operation`. Return
 `{ claimed: true }` only for the first claimant; duplicates return the stored

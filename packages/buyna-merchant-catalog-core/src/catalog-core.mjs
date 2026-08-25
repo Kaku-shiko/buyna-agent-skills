@@ -3,6 +3,7 @@ function required(value,code){const text=String(value??'').trim();if(!text)fail(
 function optional(value){const text=String(value??'').trim();return text||undefined}
 function compact(object){return Object.fromEntries(Object.entries(object).filter(([,value])=>value!==undefined&&value!==''))}
 function nonNegative(value,code){const number=Number(value);if(!Number.isFinite(number)||number<0)fail(code);return number}
+function stockQuantity(value,code){const number=Number(value);if(!Number.isSafeInteger(number)||number<0)fail(code);return number}
 function own(object,key){return Object.prototype.hasOwnProperty.call(object??{},key)}
 function method(owner,name,code){if(typeof owner?.[name]!=='function')fail(code)}
 
@@ -142,6 +143,16 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
     if(category.status!==CATALOG_STATES.ACTIVE)fail('CATALOG_CATEGORY_NOT_ACTIVE');
   }
 
+  async function assertNoActiveProducts(transactionCore,categoryId){
+    const active=await lockingRepository(transactionCore,productPolicy).listAllForUpdate({filters:{status:CATALOG_STATES.ACTIVE,category_id:categoryId}});
+    if(active.length)fail('CATALOG_CATEGORY_HAS_ACTIVE_PRODUCTS');
+  }
+
+  async function assertNoActiveVariants(transactionCore,productId){
+    const active=await lockingRepository(transactionCore,variantPolicy).listAllForUpdate({filters:{product_id:productId,status:CATALOG_STATES.ACTIVE}});
+    if(active.length)fail('CATALOG_PRODUCT_HAS_ACTIVE_VARIANTS');
+  }
+
   function assertActiveProductCandidate(record){assertSellableMoney(record,'CATALOG_PRODUCT_NOT_SELLABLE',currencies)}
 
   async function assertActiveVariantCandidate(transactionCore,repository,record,{excludeId}={}){
@@ -165,6 +176,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
         assertActiveProductCandidate(product);
         await assertActiveCategory(transactionCore,product.category_id);
       }
+      if(product.status===CATALOG_STATES.ACTIVE&&to!==CATALOG_STATES.ACTIVE)await assertNoActiveVariants(transactionCore,id);
       return repository.updateById(id,transitionData(to,clock,options));
     });
   }
@@ -176,6 +188,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
       const category=await repository.getByIdForUpdate(id);
       if(!category)fail('CATALOG_CATEGORY_NOT_FOUND');
       const to=assertTransition(category.status,toStatus,options);
+      if(category.status===CATALOG_STATES.ACTIVE&&to!==CATALOG_STATES.ACTIVE)await assertNoActiveProducts(transactionCore,id);
       return repository.updateById(id,transitionData(to,clock,options));
     });
   }
@@ -218,7 +231,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
       const data={
         name:required(input.name,'MISSING_PRODUCT_NAME'),
         price:nonNegative(input.price,'INVALID_PRODUCT_PRICE'),
-        stock:nonNegative(input.stock??0,'INVALID_PRODUCT_STOCK'),
+        stock:stockQuantity(input.stock??0,'INVALID_PRODUCT_STOCK'),
         currency:required(input.currency??'JPY','MISSING_CURRENCY').toUpperCase(),
         status:createStatus(input.status,CATALOG_STATES.DRAFT),
         ...compact({category_id:input.categoryId}),
@@ -240,7 +253,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
         short_description:input.shortDescription,
         price:input.price===undefined?undefined:nonNegative(input.price,'INVALID_PRODUCT_PRICE'),
         currency:input.currency===undefined?undefined:required(input.currency,'MISSING_CURRENCY').toUpperCase(),
-        stock:input.stock===undefined?undefined:nonNegative(input.stock,'INVALID_PRODUCT_STOCK'),
+        stock:input.stock===undefined?undefined:stockQuantity(input.stock,'INVALID_PRODUCT_STOCK'),
         category_id:input.categoryId,
       });
       return withLocks(async transactionCore=>{
@@ -256,7 +269,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
       });
     },
     async setProductStock({productId,stock}={}){
-      return products.updateById(required(productId,'MISSING_PRODUCT_ID'),{stock:nonNegative(stock,'INVALID_PRODUCT_STOCK')});
+      return products.updateById(required(productId,'MISSING_PRODUCT_ID'),{stock:stockQuantity(stock,'INVALID_PRODUCT_STOCK')});
     },
     async setProductVisibility({productId,visible}={}){
       if(typeof visible!=='boolean')fail('INVALID_PRODUCT_VISIBILITY');
@@ -320,7 +333,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
         sku_code:required(input.skuCode,'MISSING_SKU_CODE'),
         options:input.options??{},
         price:nonNegative(input.price,'INVALID_VARIANT_PRICE'),
-        stock_quantity:nonNegative(input.stock??0,'INVALID_VARIANT_STOCK'),
+        stock_quantity:stockQuantity(input.stock??0,'INVALID_VARIANT_STOCK'),
         currency:required(input.currency??'JPY','MISSING_CURRENCY').toUpperCase(),
         status:createStatus(input.status,CATALOG_STATES.ACTIVE),
       };
@@ -338,7 +351,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
       const data=compact({
         price:input.price===undefined?undefined:nonNegative(input.price,'INVALID_VARIANT_PRICE'),
         currency:input.currency===undefined?undefined:required(input.currency,'MISSING_CURRENCY').toUpperCase(),
-        stock_quantity:input.stock===undefined?undefined:nonNegative(input.stock,'INVALID_VARIANT_STOCK'),
+        stock_quantity:input.stock===undefined?undefined:stockQuantity(input.stock,'INVALID_VARIANT_STOCK'),
         options:input.options,
       });
       return withLocks(async transactionCore=>{
