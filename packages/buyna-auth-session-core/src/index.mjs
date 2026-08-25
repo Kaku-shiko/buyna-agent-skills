@@ -50,31 +50,112 @@ function normalizeTimestamp(value) {
   return parsed.toISOString();
 }
 
+const IDENTITY_FIELDS = Object.freeze([
+  'subjectId',
+  'permissions',
+  'issuedAt',
+  'expiresAt',
+]);
+
+function ownIdentityValues(identity) {
+  try {
+    const prototype = Object.getPrototypeOf(identity);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const keys = Reflect.ownKeys(identity);
+    if (
+      keys.length !== IDENTITY_FIELDS.length
+      || keys.some((key) => typeof key !== 'string' || !IDENTITY_FIELDS.includes(key))
+      || IDENTITY_FIELDS.some((field) => !keys.includes(field))
+    ) {
+      return null;
+    }
+
+    const values = Object.create(null);
+    for (const field of IDENTITY_FIELDS) {
+      const descriptor = Object.getOwnPropertyDescriptor(identity, field);
+      if (
+        !descriptor
+        || descriptor.enumerable !== true
+        || !Object.hasOwn(descriptor, 'value')
+      ) {
+        return null;
+      }
+      values[field] = descriptor.value;
+    }
+    return values;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePermissions(value) {
+  if (!Array.isArray(value)) fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+  try {
+    if (Object.getPrototypeOf(value) !== Array.prototype) {
+      fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+    }
+    const keys = Reflect.ownKeys(value);
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, 'length');
+    const length = lengthDescriptor?.value;
+    if (
+      !lengthDescriptor
+      || !Object.hasOwn(lengthDescriptor, 'value')
+      || !Number.isSafeInteger(length)
+      || length < 0
+      || keys.length !== length + 1
+      || keys.some((key) => typeof key !== 'string')
+    ) {
+      fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+    }
+
+    const expectedKeys = new Set(['length']);
+    for (let index = 0; index < length; index += 1) expectedKeys.add(String(index));
+    if (keys.some((key) => !expectedKeys.has(key))) {
+      fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+    }
+
+    const permissions = [];
+    for (let index = 0; index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (
+        !descriptor
+        || descriptor.enumerable !== true
+        || !Object.hasOwn(descriptor, 'value')
+        || typeof descriptor.value !== 'string'
+        || descriptor.value.trim() === ''
+      ) {
+        fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+      }
+      permissions.push(descriptor.value.trim());
+    }
+    if (new Set(permissions).size !== permissions.length) {
+      fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+    }
+    structuredClone(value);
+    return permissions;
+  } catch (error) {
+    if (error?.code === 'AUTH_IDENTITY_PERMISSIONS_INVALID') throw error;
+    fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+  }
+}
+
 function normalizeIdentity(identity) {
   if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
     fail('AUTH_IDENTITY_INVALID');
   }
-  const allowedFields = new Set(['subjectId', 'permissions', 'issuedAt', 'expiresAt']);
-  if (Reflect.ownKeys(identity).some((key) => !allowedFields.has(key))) {
-    fail('AUTH_IDENTITY_FIELD_FORBIDDEN');
-  }
-  const subjectId = requiredText(identity.subjectId, 'AUTH_IDENTITY_SUBJECT_REQUIRED');
-  if (
-    !Array.isArray(identity.permissions)
-    || identity.permissions.some((permission) => (
-      typeof permission !== 'string' || permission.trim() === ''
-    ))
-  ) {
-    fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
-  }
-  const permissions = identity.permissions.map((permission) => permission.trim());
-  if (new Set(permissions).size !== permissions.length) {
-    fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
-  }
-  const issuedAt = normalizeTimestamp(identity.issuedAt);
-  const expiresAt = normalizeTimestamp(identity.expiresAt);
+  const values = ownIdentityValues(identity);
+  if (!values) fail('AUTH_IDENTITY_FIELD_FORBIDDEN');
+  const subjectId = requiredText(values.subjectId, 'AUTH_IDENTITY_SUBJECT_REQUIRED');
+  const permissions = normalizePermissions(values.permissions);
+  const issuedAt = normalizeTimestamp(values.issuedAt);
+  const expiresAt = normalizeTimestamp(values.expiresAt);
   if (new Date(issuedAt).valueOf() >= new Date(expiresAt).valueOf()) {
     fail('AUTH_IDENTITY_TIME_RANGE_INVALID');
+  }
+  try {
+    structuredClone(identity);
+  } catch {
+    fail('AUTH_IDENTITY_FIELD_FORBIDDEN');
   }
   return deepFreeze({ subjectId, permissions, issuedAt, expiresAt });
 }

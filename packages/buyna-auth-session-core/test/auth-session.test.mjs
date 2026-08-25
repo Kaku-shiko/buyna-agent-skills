@@ -343,6 +343,187 @@ test('applies the exact identity allowlist to initial trusted sessions too', () 
   );
 });
 
+test('rejects inherited and accessor identity fields without invoking their getters', () => {
+  let inheritedReads = 0;
+  const inherited = Object.create(Object.defineProperties({}, {
+    subjectId: { get() { inheritedReads += 1; return 'user_1'; } },
+    permissions: { get() { inheritedReads += 1; return ['catalog:write']; } },
+    issuedAt: { get() { inheritedReads += 1; return '2026-08-25T23:59:00.000Z'; } },
+    expiresAt: { get() { inheritedReads += 1; return '2026-08-26T01:00:00.000Z'; } },
+  }));
+  const inheritedAuth = createFixture();
+  inheritedAuth.beginAuthentication({ attemptId: 'attempt_inherited' });
+  assert.throws(
+    () => inheritedAuth.acceptAuthentication({
+      attemptId: 'attempt_inherited',
+      identity: inherited,
+    }),
+    (error) => error.code === 'AUTH_IDENTITY_FIELD_FORBIDDEN',
+  );
+  assert.equal(inheritedReads, 0);
+
+  let accessorReads = 0;
+  const accessor = identity();
+  Object.defineProperty(accessor, 'subjectId', {
+    enumerable: true,
+    get() { accessorReads += 1; return 'user_1'; },
+  });
+  const accessorAuth = createFixture();
+  accessorAuth.beginAuthentication({ attemptId: 'attempt_accessor' });
+  assert.throws(
+    () => accessorAuth.acceptAuthentication({
+      attemptId: 'attempt_accessor',
+      identity: accessor,
+    }),
+    (error) => error.code === 'AUTH_IDENTITY_FIELD_FORBIDDEN',
+  );
+  assert.equal(accessorReads, 0);
+
+  let forbiddenReads = 0;
+  const forbiddenAccessor = identity();
+  Object.defineProperty(forbiddenAccessor, 'password', {
+    enumerable: true,
+    get() { forbiddenReads += 1; return 'must-not-be-read'; },
+  });
+  const forbiddenAuth = createFixture();
+  forbiddenAuth.beginAuthentication({ attemptId: 'attempt_forbidden_accessor' });
+  assert.throws(
+    () => forbiddenAuth.acceptAuthentication({
+      attemptId: 'attempt_forbidden_accessor',
+      identity: forbiddenAccessor,
+    }),
+    (error) => error.code === 'AUTH_IDENTITY_FIELD_FORBIDDEN',
+  );
+  assert.equal(forbiddenReads, 0);
+});
+
+test('requires exactly four own enumerable identity data fields on a plain object', () => {
+  const missing = identity();
+  delete missing.expiresAt;
+
+  const nonEnumerable = identity();
+  Object.defineProperty(nonEnumerable, 'subjectId', {
+    value: 'user_1',
+    enumerable: false,
+  });
+
+  class IdentityRecord {
+    constructor() {
+      Object.assign(this, identity());
+    }
+  }
+
+  const withSymbol = identity();
+  withSymbol[Symbol('private')] = 'private';
+
+  for (const [name, candidate] of [
+    ['missing', missing],
+    ['non-enumerable', nonEnumerable],
+    ['class-instance', new IdentityRecord()],
+    ['symbol-extra', withSymbol],
+  ]) {
+    const auth = createFixture();
+    auth.beginAuthentication({ attemptId: `attempt_${name}` });
+    assert.throws(
+      () => auth.acceptAuthentication({
+        attemptId: `attempt_${name}`,
+        identity: candidate,
+      }),
+      (error) => error.code === 'AUTH_IDENTITY_FIELD_FORBIDDEN',
+      `expected ${name} identity to fail closed`,
+    );
+  }
+
+  const nullPrototypeIdentity = Object.assign(Object.create(null), identity());
+  const accepted = createFixture();
+  accepted.beginAuthentication({ attemptId: 'attempt_null_proto' });
+  assert.equal(
+    accepted.acceptAuthentication({
+      attemptId: 'attempt_null_proto',
+      identity: nullPrototypeIdentity,
+    }).state,
+    'authenticated',
+  );
+});
+
+test('converts identity reflection failures to one stable forbidden-field error', () => {
+  const candidates = [
+    new Proxy(identity(), {}),
+    new Proxy(identity(), {
+      getPrototypeOf() { throw new Error('prototype trap'); },
+    }),
+    new Proxy(identity(), {
+      ownKeys() { throw new Error('own keys trap'); },
+    }),
+    new Proxy(identity(), {
+      getOwnPropertyDescriptor() { throw new Error('descriptor trap'); },
+    }),
+  ];
+
+  for (const [index, candidate] of candidates.entries()) {
+    const auth = createFixture();
+    auth.beginAuthentication({ attemptId: `attempt_proxy_${index}` });
+    assert.throws(
+      () => auth.acceptAuthentication({
+        attemptId: `attempt_proxy_${index}`,
+        identity: candidate,
+      }),
+      (error) => error.code === 'AUTH_IDENTITY_FIELD_FORBIDDEN',
+    );
+  }
+});
+
+test('requires permissions to be an ordinary dense array of own string values', () => {
+  let permissionGetterReads = 0;
+  const accessorPermissions = ['catalog:write'];
+  Object.defineProperty(accessorPermissions, '0', {
+    enumerable: true,
+    get() { permissionGetterReads += 1; return 'catalog:write'; },
+  });
+
+  const sparsePermissions = new Array(2);
+  sparsePermissions[0] = 'catalog:write';
+
+  const extraPermissions = ['catalog:write'];
+  extraPermissions.label = 'forbidden';
+
+  const symbolPermissions = ['catalog:write'];
+  symbolPermissions[Symbol('private')] = 'forbidden';
+
+  const nullPrototypePermissions = ['catalog:write'];
+  Object.setPrototypeOf(nullPrototypePermissions, null);
+
+  const nonEnumerablePermissions = ['catalog:write'];
+  Object.defineProperty(nonEnumerablePermissions, '0', {
+    value: 'catalog:write',
+    enumerable: false,
+  });
+
+  const proxiedPermissions = new Proxy(['catalog:write'], {});
+
+  for (const [name, permissions] of [
+    ['accessor', accessorPermissions],
+    ['sparse', sparsePermissions],
+    ['extra', extraPermissions],
+    ['symbol', symbolPermissions],
+    ['null-prototype', nullPrototypePermissions],
+    ['non-enumerable', nonEnumerablePermissions],
+    ['proxy', proxiedPermissions],
+  ]) {
+    const auth = createFixture();
+    auth.beginAuthentication({ attemptId: `attempt_permissions_${name}` });
+    assert.throws(
+      () => auth.acceptAuthentication({
+        attemptId: `attempt_permissions_${name}`,
+        identity: identity({ permissions }),
+      }),
+      (error) => error.code === 'AUTH_IDENTITY_PERMISSIONS_INVALID',
+      `expected ${name} permissions to fail closed`,
+    );
+  }
+  assert.equal(permissionGetterReads, 0);
+});
+
 test('exports only public session fields and deeply freezes every snapshot', () => {
   const auth = createFixture({ initialIdentity: identity() });
   const snapshot = auth.snapshot();
