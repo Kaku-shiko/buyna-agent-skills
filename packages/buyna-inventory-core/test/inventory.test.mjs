@@ -47,15 +47,10 @@ function createMemoryStore({ quantity = 5 } = {}) {
     return reservation;
   }
 
-  function completeEvent(eventId, result) {
+  function completeEvent(eventId, result, fingerprint) {
     const event = events.get(eventId);
     event.result = clone(result);
-    event.fingerprint = {
-      ...event.fingerprint,
-      productId: result.productId,
-      skuId: result.skuId,
-      quantity: result.quantity,
-    };
+    event.fingerprint = clone(fingerprint ?? event.fingerprint);
   }
 
   const transaction = (work) => {
@@ -81,8 +76,8 @@ function createMemoryStore({ quantity = 5 } = {}) {
           return {
             claimed: true,
             reservation: clone(scopedReservation(input.scope, input.reservationId)),
-            async complete(result) {
-              completeEvent(input.eventId, result);
+            async complete(result, fingerprint) {
+              completeEvent(input.eventId, result, fingerprint);
             },
           };
         },
@@ -101,22 +96,22 @@ function createMemoryStore({ quantity = 5 } = {}) {
             .reduce((sum, reservation) => sum + reservation.quantity, 0);
           return { ...clone(row), reservedQuantity };
         },
-        async createReservation({ reservation, eventId }) {
+        async createReservation({ reservation, eventId, fingerprint }) {
           calls.push(`create:${reservation.reservationId}`);
           reservations.set(reservation.reservationId, clone(reservation));
-          completeEvent(eventId, reservation);
+          completeEvent(eventId, reservation, fingerprint);
           return clone(reservation);
         },
-        async commitReservation({ reservation, eventId }) {
+        async commitReservation({ reservation, eventId, fingerprint }) {
           calls.push(`commit:${reservation.reservationId}`);
           reservations.set(reservation.reservationId, clone(reservation));
-          completeEvent(eventId, reservation);
+          completeEvent(eventId, reservation, fingerprint);
           return clone(reservation);
         },
-        async releaseReservation({ reservation, eventId }) {
+        async releaseReservation({ reservation, eventId, fingerprint }) {
           calls.push(`release:${reservation.reservationId}`);
           reservations.set(reservation.reservationId, clone(reservation));
-          completeEvent(eventId, reservation);
+          completeEvent(eventId, reservation, fingerprint);
           return clone(reservation);
         },
       };
@@ -454,4 +449,28 @@ test('failed illegal transition rolls back its event claim and can be retried', 
   const released = await inventory.release(releaseInput);
   assert.equal(released.state, 'released');
   assert.equal(calls.filter((call) => call === 'release:reservation_1').length, 1);
+});
+
+test('replay rejects a stored event envelope with the wrong event ID', async () => {
+  const { inventory, events } = moduleFixture();
+  await inventory.reserve(reserveInput());
+  events.get('event_reserve_1').eventId = 'event_other';
+  await assert.rejects(
+    inventory.reserve(reserveInput()),
+    (error) => error.code === 'INVENTORY_EVENT_CONFLICT',
+  );
+});
+
+test('transition persists the explicit completed reservation fingerprint', async () => {
+  const { inventory, events } = moduleFixture();
+  await inventory.reserve(reserveInput());
+  await inventory.commit({ eventId: 'event_commit_1', reservationId: 'reservation_1' });
+  assert.deepEqual(events.get('event_commit_1').fingerprint, {
+    ...SCOPE,
+    operation: 'commit',
+    reservationId: 'reservation_1',
+    productId: 'product_1',
+    skuId: 'sku_1',
+    quantity: 2,
+  });
 });

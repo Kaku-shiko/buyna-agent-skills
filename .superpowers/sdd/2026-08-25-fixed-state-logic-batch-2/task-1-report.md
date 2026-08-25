@@ -80,3 +80,19 @@ Final review-fix verification:
 - Root tests — 30/30 passed.
 - Repository validation still reports only the expected pre-Task-5 manifest
   inventory mismatch.
+
+## Review Fix Round 2
+
+The narrow RED run had 19 passing and 4 failing tests after the reference
+Adapter stopped implicitly deriving transition identity. It proved that the
+core did not reject a wrong stored `eventId` and did not explicitly provide a
+completed product/SKU/quantity fingerprint to transition persistence.
+
+The core now validates `event.eventId` against the requested event and throws
+`INVENTORY_EVENT_CONFLICT` on mismatch. Reserve, commit, release, and
+no-mutation exact-once completion explicitly pass the immutable completed
+fingerprint to their Adapter boundary. The stored transition envelope test
+verifies scope, operation, reservation ID, product ID, SKU ID, and quantity.
+
+Focused verification: `npm test --prefix packages/buyna-inventory-core` —
+23/23 passed.

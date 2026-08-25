@@ -134,7 +134,8 @@ function eventResult(claim, expected, scope) {
   verifyRecordScope(event.scope, scope);
   verifyFingerprint(event.fingerprint, expected.fingerprint);
   if (
-    event.operation !== expected.operation
+    event.eventId !== expected.eventId
+    || event.operation !== expected.operation
     || event.reservationId !== expected.reservationId
   ) {
     fail('INVENTORY_EVENT_CONFLICT');
@@ -211,7 +212,7 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
           quantity: requestedQuantity,
         });
         method(claim, 'complete');
-        await claim.complete(claim.reservation);
+        await claim.complete(claim.reservation, claimInput.fingerprint);
         return serializable(claim.reservation);
       }
 
@@ -238,7 +239,12 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
         createdAt: at,
         updatedAt: at,
       };
-      await tx.createReservation({ scope, eventId, reservation });
+      await tx.createReservation({
+        scope,
+        eventId,
+        fingerprint: claimInput.fingerprint,
+        reservation,
+      });
       return serializable(reservation);
     });
   }
@@ -267,10 +273,20 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
       const current = claim.reservation;
       if (!current) fail('INVENTORY_RESERVATION_NOT_FOUND');
       verifyAdapterReservation(current, { reservationId }, scope);
+      const completedFingerprint = reservationFingerprint(
+        scope,
+        operation,
+        reservationId,
+        {
+          productId: current.productId,
+          skuId: current.skuId,
+          quantity: current.quantity,
+        },
+      );
 
       if (current.state === targetState) {
         method(claim, 'complete');
-        await claim.complete(current);
+        await claim.complete(current, completedFingerprint);
         return serializable(current);
       }
       if (!INVENTORY_TRANSITIONS[current.state]?.includes(targetState)) {
@@ -282,7 +298,12 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
         state: targetState,
         updatedAt: timestamp(),
       };
-      await tx[adapterMethod]({ scope, eventId, reservation });
+      await tx[adapterMethod]({
+        scope,
+        eventId,
+        fingerprint: completedFingerprint,
+        reservation,
+      });
       return serializable(reservation);
     });
   }
