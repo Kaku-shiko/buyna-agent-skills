@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   createSettlementModule,
@@ -7,13 +8,25 @@ import {
 } from '../packages/buyna-commerce-settlement-core/src/index.mjs';
 import { createCommerceReadModel } from '../packages/buyna-commerce-read-model-core/src/index.mjs';
 import { createDashboardOperation } from '../packages/buyna-merchant-dashboard-core/src/index.mjs';
+import { createInventoryModule } from '../packages/buyna-inventory-core/src/index.mjs';
+import * as workflow from '../packages/buyna-workflow-state-core/src/index.mjs';
 import {
   createDeliveryStateCore,
   createNotificationSourceEvent,
 } from '../packages/buyna-delivery-state-core/src/index.mjs';
+import {
+  planWebsiteRoute,
+  resolveRouteDependencyClosure,
+} from '../skills/buyna-website-builder/scripts/route-builder.mjs';
 
 const SCOPE = Object.freeze({ projectId: 'project_integration', sellerId: 'seller_integration' });
 const OTHER_SCOPE = Object.freeze({ projectId: 'project_integration', sellerId: 'seller_other' });
+const repositoryManifest = JSON.parse(readFileSync(new URL('../repository-manifest.json', import.meta.url), 'utf8'));
+const PRODUCT_CAPABILITIES = Object.freeze({
+  siteType: 'commerce', requiresDashboard: true, requiresCart: true,
+  requiresCheckout: true, requiresPayment: false, requiresBooking: false,
+  requiresCatalog: true, requiresInventory: true, requiresCoupons: false,
+});
 
 function clone(value) {
   return value == null ? value : structuredClone(value);
@@ -30,6 +43,159 @@ function page(items, cursor) {
   if (cursor === null) return { items: items.slice(0, 1), nextCursor: items.length > 1 ? 'page-2' : null };
   if (cursor === 'page-2') return { items: items.slice(1), nextCursor: null };
   throw Object.assign(new Error('BAD_CURSOR'), { code: 'BAD_CURSOR' });
+}
+
+function inventoryKey({ projectId, sellerId, productId, skuId }) {
+  return `${projectId}:${sellerId}:${productId}:${skuId}`;
+}
+
+async function inventoryFixture() {
+  const stocks = new Map([
+    [inventoryKey({ ...SCOPE, productId: 'product-low', skuId: 'sku-low' }), {
+      ...SCOPE, productId: 'product-low', skuId: 'sku-low', onHandQuantity: 4,
+      updatedAt: '2026-08-25T23:50:00.000Z',
+    }],
+    [inventoryKey({ ...SCOPE, productId: 'product-ok', skuId: 'sku-ok' }), {
+      ...SCOPE, productId: 'product-ok', skuId: 'sku-ok', onHandQuantity: 9,
+      updatedAt: '2026-08-25T23:50:00.000Z',
+    }],
+  ]);
+  const reservations = new Map();
+  const events = new Map();
+  let coreCalls = 0;
+  const store = {
+    transaction: async (work) => work({
+      claimReservationEvent: async (input) => {
+        coreCalls += 1;
+        const existing = events.get(input.eventId);
+        if (existing) return { claimed: false, event: clone(existing) };
+        const reservation = reservations.get(input.reservationId);
+        const event = { ...clone(input), result: null };
+        events.set(input.eventId, event);
+        return {
+          claimed: true,
+          reservation: clone(reservation),
+          complete: async (result, fingerprint) => {
+            event.result = clone(result);
+            event.fingerprint = clone(fingerprint);
+          },
+        };
+      },
+      getStockForUpdate: async ({ scope, productId, skuId }) => {
+        assert.deepEqual(scope, SCOPE);
+        const row = stocks.get(inventoryKey({ ...scope, productId, skuId }));
+        if (!row) return null;
+        const reservedQuantity = [...reservations.values()]
+          .filter((item) => item.projectId === scope.projectId
+            && item.sellerId === scope.sellerId
+            && item.productId === productId && item.skuId === skuId
+            && item.state === 'reserved')
+          .reduce((sum, item) => sum + item.quantity, 0);
+        return { ...clone(row), reservedQuantity };
+      },
+      createReservation: async ({ reservation, eventId, fingerprint }) => {
+        reservations.set(reservation.reservationId, clone(reservation));
+        Object.assign(events.get(eventId), { result: clone(reservation), fingerprint: clone(fingerprint) });
+      },
+      commitReservation: async ({ reservation, eventId, fingerprint }) => {
+        const key = inventoryKey({ ...reservation, skuId: reservation.skuId });
+        const stock = stocks.get(key);
+        stock.onHandQuantity -= reservation.quantity;
+        stock.updatedAt = reservation.updatedAt;
+        reservations.set(reservation.reservationId, clone(reservation));
+        Object.assign(events.get(eventId), { result: clone(reservation), fingerprint: clone(fingerprint) });
+      },
+      releaseReservation: async ({ reservation, eventId, fingerprint }) => {
+        reservations.set(reservation.reservationId, clone(reservation));
+        Object.assign(events.get(eventId), { result: clone(reservation), fingerprint: clone(fingerprint) });
+      },
+    }),
+  };
+  const core = createInventoryModule({
+    ...SCOPE, store, clock: () => new Date('2026-08-26T00:10:00.000Z'),
+  });
+  await core.reserve({
+    eventId: 'inventory-reserve-1', reservationId: 'inventory-order-100',
+    productId: 'product-low', skuId: 'sku-low', quantity: 3,
+  });
+  return {
+    core,
+    reservations,
+    evidence: { get coreCalls() { return coreCalls; } },
+    rows() {
+      return [...stocks.values()].map((stock) => {
+        const reservedQuantity = [...reservations.values()]
+          .filter((item) => item.productId === stock.productId && item.skuId === stock.skuId && item.state === 'reserved')
+          .reduce((sum, item) => sum + item.quantity, 0);
+        return {
+          ...SCOPE,
+          productId: stock.productId,
+          variantId: stock.skuId,
+          availableQuantity: stock.onHandQuantity - reservedQuantity,
+          reservedQuantity,
+          updatedAt: stock.updatedAt,
+        };
+      }).sort((left, right) => left.availableQuantity - right.availableQuantity
+        || left.productId.localeCompare(right.productId)
+        || left.variantId.localeCompare(right.variantId));
+    },
+  };
+}
+
+function approve(state, gate, delivery) {
+  state = workflow.startGate({ state, gate }).state;
+  state = workflow.recordDelivery({ state, gate, delivery }).state;
+  state = workflow.requestApproval({ state, gate }).state;
+  return workflow.approveGate({ state, gate, approvedBy: 'user' }).state;
+}
+
+function authorizedDashboardState(slices, operations = []) {
+  let state = workflow.createWorkflow({ projectId: SCOPE.projectId });
+  state = approve(state, 'customer_intake', { record: 'intake.json', capabilities: PRODUCT_CAPABILITIES });
+  state = approve(state, 'design_and_structure', {
+    designRecord: 'design.json', pageStructure: 'pages.json', boardStatus: 'delivered',
+  });
+  state = workflow.setApprovedDashboardSlices({ state, slices, approvedBy: 'user' }).state;
+  if (operations.length) {
+    state = workflow.setApprovedNotificationOperations({ state, operations, approvedBy: 'user' }).state;
+  }
+  return approve(state, 'frontend_code', {
+    deliveredFiles: ['app.tsx'], verification: ['PASS'], interfaceContract: 'contract.json',
+  });
+}
+
+function requireIntegratedRoute(route, expectedModule, manifest = repositoryManifest) {
+  assert.equal(route.manifestVerification.verified, true);
+  assert.ok(manifest.packages.includes(expectedModule));
+  assert.ok(manifest.profiles['website-builder'].packages.includes(expectedModule));
+  assert.equal(route.fixedModules.filter((name) => name === expectedModule).length, 1);
+  const closure = resolveRouteDependencyClosure(route);
+  assert.equal(closure.fixedModules.filter((name) => name === expectedModule).length, 1);
+  return closure;
+}
+
+function routeEvidence() {
+  const overview = planWebsiteRoute({
+    capabilities: PRODUCT_CAPABILITIES,
+    workflowState: authorizedDashboardState(['dashboard']),
+    requestedSlice: 'dashboard_integration', dashboardSlice: 'dashboard',
+  });
+  const notification = planWebsiteRoute({
+    capabilities: PRODUCT_CAPABILITIES,
+    workflowState: authorizedDashboardState(['orders'], ['order_notification']),
+    requestedSlice: 'dashboard_integration', dashboardSlice: 'orders',
+    notificationOperation: 'order_notification',
+  });
+  requireIntegratedRoute(overview, 'buyna-commerce-read-model-core');
+  requireIntegratedRoute(notification, 'buyna-delivery-state-core');
+  assert.ok(!overview.fixedModules.includes('buyna-delivery-state-core'));
+  assert.ok(!notification.fixedModules.includes('buyna-commerce-read-model-core'));
+  return {
+    overviewHasReadModel: true,
+    notificationHasDelivery: true,
+    overview,
+    notification,
+  };
 }
 
 class DeliveryMemoryStore {
@@ -125,7 +291,7 @@ function notificationSource({ domainEventId = 'paid-event', channel = 'email' } 
   });
 }
 
-function settlementFixture() {
+function settlementFixture(inventory) {
   const order = {
     id: 'order-100',
     ...SCOPE,
@@ -173,7 +339,10 @@ function settlementFixture() {
             stagedNotifications.push(notificationSource());
           }
         },
-        applyInventoryOnce: async () => {},
+        applyInventoryOnce: async ({ eventId }) => inventory.core.commit({
+          eventId: `inventory-${eventId}`,
+          reservationId: 'inventory-order-100',
+        }),
         upsertPaidCustomer: async () => {},
         appendGmvOutbox: async () => {},
         recordRefund: async ({ refundDelta, cumulativeRefundAmount, verified }) => {
@@ -215,7 +384,7 @@ function settlementFixture() {
   };
 }
 
-function readModelFixture(settlement, { scope = SCOPE, injectWrongScope = false } = {}) {
+function readModelFixture(settlement, inventory, { scope = SCOPE, injectWrongScope = false } = {}) {
   const scopeCalls = [];
   const seen = (received) => {
     assert.equal(Object.isFrozen(received), true);
@@ -234,21 +403,19 @@ function readModelFixture(settlement, { scope = SCOPE, injectWrongScope = false 
       capturedAmount: 0, refundedAmount: 0, currency: 'JPY', createdAt: '2026-08-20T00:00:00.000Z',
     },
   ];
-  const lowStock = [
-    { ...SCOPE, productId: 'product-low', variantId: 'sku-low', availableQuantity: 1, reservedQuantity: 1, updatedAt: '2026-08-26T00:00:00.000Z' },
-    { ...SCOPE, productId: 'product-ok', variantId: 'sku-ok', availableQuantity: 9, reservedQuantity: 0, updatedAt: '2026-08-26T00:00:00.000Z' },
-  ];
   const source = {
     listCurrentPendingPage: async ({ scope: received, cursor }) => { seen(received); return page([], cursor); },
     listSettlementFactPage: async ({ scope: received, cursor, from, to }) => {
       seen(received);
       return page(factRows.filter((row) => row.occurredAt >= from && row.occurredAt < to), cursor);
     },
-    listLowStockCandidatePage: async ({ scope: received, cursor }) => { seen(received); return page(lowStock, cursor); },
+    listLowStockCandidatePage: async ({ scope: received, cursor }) => { seen(received); return page(inventory.rows(), cursor); },
     listRecentOrderCandidatePage: async ({ scope: received, cursor }) => { seen(received); return page(recent, cursor); },
   };
   return {
     scopeCalls,
+    inventoryEvidence: inventory.evidence,
+    routeEvidence: routeEvidence(),
     model: createCommerceReadModel({ ...scope, source, clock: () => new Date('2026-08-27T00:00:00.000Z') }),
   };
 }
@@ -265,7 +432,8 @@ function overview(model, overrides = {}) {
 }
 
 test('trusted settlement composes through paged read model, Dashboard state, and crash-safe notification reconciliation', async () => {
-  const settlement = settlementFixture();
+  const inventory = await inventoryFixture();
+  const settlement = settlementFixture(inventory);
   assert.deepEqual(await settlement.settlement.settle({ ...SCOPE, eventId: 'paid-1' }), {
     status: 'applied', orderId: 'order-100', paymentStatus: 'paid', eventId: 'paid-1',
   });
@@ -275,7 +443,31 @@ test('trusted settlement composes through paged read model, Dashboard state, and
   assert.equal(settlement.order.refundedAmount, 2000);
   assert.equal(settlement.committedNotificationEvents.length, 1);
 
-  const read = readModelFixture(settlement);
+  const read = readModelFixture(settlement, inventory);
+  assert.ok(read.inventoryEvidence.coreCalls > 0);
+  assert.equal(read.routeEvidence.overviewHasReadModel, true);
+  assert.equal(read.routeEvidence.notificationHasDelivery, true);
+  assert.throws(
+    () => resolveRouteDependencyClosure({
+      ...read.routeEvidence.overview,
+      targetGate: 'frontend_code',
+    }),
+    /COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE/,
+  );
+  assert.throws(
+    () => resolveRouteDependencyClosure({
+      ...read.routeEvidence.notification,
+      fixedModules: read.routeEvidence.notification.fixedModules.filter((name) => name !== 'buyna-order-core'),
+    }),
+    /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/,
+  );
+  const disconnectedManifest = structuredClone(repositoryManifest);
+  disconnectedManifest.profiles['website-builder'].packages = disconnectedManifest.profiles['website-builder'].packages
+    .filter((name) => name !== 'buyna-commerce-read-model-core');
+  assert.throws(
+    () => requireIntegratedRoute(read.routeEvidence.overview, 'buyna-commerce-read-model-core', disconnectedManifest),
+    assert.AssertionError,
+  );
   const first = await overview(read.model);
   assert.deepEqual(first.metrics, {
     pendingOrders: 0, paidOrders: 1, refundedOrders: 1, pendingAmount: 0,
@@ -286,6 +478,11 @@ test('trusted settlement composes through paged read model, Dashboard state, and
     { key: '2026-08-27', grossAmount: 0, refundAmount: 0, netAmount: 0 },
   ]);
   assert.deepEqual(first.lowStock.map((row) => row.productId), ['product-low']);
+  assert.equal(inventory.reservations.get('inventory-order-100').state, 'committed');
+  assert.deepEqual(first.lowStock[0], {
+    productId: 'product-low', variantId: 'sku-low', availableQuantity: 1,
+    reservedQuantity: 0, updatedAt: '2026-08-26T00:10:00.000Z',
+  });
   assert.deepEqual(first.recentOrders.map((row) => row.orderId), ['order-100', 'order-old']);
   assert.ok(read.scopeCalls.every((value) => value.projectId === SCOPE.projectId && value.sellerId === SCOPE.sellerId));
 
@@ -336,10 +533,11 @@ test('trusted settlement composes through paged read model, Dashboard state, and
 });
 
 test('retry and accepted-provider/store-failure recovery preserve identities without undoing commerce state', async () => {
-  const settlement = settlementFixture();
+  const inventory = await inventoryFixture();
+  const settlement = settlementFixture(inventory);
   await settlement.settlement.settle({ ...SCOPE, eventId: 'paid-1' });
   await settlement.settlement.settle({ ...SCOPE, eventId: 'refund-1' });
-  const read = readModelFixture(settlement);
+  const read = readModelFixture(settlement, inventory);
   const before = await overview(read.model);
 
   const retryDelivery = deliveryFixture();
@@ -407,10 +605,11 @@ test('retry and accepted-provider/store-failure recovery preserve identities wit
 });
 
 test('negative-net refund windows are preserved and cross-seller facts/events fail before effects', async () => {
-  const settlement = settlementFixture();
+  const inventory = await inventoryFixture();
+  const settlement = settlementFixture(inventory);
   await settlement.settlement.settle({ ...SCOPE, eventId: 'paid-1' });
   await settlement.settlement.settle({ ...SCOPE, eventId: 'refund-1' });
-  const read = readModelFixture(settlement);
+  const read = readModelFixture(settlement, inventory);
   const refundOnly = await overview(read.model, {
     from: '2026-08-26T02:00:00.000Z',
     to: '2026-08-26T04:00:00.000Z',
@@ -419,7 +618,7 @@ test('negative-net refund windows are preserved and cross-seller facts/events fa
   assert.equal(refundOnly.metrics.refundAmount, 2000);
   assert.equal(refundOnly.metrics.netAmount, -2000);
 
-  const wrongRead = readModelFixture(settlement, { scope: OTHER_SCOPE, injectWrongScope: true });
+  const wrongRead = readModelFixture(settlement, inventory, { scope: OTHER_SCOPE, injectWrongScope: true });
   await assert.rejects(overview(wrongRead.model), (error) => error.code === 'READ_MODEL_SCOPE_MISMATCH');
 
   const otherStore = new DeliveryMemoryStore();
