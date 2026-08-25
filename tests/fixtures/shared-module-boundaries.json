@@ -16,7 +16,7 @@
   ],
   "sharedSourceExtensions": [
     "mjs", "js", "cjs", "mts", "cts", "ts", "tsx", "jsx", "json",
-    "css", "scss", "sass", "less", "styl", "stylus"
+    "css", "scss", "sass", "less", "styl", "stylus", "vue", "svelte"
   ],
   "sharedSourceProhibitedPatterns": {
     "merchantIdentifiers": [

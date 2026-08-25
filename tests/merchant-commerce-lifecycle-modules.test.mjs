@@ -28,7 +28,10 @@ const violationsIn = (files, policy, readSource) => {
   for (const file of files) {
     const extension = extname(file).slice(1).toLowerCase();
     if (stylesheetExtensions.has(extension)) violations.push({ file, boundary: "presentationStylesheet" });
-    if (!sourceExtensions.has(extension)) continue;
+    if (!sourceExtensions.has(extension)) {
+      violations.push({ file, boundary: "unscannedSourceExtension" });
+      continue;
+    }
 
     const source = readSource(file);
     for (const [boundary, patterns] of Object.entries(policy.sharedSourceProhibitedPatterns)) {
@@ -65,7 +68,7 @@ test("merchant commerce lifecycle source trees keep infrastructure and presentat
   );
   assert.deepEqual(
     [...policy.sharedSourceExtensions].sort(),
-    ["cjs", "css", "cts", "js", "json", "jsx", "less", "mjs", "mts", "sass", "scss", "styl", "stylus", "ts", "tsx"].sort(),
+    ["cjs", "css", "cts", "js", "json", "jsx", "less", "mjs", "mts", "sass", "scss", "styl", "stylus", "svelte", "ts", "tsx", "vue"].sort(),
   );
 
   for (const moduleName of modules) {
@@ -84,6 +87,9 @@ test("boundary policy catches executable mutations without rejecting domain iden
     ["markup.tsx", "export const Card = () => <section />;", "uiImplementation"],
     ["inline-style.jsx", "export const Card = () => <div style={{ color: 'red' }} />;", "uiImplementation"],
     ["css-import.js", "import './theme.css';", "uiImplementation"],
+    ["component.vue", "<template><div class=\"card\">shop</div></template><style>.card{color:red}</style>", "uiImplementation"],
+    ["component.svelte", "<script>const label='shop';</script><div style=\"color:red\">{label}</div>", "uiImplementation"],
+    ["component.astro", "<section class=\"card\">shop</section>", "unscannedSourceExtension"],
     ["seller.json", "{\"seller\":\"seller_example\"}", "merchantIdentifiers"],
     ["domain.json", "{\"domain\":\"shop.example.com\"}", "merchantIdentifiers"],
     ["api-key.mts", "export const apiKey = 'value';", "credentials"],
