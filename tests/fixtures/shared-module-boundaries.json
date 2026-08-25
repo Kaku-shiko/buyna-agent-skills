@@ -14,24 +14,46 @@
     "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
     "\\barn:(?:aws|aws-cn|aws-us-gov):"
   ],
+  "sharedSourceExtensions": [
+    "mjs", "js", "cjs", "mts", "cts", "ts", "tsx", "jsx", "json",
+    "css", "scss", "sass", "less", "styl", "stylus"
+  ],
   "sharedSourceProhibitedPatterns": {
     "merchantIdentifiers": [
-      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
+      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b",
+      "\\bseller_[a-z0-9_]+\\b",
+      "\\b(?:[a-z0-9-]+\\.)+(?:com|net|org|io|ai|jp|life|co|dev|app)\\b"
     ],
     "credentials": [
-      "\\b(?:password|passwd|secret(?:_key)?|credential_code|access_key_id|private_key)\\b"
+      "\\b(?:password|passwd|api[_-]?key|token|access[_-]?token|auth[_-]?token|refresh[_-]?token|secret(?:[_-]?key)?|credential(?:_code)?|access_key_id|private[_-]?key)\\b"
     ],
     "providerTransport": [
-      "\\b(?:fetch|axios|got)\\s*\\(",
+      "\\bfetch\\s*\\(",
+      "\\b(?:axios|got)\\b",
+      "[\\\"'](?:node:)?https?[\\\"']",
+      "\\b(?:undici|https?\\.(?:request|get))\\b",
       "\\b(?:globepay|worldpay|stripe)\\b"
     ],
     "sqlOrOrm": [
-      "\\b(?:SELECT|INSERT\\s+INTO|UPDATE\\s+[A-Za-z_][A-Za-z0-9_]*\\s+SET|DELETE\\s+FROM)\\b",
-      "\\b(?:prisma|drizzle|sequelize|typeorm)\\b"
+      "\\b(?:SELECT\\b[\\s\\S]{0,200}\\bFROM|INSERT\\s+INTO|UPDATE\\s+[A-Za-z_][A-Za-z0-9_.]*\\s+SET|DELETE\\s+FROM|CREATE\\s+(?:TABLE|SCHEMA|DATABASE|INDEX)|ALTER\\s+(?:TABLE|SCHEMA|DATABASE)|DROP\\s+(?:TABLE|SCHEMA|DATABASE|INDEX))\\b",
+      "\\b(?:client|pool|db)\\.query\\s*\\(",
+      "\\b(?:pg|knex|prisma|drizzle|sequelize|typeorm)\\b"
     ],
     "awsMutation": [
       "@aws-sdk/",
-      "\\b(?:CreateBucket|RunInstances|CreateDBInstance|CreateTable|PutObjectCommand)\\b"
+      "\\b(?:CreateBucket|DeleteBucket|RunInstances|TerminateInstances|CreateDBInstance|DeleteDBInstance|CreateTable|DeleteTable|PutObjectCommand|DeleteObjectCommand)\\b",
+      "\\.(?:createBucket|deleteBucket|runInstances|terminateInstances|createDBInstance|deleteDBInstance|createTable|deleteTable|putObject|deleteObject)\\s*\\("
+    ],
+    "uiImplementation": [
+      "\\bfrom\\s+[\\\"']react[\\\"']",
+      "\\brequire\\s*\\(\\s*[\\\"']react[\\\"']",
+      "<[A-Z][A-Za-z0-9]*\\b",
+      "<\\/?[a-z][a-z0-9-]*(?:\\s[^>]*|\\/?)>",
+      "<[a-z][A-Za-z0-9-]*\\b[^>]*\\b(?:className|style)\\s*=",
+      "\\b(?:className|dangerouslySetInnerHTML)\\s*=",
+      "\\bstyle\\s*=\\s*\\{\\{",
+      "\\b(?:import|require)\\b[^\\r\\n]*\\.(?:css|scss|sass|less|styl|stylus)[\\\"']?",
+      "\\b(?:createElement|jsx|jsxs)\\s*\\("
     ]
   }
 }

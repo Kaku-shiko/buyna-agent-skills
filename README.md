@@ -32,9 +32,11 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 `buyna-commerce-settlement-core` 提供固定的 inventory、coupon、catalog、Dashboard、
 checkout 和 settlement 状态行为；这些模块在 `website-builder` profile 中声明。
 完整安装器通过 `repository-manifest.json` 的 `manifest.packages` 安装全部固定模块，
-不另设 profile 安装命令。适用行为按 inventory → coupon → catalog/checkout → settlement
-顺序调用。UI、表单展示、provider Adapter 和 database Adapter 均由项目生成；项目负责
-Adapter 的持久化、API、身份与基础设施连接。共享模块不包含 CSS、商家标识、
+不另设 profile 安装命令。这些固定模块按项目能力组合，不使用刚性顺序：inventory 独立
+向适用的 checkout snapshot 和 settlement 提供库存结果；coupon 独立向适用的 checkout
+snapshot 和 settlement 提供优惠结果；catalog 管理生命周期独立运行；Dashboard 页面操作
+状态独立运行。UI、表单展示、provider Adapter 和 database Adapter 均由项目生成；项目
+负责 Adapter 的持久化、API、身份与基础设施连接。共享模块不包含 CSS、商家标识、
 凭据、支付传输、SQL/ORM 或 AWS 资源操作。
 
 当前预留：
