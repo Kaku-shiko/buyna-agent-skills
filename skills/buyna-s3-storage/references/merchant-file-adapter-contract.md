@@ -4,6 +4,20 @@ Use `packages/buyna-merchant-file-core` for project scaffolding, object keys,
 upload confirmation, replacement, soft deletion, and orphan cleanup. Generate
 only adapters for the approved existing S3 bucket and PostgreSQL metadata.
 
+## Upload Queue And Effect Executor
+
+Use `createUploadQueue` for selected/validating/uploading/confirming/ready,
+retry, progress, ordering, cover, cancellation, and removal behavior. Execute
+its effects through `createUploadEffectExecutor`, whose Effect Store Adapter
+claims each `(projectId, sellerId, idempotencyKey)` before invoking exactly one
+S3 or metadata Adapter handler. The project generates picker, preview, order,
+cover, progress, error, and mobile UI; the package supplies no visible design.
+
+The executor handlers adapt `validate_file`, `upload_object`,
+`confirm_upload`, `remove_file`, and `abort_upload`. S3 transport remains an
+Adapter. Existing confirm, replace, delete, and cleanup lifecycle ordering
+remains owned by the same fixed package.
+
 ## Storage Adapter
 
 Implement:

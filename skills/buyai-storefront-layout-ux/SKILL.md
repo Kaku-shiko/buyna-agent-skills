@@ -17,6 +17,9 @@ Read `references/storefront-layout-rules.md` for patterns and prompts.
 
 Use `impeccable` for visual critique, polish, layout, color, type, responsive, motion, and anti-AI-slop review. Anime.js is optional for advanced motion only. Use product/booking skills for the data source and checkout UX for forms.
 
+Import approved headless behavior only. File and gallery visual UI is generated per project, including thumbnails, carousel/modal markup, focus wiring,
+gestures, transitions, image components, mobile layout, and CSS.
+
 ## Gold
 
 Readable beats decorative. Do not ship pale text, hidden seller login, giant blanks, hard-coded categories after backend categories exist, or inconsistent footers.

@@ -77,7 +77,7 @@ const deliveryFor = (gate, capabilities, paymentArchitecture) => ({
     interfaceContract: "contract.json",
   },
   dashboard_integration: {
-    completedSlices: [],
+    completedSlices: capabilities.requiresDashboard ? ["orders"] : [],
     frontendFiles: ["dashboard.tsx"],
     backendFiles: ["server.mjs"],
     verification: ["PASS"],
@@ -105,7 +105,7 @@ const deliveryFor = (gate, capabilities, paymentArchitecture) => ({
 function stateAt(currentGate, capabilities, workPackageGates = []) {
   const currentIndex = gates.indexOf(currentGate);
   const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
-  const configuration = { capabilities, dashboardSlices: [] };
+  const configuration = { capabilities, dashboardSlices: capabilities.requiresDashboard ? ["orders"] : [] };
   if (paymentArchitecture) configuration.paymentArchitecture = paymentArchitecture;
   if (workPackageGates.length) {
     configuration.workPackage = { gates: workPackageGates, authorizedBy: "user" };
@@ -139,7 +139,10 @@ function approveCurrentGate(state, gate, delivery) {
 
 function workflowAtGate(targetGate, capabilities) {
   const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
-  let state = createWorkflow({ projectId: "route-test" });
+  let state = createWorkflow({
+    projectId: "route-test",
+    dashboardSlices: capabilities.requiresDashboard ? ["orders"] : [],
+  });
   state = approveCurrentGate(state, "customer_intake", deliveryFor("customer_intake", capabilities, paymentArchitecture));
   if (targetGate === "design_and_structure") return state;
   state = approveCurrentGate(state, "design_and_structure", deliveryFor("design_and_structure", capabilities, paymentArchitecture));
@@ -170,6 +173,8 @@ test("stock and SKU Dashboard selects catalog, inventory, and operation state ex
     "buyna-merchant-catalog-core",
     "buyna-inventory-core",
     "buyna-merchant-dashboard-core",
+    "buyna-auth-session-core",
+    "buyna-merchant-context-core",
   ]);
   assert.equal(new Set(route.skills).size, route.skills.length);
   assert.equal(new Set(route.fixedModules).size, route.fixedModules.length);

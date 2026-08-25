@@ -22,6 +22,9 @@ Input:
 - `requestedSlice`: one canonical gate ID or `local_preview`.
 - `releaseIntent`: explicit boolean.
 - `mode`: `build`, `repair`, or `resume`.
+- `dashboardSlice`: for a Dashboard target, one value already persisted in
+  `workflowState.configuration.dashboardSlices`, or `all` when the bounded work
+  package includes `dashboard_integration`.
 
 Output:
 
@@ -32,6 +35,12 @@ Output:
 - `notApplicableGates` contains only canonical optional gates.
 - `continueWithoutConfirmation` inherits the saved bounded work package.
 - `externalActions.git` and `externalActions.aws` are explicit.
+- `dashboardSlice` and `dashboardSlices` are stable on success and blocked
+  results. One persisted slice auto-selects; multiple slices without a choice
+  return `DASHBOARD_SLICE_REQUIRED`; empty configuration returns
+  `DASHBOARD_SLICES_NOT_CONFIGURED`; unapproved input returns
+  `DASHBOARD_SLICE_NOT_APPROVED`; and unbounded `all` returns
+  `DASHBOARD_FULL_SCOPE_APPROVAL_REQUIRED`.
 - A fully evidenced completed workflow in repair mode returns `action:
   reopen_repair` and an `openRepairSlice` transition until a matching separate
   repair slice exists.
@@ -66,6 +75,10 @@ is entered directly; otherwise the router returns `currentGate`.
   coupons and never skips checkout.
 - Every `requiresDashboard=true` frontend or Dashboard integration route
   selects `buyna-merchant-dashboard-core` operation state.
+- Every Dashboard integration selects `buyna-auth-session-core` and then
+  `buyna-merchant-context-core`. Persisted `products`, `services`, `media`, or
+  `page_editor` slices also select `buyna-merchant-file-core`; other slices do
+  not.
 - Product with provider payment: execute cart/order, checkout-flow core,
   GlobePay transport/verification Adapters, then settlement core and GMV.
 - Paid booking: `requiresBooking=true`, `requiresCheckout=true`, and
@@ -129,3 +142,5 @@ operation behavior. Project generation owns persistence/API Adapters,
 configuration, localized copy, markup, components, colors, fonts, spacing,
 shell, page composition, transitions, responsive visual treatment, and CSS.
 No route selects a shared Dashboard skin.
+Storefront gallery and all file/gallery visual UI are generated per project;
+the deferred gallery behavior is not a package or route dependency.

@@ -37,6 +37,7 @@ const gates = Object.freeze([
 const requestedSlices = Object.freeze([...gates, "local_preview"]);
 const repairSlices = Object.freeze(["frontend_code", "dashboard_integration", "checkout_payment", "testing_upload_gate"]);
 const paymentArchitectures = Object.freeze(["fixed-cores", "legacy-globepay-service"]);
+const fileCapableDashboardSlices = Object.freeze(["products", "services", "media", "page_editor"]);
 const dependencyRules = Object.freeze({
   "buyai-product-merchant-backend": () => ({
     skills: [],
@@ -106,6 +107,10 @@ function assertSelectedDependencyContract(selected) {
   if (skills.has("buyai-dashboard-data-interaction") && !modules.has("buyna-merchant-dashboard-core")) {
     throw new Error("DASHBOARD_DEPENDENCY_INCOMPLETE");
   }
+  if (skills.has("buyai-dashboard-data-interaction")
+    && !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name))) {
+    throw new Error("DASHBOARD_SECURITY_DEPENDENCY_INCOMPLETE");
+  }
   if (skills.has("buyai-checkout-address-ux")
     && selected.commerceArchitecture !== "legacy-globepay-service"
     && !modules.has("buyna-checkout-flow-core")) {
@@ -135,6 +140,8 @@ function withManifestVerification(route) {
   }
   return {
     ...route,
+    dashboardSlice: route.dashboardSlice ?? null,
+    dashboardSlices: Array.isArray(route.dashboardSlices) ? [...route.dashboardSlices] : [],
     manifestVerification: { profile: "website-builder", verified: true },
   };
 }
@@ -203,7 +210,39 @@ function capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSli
   });
 }
 
-function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
+function normalizeDashboardSelection({ targetGate, dashboardSlice, persistedSlices, workPackageGates }) {
+  if (targetGate !== "dashboard_integration") {
+    if (dashboardSlice !== null && dashboardSlice !== undefined) {
+      return { blocked: "DASHBOARD_SLICE_NOT_APPLICABLE", dashboardSlice: null, dashboardSlices: [] };
+    }
+    return { dashboardSlice: null, dashboardSlices: [] };
+  }
+  if (!Array.isArray(persistedSlices) || persistedSlices.length === 0) {
+    return { blocked: "DASHBOARD_SLICES_NOT_CONFIGURED", dashboardSlice: null, dashboardSlices: [] };
+  }
+  if (!persistedSlices.every((value) => typeof value === "string" && value.trim() && value === value.trim())
+    || new Set(persistedSlices).size !== persistedSlices.length) {
+    throw new Error("DASHBOARD_SLICES_INVALID");
+  }
+  if (dashboardSlice === null || dashboardSlice === undefined) {
+    if (persistedSlices.length !== 1) {
+      return { blocked: "DASHBOARD_SLICE_REQUIRED", dashboardSlice: null, dashboardSlices: [] };
+    }
+    return { dashboardSlice: persistedSlices[0], dashboardSlices: [persistedSlices[0]] };
+  }
+  if (dashboardSlice === "all") {
+    if (!workPackageGates.includes("dashboard_integration")) {
+      return { blocked: "DASHBOARD_FULL_SCOPE_APPROVAL_REQUIRED", dashboardSlice: null, dashboardSlices: [] };
+    }
+    return { dashboardSlice: "all", dashboardSlices: [...persistedSlices] };
+  }
+  if (typeof dashboardSlice !== "string" || !persistedSlices.includes(dashboardSlice)) {
+    return { blocked: "DASHBOARD_SLICE_NOT_APPROVED", dashboardSlice: null, dashboardSlices: [] };
+  }
+  return { dashboardSlice, dashboardSlices: [dashboardSlice] };
+}
+
+function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboardSelection }) {
   const fixedModules = ["buyna-workflow-state-core"];
   if (gate === "customer_intake") return { skills: ["buyna-customer-intake"], fixedModules, commerceArchitecture: null };
   if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure"], fixedModules, commerceArchitecture: null };
@@ -220,6 +259,10 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
     if (capabilities.requiresCoupons) skills.push("buyai-coupon-commerce");
     skills.push("buyai-dashboard-data-interaction");
     addUnique(fixedModules, lifecycleModules(capabilities, { dashboard: true }));
+    addUnique(fixedModules, ["buyna-auth-session-core", "buyna-merchant-context-core"]);
+    if (dashboardSelection.dashboardSlices.some((slice) => fileCapableDashboardSlices.includes(slice))) {
+      addUnique(fixedModules, ["buyna-merchant-file-core"]);
+    }
     return { skills, fixedModules, commerceArchitecture: null };
   }
   if (gate === "testing_upload_gate") return { skills: ["buyna-testing-quality"], fixedModules, commerceArchitecture: null };
@@ -253,7 +296,7 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
   };
 }
 
-export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build" } = {}) {
+export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build", dashboardSlice = null } = {}) {
   if (!requestedSlices.includes(requestedSlice)) throw new Error("REQUESTED_SLICE_INVALID");
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
   const workflowState = verifyReadiness(rawState);
@@ -300,8 +343,44 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   }
   const requestedStatus = workflowState.gates[requestedGate].status;
   const targetGate = completed ? requestedGate : ["ready", "in_progress"].includes(requestedStatus) ? requestedGate : workflowState.currentGate;
-  const selected = routeForGate({ gate: targetGate, capabilities, paymentArchitecture, mode });
   const workPackageGates = workflowState.configuration?.workPackage?.gates ?? [];
+  if (skippedGates.includes(targetGate)) {
+    return withManifestVerification({
+      action: "mark_not_applicable",
+      targetGate,
+      requestedSlice,
+      reason: "CAPABILITY_NOT_REQUIRED",
+      skills: [],
+      fixedModules: ["buyna-workflow-state-core"],
+      notApplicableGates: skippedGates,
+      continueWithoutConfirmation: false,
+      commerceArchitecture: null,
+      externalActions: { git: false, aws: false },
+    });
+  }
+  const dashboardSelection = normalizeDashboardSelection({
+    targetGate,
+    dashboardSlice,
+    persistedSlices: workflowState.configuration?.dashboardSlices,
+    workPackageGates,
+  });
+  if (dashboardSelection.blocked) {
+    return withManifestVerification({
+      action: "blocked",
+      targetGate,
+      requestedSlice,
+      reason: dashboardSelection.blocked,
+      skills: [],
+      fixedModules: ["buyna-workflow-state-core"],
+      notApplicableGates: skippedGates,
+      continueWithoutConfirmation: false,
+      commerceArchitecture: null,
+      dashboardSlice: dashboardSelection.dashboardSlice,
+      dashboardSlices: dashboardSelection.dashboardSlices,
+      externalActions: { git: false, aws: false },
+    });
+  }
+  const selected = routeForGate({ gate: targetGate, capabilities, paymentArchitecture, mode, dashboardSelection });
   const base = {
     targetGate,
     requestedSlice,
@@ -310,11 +389,12 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     notApplicableGates: skippedGates,
     continueWithoutConfirmation: activeRepair || workPackageGates.includes(targetGate),
     commerceArchitecture: selected.commerceArchitecture,
+    dashboardSlice: dashboardSelection.dashboardSlice,
+    dashboardSlices: dashboardSelection.dashboardSlices,
     ...(capabilityMigration ? { capabilityMigration } : {}),
     externalActions: { git: false, aws: targetGate === "aws_release" && releaseIntent === true },
   };
   if (completed && !activeRepair) return withManifestVerification({ action: "reopen_repair", ...base, repairTransition: { type: "openRepairSlice", gate: targetGate } });
-  if (skippedGates.includes(targetGate)) return withManifestVerification({ action: "mark_not_applicable", ...base, reason: "CAPABILITY_NOT_REQUIRED", skills: [], fixedModules: ["buyna-workflow-state-core"], commerceArchitecture: null });
   if (targetGate === "aws_release" && releaseIntent !== true) return withManifestVerification({ action: "blocked", ...base, reason: "RELEASE_INTENT_REQUIRED", skills: [], externalActions: { git: false, aws: false } });
   return withManifestVerification({ action: "execute", ...base });
 }

@@ -18,6 +18,14 @@ migrations, storage rules, APIs, or backend business logic.
 
 After the gate passes, read `references/booking-service-rules.md`. Confirm languages, currency, location/timezone, booking type, package rules, capacity model, and payment mode.
 
+When invoked by `buyna-website-builder`, inherit
+`configuration.workPackage`, the approved fixed-module selection, and the
+approved Adapter contract. Do not repeat onboarding or reopen confirmation in
+the approved slice. Runtime identity must never inherit from the Builder: for
+each protected request obtain fresh trusted auth and resolve the current server-observed host into one request-local immutable merchant context before
+calling booking, service, capacity, or file Adapters. Resolve anew for every
+request and host; browser owner IDs are never authority.
+
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 
 ## Dashboard Contract Boundary

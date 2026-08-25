@@ -49,7 +49,10 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    grouped evidence input.
 3. Run `scripts/route-builder.mjs` with the capabilities persisted in the loaded
    workflow state, the same capabilities as the external request assertion,
-   requested slice, release intent, and
+   requested slice, release intent, and `dashboardSlice` when the target is
+   `dashboard_integration`. The value must be one persisted
+   `configuration.dashboardSlices` entry. Omission auto-selects only a single
+   persisted entry; `all` requires the approved bounded work package. Then pass
    `build | repair | resume` mode.
    When it returns `CAPABILITY_SCOPE_CHANGE_REQUIRED`, return to scope/capability
    intake. When it returns `reopen_repair`, record the separately authorized
@@ -85,6 +88,11 @@ node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
   optional persisted coupon capability.
 - `buyna-merchant-dashboard-core`: operation state for every interactive
   Dashboard page.
+- `buyna-auth-session-core` then `buyna-merchant-context-core`: request-local
+  authorization and current observed-host merchant scope for protected
+  Dashboard work.
+- `buyna-merchant-file-core`: file lifecycle and upload-queue effects only for
+  approved file-capable Dashboard slices.
 - `buyna-checkout-flow-core`: minimum fields, method selection, review,
   submission, snapshot, and local order lock.
 - `buyna-commerce-settlement-core`: trusted result reconciliation, legal
@@ -115,6 +123,12 @@ After design approval, one bounded work package may include `frontend_code`,
 `dashboard_integration`, `checkout_payment`, and `testing_upload_gate`. Each
 gate still validates delivery evidence, while ready included gates continue
 without repeated confirmation.
+
+Every returned child inherits `configuration.workPackage`, the approved
+fixed-module selection, and the approved Adapter contract. It must not repeat
+onboarding or reopen confirmation inside that approved slice. Runtime identity
+is never inherited: every protected request obtains fresh trusted auth and
+resolves the current server-observed host through the merchant-context core.
 
 Local preview runs in the current checkout/project. GitHub is selected only for
 an approved repository publication/contribution request. AWS is selected only

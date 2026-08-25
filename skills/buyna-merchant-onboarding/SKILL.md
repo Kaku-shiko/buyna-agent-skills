@@ -88,7 +88,12 @@ passes and stop immediately on the first failed gate.
 5. **Data and storage scope** — Bind every owned query to `project_id + seller_id`;
    route file lifecycle work to `buyna-s3-storage`, which uses the fixed file
    core, while retaining only required legacy reads.
-6. **Administrator scope** — Configure one merchant administrator and prove its session cannot be reused for another seller.
+6. **Administrator scope** — Configure one merchant administrator and prove its
+   session cannot be reused for another seller. Register exact host and
+   membership inputs: the normalized
+   `host -> projectId + sellerId + status` directory record and the exact
+   `subjectId + projectId + sellerId -> role + status` membership record
+   consumed by `buyna-merchant-context-core`.
 7. **Application runtime and route** — On the verified shared EC2, give the new
    project its own application directory, environment-source name, logs, and
    approved systemd process or permission-restricted Unix Socket. Add the exact

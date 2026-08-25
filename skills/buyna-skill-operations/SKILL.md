@@ -44,13 +44,17 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
   complete and project-scoped Builder installations.
 - Require `buyna-merchant-dashboard-core`, `buyna-merchant-dashboard-headless`,
   `buyna-merchant-catalog-core`, `buyna-inventory-core`, `buyna-coupon-core`,
-  `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`, and
-  `buyna-merchant-file-core` under the installed module root. A
+  `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`,
+  `buyna-merchant-file-core`, `buyna-auth-session-core`, and
+  `buyna-merchant-context-core` under the installed module root. A
   payment-capable website profile also requires `buyna-checkout-flow-core` and
   `buyna-commerce-settlement-core`.
 - Verify the `buyai-coupon-commerce` Skill is present when the persisted
   website capability enables coupons. Missing optional coupon capability does
   not block ordinary checkout.
+- Verify storefront gallery remains deferred and absent from the accepted
+  manifest until a later approved deep shared module exists; current gallery
+  behavior and presentation are generated per project.
 - Require a new Codex task after installation or update so discovery refreshes.
 - The current repository is public and requires no invitation for installation. Require authenticated Git credentials only for write operations.
 

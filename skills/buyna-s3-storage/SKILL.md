@@ -13,7 +13,11 @@ Own files and images; keep business records in the database.
 2. Inspect the existing bucket, region, project prefix, access model, object keys, and database metadata.
 3. Use `packages/buyna-merchant-file-core`; do not regenerate project/seller key construction or lifecycle ordering.
 4. Read `references/merchant-file-adapter-contract.md` and implement only the approved S3 and PostgreSQL metadata adapters.
-5. Call the fixed `confirmUpload`, `replaceObject`, `softDelete`, and `cleanupOrphans` interfaces from project routes or jobs.
+5. For interactive uploads, call `createUploadQueue` and
+   `createUploadEffectExecutor`; implement only their approved S3 and metadata
+   Adapter handlers. Continue to call the fixed `confirmUpload`,
+   `replaceObject`, `softDelete`, and `cleanupOrphans` interfaces from project
+   routes or jobs.
 6. Run `npm test --prefix packages/buyna-merchant-file-core` before project integration.
 7. Verify ownership, rollback, and failure behavior.
 

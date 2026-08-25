@@ -72,12 +72,17 @@ ownership while the booking Skill keeps reservation/capacity ownership; both
 share the selected checkout/payment cores and project Adapters.
 
 When invoked by `buyna-website-builder`, inherit the saved
-`configuration.workPackage` authorization and `interactionMode`. An included
+`configuration.workPackage` authorization, approved fixed-module selection,
+approved Adapter contract, and `interactionMode`. An included
 `dashboard_integration` or `checkout_payment` slice returns evidence to the
 Builder and continues without another approval question. Standalone work uses
 its ordinary current-step approval. The Builder's returned `skills` and
 `fixedModules` are the complete selection: do not reinvoke or add sibling
 Skills from `Combine Skills` when they are already returned or were not selected.
+Do not repeat onboarding. Runtime identity must never inherit from the Builder:
+for each protected request obtain fresh trusted auth and resolve the current server-observed host into one request-local immutable merchant context before
+calling product, inventory, order, or file Adapters. Resolve anew for every
+request and host; browser owner IDs are never authority.
 
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 

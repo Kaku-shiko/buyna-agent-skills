@@ -12,6 +12,14 @@ interaction mode, and bounded work package. Its returned `skills` and
 `fixedModules` are authoritative; references below reuse an already returned
 child and never trigger a second sibling invocation.
 
+For every protected request, first interpret a fresh trusted result through
+`buyna-auth-session-core`, then call `buyna-merchant-context-core` with the
+current server-observed host, and only then call a business Adapter. Never cache
+the resolved identity or merchant context across requests or hosts. The
+Builder's `configuration.workPackage`, approved fixed-module selection, and
+approved Adapter contract are inherited; do not repeat onboarding or reopen
+confirmation inside the approved slice.
+
 For every interactive page, call
 `packages/buyna-merchant-dashboard-core.createDashboardOperation`. The fixed
 operation state owns legal loading/ready/empty/error/forbidden and
@@ -21,7 +29,10 @@ regenerate this state machine.
 
 ## Entry Gate
 
-Require runnable Dashboard source, desktop/mobile states, marked mock adapter, API contract, passing frontend checks, and explicit approval. Otherwise stop and return to `buyna-frontend-builder` Phase 4.
+Require runnable Dashboard source, desktop/mobile states, marked mock adapter,
+API contract, and passing frontend checks. Standalone work also requires its
+ordinary approval; Builder-invoked work inherits the bounded approval above.
+Otherwise stop and return to `buyna-frontend-builder` Phase 4.
 
 Read `references/dashboard-data-interaction.md`. Read `references/approved-stack.md` only when no working/approved backend stack exists.
 
@@ -30,7 +41,8 @@ Read `references/dashboard-data-interaction.md`. Read `references/approved-stack
 For the current page only:
 
 1. Preserve the working stack; establish or extend the executable server/API boundary and environment-safe endpoint configuration.
-2. Implement merchant login/session, authorization, `project_id`, and `seller_id` scope when required.
+2. Bind project login/session verification to the fixed request-local auth and
+   merchant-context sequence above; never accept browser ownership.
 3. Run `buyna-project-resource-registry`, then run `buyna-aws-data-layer` only for a registered PostgreSQL architecture. Preserve a registered serverless/static architecture rather than generating RDS. For a newly approved
    merchant project, require the `buyna-merchant-onboarding` scaffold result.
    For approved file actions, call `buyna-s3-storage`; it must use

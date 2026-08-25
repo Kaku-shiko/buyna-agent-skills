@@ -30,6 +30,9 @@ const runRoute = (input) => {
     verified: true,
   });
   delete route.manifestVerification;
+  // Batch 3 validates these additive stable fields in its focused routing suite.
+  delete route.dashboardSlice;
+  delete route.dashboardSlices;
   return route;
 };
 

@@ -60,6 +60,8 @@ mock repository or adapter boundary.
 Do not implement authentication services, authorization decisions, database
 models, persistence, inventory/capacity mutations, order state machines,
 payment verification, S3 ownership, or production APIs in Dashboard UI mode.
+Import approved headless behavior only. File and gallery visual UI is generated per project: picker, preview, ordering, cover, progress, errors, modal/carousel,
+mobile layout, markup, components, motion, and CSS remain project presentation.
 Express these requirements only in the API contract.
 
 ## Integration Mode: Phase 5 Slice
