@@ -1,5 +1,10 @@
 {
   "presentationStylesheetExtensions": ["css", "scss", "sass", "less", "styl", "stylus"],
+  "uiExportPatterns": [
+    "(?:^|\\s)\\.\\/(?:react|components?)(?=\\s|$)",
+    "(?:^|\\s)\\.\\/(?:styles?|theme)(?:\\.[a-z]+)?(?=\\s|$)",
+    "\\.(?:tsx|jsx|vue|svelte)$"
+  ],
   "merchantIdentifierPatterns": [
     "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
   ],

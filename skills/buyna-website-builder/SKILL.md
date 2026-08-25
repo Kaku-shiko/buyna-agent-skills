@@ -67,7 +67,9 @@ node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
 
 - `buyna-workflow-state-core`: gate state, approvals, work packages, verified
   history import.
-- `buyna-cart-core` and `buyna-order-core`: product cart/order behavior.
+- `buyna-cart-core` and `buyna-order-core`: product cart/order behavior,
+  including drawer interaction state and safe transitions, never a fixed
+  markup, theme, layout, or CSS implementation.
 - `buyna-checkout-flow-core`: minimum fields, method selection, review,
   submission, snapshot, and local order lock.
 - `buyna-commerce-settlement-core`: trusted result reconciliation, legal

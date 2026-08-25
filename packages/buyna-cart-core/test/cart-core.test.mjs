@@ -62,8 +62,9 @@ test('cart clears only after verified payment or explicit reset',async()=>{
   assert.equal((await cart.getCart()).itemCount,0);
 });
 
-test('the fixed storefront flow matches the default commerce sequence',()=>{
-  assert.equal(DEFAULT_COMMERCE_CART_FLOW.presentation,'right_drawer');
+test('the fixed cart flow exposes drawer interaction state without a layout decision',()=>{
+  assert.deepEqual(DEFAULT_COMMERCE_CART_FLOW.drawer,{states:['closed','open'],dismissals:['close_action','backdrop','escape']});
   assert.deepEqual(DEFAULT_COMMERCE_CART_FLOW.steps,['cart','buyer_form','order_review','provider_payment','server_verified_result']);
   assert.equal(DEFAULT_COMMERCE_CART_FLOW.checkoutMode,'all_items_once');
+  assert.doesNotMatch(JSON.stringify(DEFAULT_COMMERCE_CART_FLOW),/right_drawer/);
 });

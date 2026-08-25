@@ -39,14 +39,25 @@ test("website-builder declares the fixed checkout and trusted-settlement modules
   assert.match(installer, /\@\(\$manifest\.packages\)\s*\|\s*ForEach-Object/);
 });
 
-test("shared commerce-state modules obey the authoritative presentation and production-boundary policy", () => {
+test("website-builder declares GlobePay status synchronization for payment-capable routes", () => {
+  const manifest = readJson("repository-manifest.json");
+
+  assert.ok(
+    manifest.profiles["website-builder"].skills.includes("buyai-globepay-status-sync"),
+    "website-builder declares the status-sync Skill used by its payment route",
+  );
+});
+
+test("every manifest fixed module obeys the authoritative presentation and production-boundary policy", () => {
+  const manifest = readJson("repository-manifest.json");
   const policy = sharedModuleBoundaryPolicy();
   const prohibitedIdentifiers = new RegExp(
     [...policy.merchantIdentifierPatterns, ...policy.productionIdentifierPatterns].join("|"),
     "i",
   );
+  const prohibitedUiExports = policy.uiExportPatterns.map((pattern) => new RegExp(pattern, "i"));
 
-  for (const moduleName of commerceStateModules) {
+  for (const moduleName of manifest.packages) {
     const files = filesUnder(`packages/${moduleName}`);
     assert.ok(
       !files.some((file) => policy.presentationStylesheetExtensions
@@ -54,10 +65,30 @@ test("shared commerce-state modules obey the authoritative presentation and prod
       `${moduleName} does not bundle a presentation stylesheet`,
     );
 
-    for (const file of files.filter((candidate) => /\.(?:mjs|js|json)$/i.test(candidate))) {
-      assert.doesNotMatch(read(file), prohibitedIdentifiers, `${file} contains no merchant or production identifier`);
+    const pkg = readJson(`packages/${moduleName}/package.json`);
+    const exports = typeof pkg.exports === "string" ? [[".", pkg.exports]] : Object.entries(pkg.exports);
+    for (const [exportName, target] of exports) {
+      assert.ok(
+        !prohibitedUiExports.some((pattern) => pattern.test(`${exportName} ${target}`)),
+        `${moduleName} does not expose a UI component or style entrypoint`,
+      );
+    }
+
+    if (commerceStateModules.includes(moduleName)) {
+      for (const file of files.filter((candidate) => !candidate.includes("/test/")
+        && /\.(?:mjs|cjs|js|ts|tsx|jsx|json)$/i.test(candidate))) {
+        assert.doesNotMatch(read(file), prohibitedIdentifiers, `${file} contains no merchant or production identifier`);
+      }
     }
   }
+});
+
+test("cart/order guidance fixes drawer interaction state while projects generate presentation", () => {
+  const guidance = read("skills/buyai-product-merchant-backend/references/cart-order-fixed-cores.md");
+
+  assert.match(guidance, /抽屉.*交互.*状态.*固定|固定.*抽屉.*交互.*状态/is);
+  assert.match(guidance, /标记.*主题.*布局.*CSS.*项目.*生成|项目.*生成.*标记.*主题.*布局.*CSS/is);
+  assert.doesNotMatch(guidance, /fixed `\.\/react` components|`\.\/styles\.css`/i);
 });
 
 test("team docs preserve fixed commerce behavior while projects generate presentation and Adapters", () => {

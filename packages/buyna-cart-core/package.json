@@ -4,10 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/cart-core.mjs",
-    "./local-storage": "./adapters/local-storage.mjs",
-    "./react": "./src/cart-components.tsx",
-    "./styles.css": "./src/cart.css"
+    "./local-storage": "./adapters/local-storage.mjs"
   },
-  "peerDependencies": { "react": ">=18" },
   "scripts": { "test": "node --test test/cart-core.test.mjs" }
 }

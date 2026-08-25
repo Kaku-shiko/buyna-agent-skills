@@ -10,13 +10,14 @@ Use these packages instead of regenerating cart and order business rules:
 Use the fixed commerce flow as the default storefront behavior:
 
 ```text
-加入购物车 → 右侧购物车抽屉 → 买家资料 → 订单确认 → 支付 → 服务端验证结果
+加入购物车 → 购物车抽屉交互 → 买家资料 → 订单确认 → 支付 → 服务端验证结果
 ```
 
-The drawer shows item count, product image, name/SKU, unit price, quantity
-decrease/increase, removal, line total, cart total, and one checkout action for
-all items. Use the fixed `./react` components and `./styles.css`; configure
-brand tokens and translated labels rather than regenerating the drawer.
+购物车抽屉交互状态、关闭/遮罩/Escape 退出、数量更新、删除、结算动作和安全的
+购物车/订单转换为固定行为；每个项目生成自己的标记、主题、布局和 CSS。Cart drawer
+open/closed state and dismissals are behavior only. Generate labels, images,
+and presentation components in the project; do not import a cart React
+component or stylesheet from the fixed core.
 
 Create `createCartService` with a server-owned `projectId`, `sellerId`, and a
 trusted `cartId`. Generate only:

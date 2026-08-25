@@ -6,7 +6,10 @@ function lineKey(productId,variantId){return`${productId}:${variantId??''}`}
 function money(value,code){const number=Number(value??0);if(!Number.isSafeInteger(number)||number<0)fail(code);return number}
 
 export const DEFAULT_COMMERCE_CART_FLOW=Object.freeze({
-  presentation:'right_drawer',
+  drawer:Object.freeze({
+    states:Object.freeze(['closed','open']),
+    dismissals:Object.freeze(['close_action','backdrop','escape']),
+  }),
   steps:Object.freeze(['cart','buyer_form','order_review','provider_payment','server_verified_result']),
   checkoutMode:'all_items_once',
   clearReasons:Object.freeze(['verified_payment','explicit_reset']),
