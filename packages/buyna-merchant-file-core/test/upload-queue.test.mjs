@@ -672,3 +672,59 @@ test('handler result must be JSON-safe before completion is recorded', async () 
     assert.equal(failed, 0);
   }
 });
+
+test('handler result rejects oversized sparse arrays before completion persistence', async () => {
+  const oversizedSparse = new Array(10_001);
+  let completed = 0;
+  let failed = 0;
+  const executor = createUploadEffectExecutor({
+    projectId: 'project_alpha', sellerId: 'seller_alpha',
+    effectStore: {
+      async acquireEffect() { return { outcome: 'acquired' }; },
+      async completeEffect() { completed += 1; },
+      async failEffect() { failed += 1; },
+    },
+    handlers: { async validate_file() { return oversizedSparse; } },
+  });
+  await assert.rejects(() => executor.execute(validationEffect()),
+    error => error.code === 'UPLOAD_EFFECT_RESULT_TOO_LARGE');
+  assert.equal(completed, 0);
+  assert.equal(failed, 0);
+});
+
+test('completed replay rejects oversized sparse arrays without dispatching a handler', async () => {
+  const oversizedSparse = new Array(10_001);
+  let handlerCalls = 0;
+  const executor = createUploadEffectExecutor({
+    projectId: 'project_alpha', sellerId: 'seller_alpha',
+    effectStore: {
+      async acquireEffect() { return { outcome: 'completed', result: oversizedSparse }; },
+      async completeEffect() {},
+      async failEffect() {},
+    },
+    handlers: { async validate_file() { handlerCalls += 1; return []; } },
+  });
+  await assert.rejects(() => executor.execute(validationEffect()),
+    error => error.code === 'UPLOAD_EFFECT_RESULT_TOO_LARGE');
+  assert.equal(handlerCalls, 0);
+});
+
+test('JSON-safe result validation rejects array holes and exotic array prototypes', async () => {
+  const sparse = ['present'];
+  sparse.length = 2;
+  const exotic = ['value'];
+  Object.setPrototypeOf(exotic, null);
+  for (const result of [sparse, exotic]) {
+    const executor = createUploadEffectExecutor({
+      projectId: 'project_alpha', sellerId: 'seller_alpha',
+      effectStore: {
+        async acquireEffect() { return { outcome: 'completed', result }; },
+        async completeEffect() {},
+        async failEffect() {},
+      },
+      handlers: { async validate_file() { return []; } },
+    });
+    await assert.rejects(() => executor.execute(validationEffect()),
+      error => error.code === 'UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+  }
+});

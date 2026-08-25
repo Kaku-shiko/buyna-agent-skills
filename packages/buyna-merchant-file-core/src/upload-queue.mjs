@@ -410,12 +410,14 @@ function canonicalizeEffect(effect, scope) {
 }
 
 function canonicalizeJsonSafe(value) {
+  const maxNodes = 10_000;
+  const maxArrayElements = 10_000;
   const stack = new WeakSet();
   let nodes = 0;
 
   function visit(current, depth) {
     nodes += 1;
-    if (nodes > 10_000) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
+    if (nodes > maxNodes) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
     if (depth > 32) fail('UPLOAD_EFFECT_RESULT_TOO_DEEP');
     if (current === null || typeof current === 'string' || typeof current === 'boolean') return current;
     if (typeof current === 'number') {
@@ -427,22 +429,48 @@ function canonicalizeJsonSafe(value) {
     stack.add(current);
     try {
       if (Array.isArray(current)) {
+        if (Object.getPrototypeOf(current) !== Array.prototype) {
+          fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        }
         const descriptors = Object.getOwnPropertyDescriptors(current);
         const keys = Reflect.ownKeys(descriptors);
         if (keys.some(key => typeof key !== 'string')) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
-        const length = current.length;
-        const expectedKeys = ['length', ...Array.from({ length }, (_, index) => String(index))];
+        const lengthDescriptor = descriptors.length;
         if (
-          keys.length !== expectedKeys.length
-          || keys.some(key => !expectedKeys.includes(key))
-        ) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
-        return Array.from({ length }, (_, index) => {
-          const descriptor = descriptors[index];
+          !lengthDescriptor
+          || lengthDescriptor.enumerable
+          || !Object.hasOwn(lengthDescriptor, 'value')
+        ) {
+          fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        }
+        const length = lengthDescriptor.value;
+        if (!Number.isSafeInteger(length) || length < 0) {
+          fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        }
+        if (length > maxArrayElements) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
+        const indexKeys = keys.filter(key => key !== 'length');
+        if (indexKeys.length !== length) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        for (const key of indexKeys) {
+          if (!/^(0|[1-9][0-9]*)$/.test(key)) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+          const index = Number(key);
+          const descriptor = descriptors[key];
+          if (
+            !Number.isSafeInteger(index)
+            || index < 0
+            || index >= length
+            || !descriptor?.enumerable
+            || !Object.hasOwn(descriptor, 'value')
+          ) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        }
+        const clone = new Array(length);
+        for (let index = 0; index < length; index += 1) {
+          const descriptor = descriptors[String(index)];
           if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
             fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
           }
-          return visit(descriptor.value, depth + 1);
-        });
+          clone[index] = visit(descriptor.value, depth + 1);
+        }
+        return clone;
       }
       const prototype = Object.getPrototypeOf(current);
       if (prototype !== Object.prototype && prototype !== null) {
