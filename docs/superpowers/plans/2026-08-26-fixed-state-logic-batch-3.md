@@ -32,8 +32,8 @@ Markdown Codex Skills, PowerShell repository validation.
 - The upload queue owns interaction state only. S3 transport, presigned URLs,
   PostgreSQL metadata, and public delivery URLs remain project Adapters.
 - The auth module never verifies passwords, parses framework cookies, stores
-  secrets, or implements middleware. It interprets trusted Adapter results and
-  emits stable `401`/`403` decisions.
+  secrets, exposes an internal session-record ID, or implements middleware. It
+  interprets trusted Adapter results and emits stable `401`/`403` decisions.
 - The merchant-context module reads the observed host and authenticated
   identity from server Adapters; its public resolver does not accept caller
   ownership IDs.
@@ -91,9 +91,58 @@ modules; Task 7 verifies the full batch.
   `retry({ itemId })`, `setProgress({ itemId, attemptId, loaded, total })`,
   `reorder({ itemIds })`, `setCover({ itemId })`, `cancel({ itemId })`, and
   `snapshot()`.
-- Produce immutable `UPLOAD_QUEUE_STATES`, `UPLOAD_QUEUE_TRANSITIONS`, and
-  serializable effect descriptors. Project code executes `validate`, `upload`,
-  `abort_upload`, `confirm`, or `remove` effects through its Adapters.
+- Produce: `createUploadEffectExecutor({ projectId, sellerId, effectStore,
+  handlers })` with `execute(effect)`.
+- Every state-changing call returns `{ snapshot, effects }`. Every effect has
+  this exact immutable shape:
+
+  ```js
+  {
+    effectId,             // deterministic; same value on state replay
+    idempotencyKey,       // equal to effectId in v1
+    type,                 // validate_file | upload_object | confirm_upload | remove_file | abort_upload
+    projectId,
+    sellerId,
+    itemId,
+    attemptId,
+    payload,              // safe file metadata only; no bytes, credentials, bucket, URL, or owner input
+  }
+  ```
+
+- `effectId` is exactly
+  `upload:{projectId}:{sellerId}:{itemId}:{attemptId}:{type}`. Item identity is
+  allocated by `select`. Attempt identity is allocated once when validation or
+  removal starts and once again before every explicit retry; later events in
+  that attempt reuse it.
+- Exact queue events are `start_validation`, `validation_succeeded`,
+  `validation_failed`, `upload_succeeded`, `upload_failed`,
+  `confirmation_succeeded`, `confirmation_failed`, `start_removal`,
+  `removal_succeeded`, `removal_failed`, `cancel`, and `retry`.
+- Effect mapping is exact: `start_validation -> validate_file`,
+  `validation_succeeded -> upload_object`,
+  `upload_succeeded -> confirm_upload`, `start_removal -> remove_file`, and
+  `cancel -> abort_upload` only while uploading. `validation_failed`,
+  `upload_failed`, `confirmation_succeeded`, `confirmation_failed`,
+  `removal_succeeded`, and `removal_failed` emit no new external effect.
+  `retry` allocates a new attempt and emits the effect for its remembered
+  target: validating/uploading/confirming/removing maps to
+  `validate_file`/`upload_object`/`confirm_upload`/`remove_file`.
+- Effect Store Adapter:
+  `acquireEffect({ projectId, sellerId, effectId, idempotencyKey })` returns
+  `{ outcome: 'acquired' | 'completed' | 'in_progress', result? }`;
+  `completeEffect({ projectId, sellerId, effectId, idempotencyKey, result })`;
+  `failEffect({ projectId, sellerId, effectId, idempotencyKey, errorCode })`.
+  Its generated persistence Adapter enforces one unique record per
+  `(project_id, seller_id, idempotency_key)`. `completed` replays the stored
+  result without calling a handler; `in_progress` fails with
+  `UPLOAD_EFFECT_IN_PROGRESS`; a failed record may be reacquired for the same
+  external request key.
+- Handler Adapter methods are keyed by the five effect `type` values above.
+  Each has the exact signature `handlers[type](effect)` and returns a
+  serializable result. The fixed executor owns claim/replay ordering; handlers
+  own validation, S3, metadata, and abort transport. On handler failure the
+  executor records `failEffect` with a stable error code and rethrows; it never
+  marks a failed call complete.
 
 - [ ] **Step 1: Write failing lifecycle and scope tests**
 
@@ -107,12 +156,12 @@ modules; Task 7 verifies the full batch.
   });
   queue.select({ name: 'item.webp', size: 1200, type: 'image/webp' });
   queue.transition({ itemId: 'file_1', event: 'start_validation' });
-  queue.transition({ itemId: 'file_1', event: 'validation_passed' });
-  queue.transition({ itemId: 'file_1', event: 'upload_completed', attemptId: 'attempt_1' });
-  queue.transition({ itemId: 'file_1', event: 'confirmation_succeeded' });
+  queue.transition({ itemId: 'file_1', event: 'validation_succeeded', attemptId: 'attempt_1' });
+  queue.transition({ itemId: 'file_1', event: 'upload_succeeded', attemptId: 'attempt_1' });
+  queue.transition({ itemId: 'file_1', event: 'confirmation_succeeded', attemptId: 'attempt_1' });
   assert.equal(queue.snapshot().items[0].state, 'ready');
   assert.throws(
-    () => queue.transition({ itemId: 'file_1', event: 'validation_failed' }),
+    () => queue.transition({ itemId: 'file_1', event: 'validation_failed', attemptId: 'attempt_1' }),
     error => error.code === 'UPLOAD_QUEUE_INVALID_TRANSITION',
   );
   ```
@@ -136,19 +185,19 @@ modules; Task 7 verifies the full batch.
   Implement exactly these transitions:
 
   ```text
-  selected -> validating
+  selected -> validating (`start_validation`, allocate attempt)
   validating -> uploading | failed
   uploading -> confirming | failed
   confirming -> ready | failed
-  failed -> validating | uploading | confirming
-  ready -> removing
+  failed -> validating | uploading | confirming (`retry`, allocate new attempt)
+  ready -> removing (`start_removal`, allocate attempt)
   removing -> removed | failed
   selected/validating/uploading/confirming/failed -> removed (cancel)
   ```
 
   A failure record stores `failedStage`, `retryTarget`, stable `errorCode`, and
-  the current `attemptId`. A legal transition returns an effect descriptor but
-  never calls S3, metadata, DOM, or framework APIs.
+  the current `attemptId`. A legal transition returns the exact effect schema
+  above but never calls S3, metadata, DOM, or framework APIs.
 
 - [ ] **Step 4: Run the lifecycle test and verify GREEN**
 
@@ -160,16 +209,27 @@ modules; Task 7 verifies the full batch.
 
   - progress is derived from safe integer `loaded/total`, clamped to `0..100`,
     and rejects `total <= 0`, negative bytes, and non-current `attemptId`;
-  - retry creates a new attempt identity, returns to the remembered retry
-    target, and cannot retry a non-failed or cancelled item;
-  - duplicate completion/confirmation events are idempotent for the same
-    attempt but stale attempts cannot mutate current state;
+  - retry first creates a new attempt identity, returns to the remembered retry
+    target, and emits a new effect/request key; it cannot retry a non-failed or
+    cancelled item;
+  - duplicate `validation_succeeded`, `upload_succeeded`,
+    `confirmation_succeeded`, `removal_succeeded`, and matching failure events
+    for the same attempt return the cached transition result without a new
+    attempt or request key; specifically, duplicate `upload_succeeded` returns
+    the identical `confirm_upload` effect/key, while duplicate
+    `confirmation_succeeded` returns the same `ready` snapshot with
+    `effects: []` and does not re-emit confirmation; stale attempts cannot
+    mutate current state;
   - `reorder` requires every current non-removed item exactly once and never
     changes ownership or state;
   - cover selection accepts only one `ready` item and automatically chooses the
     first remaining ready item when the current cover is removed;
-  - cancellation emits `abort_upload` only for an active upload, ignores a
-    duplicate cancellation, and never deletes a confirmed object directly.
+  - cancellation emits `abort_upload` only for an active upload, replays the
+    same abort effect identity on a duplicate cancellation, and never deletes
+    a confirmed object directly;
+  - two concurrent executor calls with one idempotency key call the handler at
+    most once; a completed replay returns the saved result and never calls the
+    handler again.
 
 - [ ] **Step 6: Run tests and verify RED for the new behavior**
 
@@ -178,8 +238,10 @@ modules; Task 7 verifies the full batch.
 
 - [ ] **Step 7: Implement deterministic queue effects and public export**
 
-  Deep-freeze every snapshot returned to project code. Re-export the queue API
-  from `file-core.mjs`. Update the package test script to run both test files:
+  Deep-freeze every snapshot and effect returned to project code. Implement the
+  executor claim-before-handler and complete/fail-after-handler sequence.
+  Re-export the queue/executor API from `file-core.mjs`. Update the package test
+  script to run both test files:
 
   ```json
   "test": "node --test test/file-core.test.mjs test/upload-queue.test.mjs"
@@ -196,7 +258,10 @@ modules; Task 7 verifies the full batch.
   npm test --prefix packages/buyna-merchant-file-core
   ```
 
-  Expected: all old lifecycle tests and all queue tests pass.
+  Expected: all old lifecycle tests plus queue-state and effect-executor
+  uniqueness/replay tests pass. State replay and external effect replay are two
+  separate assertions: the queue must not mint a new effect, and the executor
+  must not repeat a claimed external call.
 
   Commit:
 
@@ -221,10 +286,13 @@ modules; Task 7 verifies the full batch.
   `rejectAuthentication({ attemptId, code? })`,
   `requireAuthorization({ permissions? })`, `expire({ reason? })`,
   `forbid({ reason? })`, `beginLogout()`, `completeLogout()`, and `snapshot()`.
-- Trusted Adapter identity shape:
-  `{ subjectId, sessionId, permissions: string[], issuedAt, expiresAt }`.
-  Secrets, password fields, raw cookies, bearer tokens, refresh tokens, and
-  card/payment fields are rejected rather than copied.
+- The only accepted and exported trusted identity keys are exactly
+  `{ subjectId, permissions, issuedAt, expiresAt }`. `permissions` is a string
+  array. Any internal database/session record ID stays in the project Adapter's
+  private state and is never accepted or returned by this package.
+- `sessionId`, `password`, `passwordHash`, `token`, `accessToken`,
+  `refreshToken`, `cookie`, `credential`, provider secrets, and card/payment
+  fields are outside the allowlist and are rejected rather than copied.
 - Produce immutable `AUTH_SESSION_STATES`, `AUTH_SESSION_TRANSITIONS`, and
   decisions `{ allowed, statusCode, code, identity? }`.
 
@@ -236,7 +304,7 @@ modules; Task 7 verifies the full batch.
   auth.acceptAuthentication({
     attemptId: 'attempt_1',
     identity: {
-      subjectId: 'user_1', sessionId: 'session_1', permissions: ['catalog:write'],
+      subjectId: 'user_1', permissions: ['catalog:write'],
       issuedAt: '2026-08-25T23:59:00Z', expiresAt: '2026-08-26T01:00:00Z',
     },
   });
@@ -281,10 +349,14 @@ modules; Task 7 verifies the full batch.
   ```
 
   An expired identity returns `401/AUTH_SESSION_EXPIRED`; explicit policy
-  denial returns `403/AUTH_SESSION_FORBIDDEN`. Reject identity keys matching
-  `password`, `passwordHash`, `cookie`, `token`, `refreshToken`, `cardNumber`,
-  or `cvv` with `AUTH_SENSITIVE_FIELD_FORBIDDEN`. Verify snapshot mutation
-  attempts cannot alter permissions or identity.
+  denial returns `403/AUTH_SESSION_FORBIDDEN`. Reject every identity key not in
+  the four-key allowlist with `AUTH_IDENTITY_FIELD_FORBIDDEN`, including
+  `sessionId`, `password`, `passwordHash`, `cookie`, `token`, `accessToken`,
+  `refreshToken`, `credential`, `cardNumber`, and `cvv`. Test every named key
+  separately and one unknown benign-looking key. Verify the public snapshot
+  contains only `state`, `attemptId`, `identity`, `errorCode`, and timestamps;
+  when present, `identity` contains exactly the four allowed keys. Snapshot
+  mutation attempts cannot alter permissions or identity.
 
 - [ ] **Step 5: Verify RED, implement authorization decisions, then verify GREEN**
 
@@ -436,6 +508,11 @@ package and keep gallery behavior generated per project.
       reason: 'NO_TWO_CONSUMER_TEST_SUITES',
       failedAssertions: [],
     },
+    nonConsumers: [
+      { path: 'packages/buyna-workflow-state-core/src/index.mjs', reason: 'workflow_gate_index' },
+      { path: 'tests/website-builder-state-routing.test.mjs', reason: 'workflow_gate_index' },
+      { path: 'tests/merchant-commerce-lifecycle-routing.test.mjs', reason: 'workflow_gate_index' },
+    ],
     forbiddenImportsChecked: true,
     visualFiles: [],
   }
@@ -460,13 +537,15 @@ package and keep gallery behavior generated per project.
   Run:
 
   ```powershell
-  rg -n --glob '!skills/**' --glob '!docs/**' --glob '!node_modules/**' "gallery|lightbox|carousel|currentIndex|returnFocus|reducedMotion" packages tests
+  rg -n --glob '!skills/**' --glob '!docs/**' --glob '!node_modules/**' --glob '!tests/storefront-gallery-module-decision.test.mjs' "gallery|lightbox|carousel|currentIndex|returnFocus|reducedMotion" packages tests
   ```
 
   Expected in the current repository: only unrelated workflow `currentIndex`
-  matches and no runnable storefront gallery consumer. Record the exact scan
-  command and result in the decision Markdown. Do not count requirement prose,
-  workflow gate indexes, or Dashboard drawer code.
+  matches and no runnable storefront gallery consumer. Record every match in
+  `nonConsumers` with its reason; the test must fail if an unclassified match
+  remains. Exclude the decision test itself so it cannot become self-evidence.
+  Do not count requirement prose, workflow gate indexes, or Dashboard drawer
+  code.
 
 - [ ] **Step 4: Verify GREEN and commit the YAGNI decision**
 
@@ -500,10 +579,22 @@ package and keep gallery behavior generated per project.
 - [ ] **Step 1: Write a failing executable manifest test**
 
   Require installability, profile membership, existing package paths and test
-  scripts for accepted modules. Assert that auth/context shared source
-  contains no `.css`, `.scss`, `.sass`, `.less`, JSX/TSX, merchant identifiers,
-  credentials, provider calls, AWS SDK, SQL/ORM implementation, framework
-  middleware, or browser DOM imports.
+  scripts for the deepened file core, auth core, and context core. Execute each
+  package's public factory and assert exact exported snapshot/effect/context
+  keys, including the auth identity four-key allowlist and the upload effect
+  schema. This runtime contract—not a naive word scan—must prove that a
+  `sessionId`, password/token/cookie/credential, bucket, URL, or caller owner
+  cannot appear in exported data.
+
+  The source-boundary portion may allow security words inside validation code,
+  tests, and documentation. It must instead reject executable imports of
+  React/Vue/Svelte/DOM frameworks, AWS SDK, SQL/ORM, password libraries, cookie
+  middleware, and project routes; reject `.css`, `.scss`, `.sass`, `.less`,
+  JSX/TSX, known merchant identifiers, and provider transport. Add explicit
+  raw-secret-literal detection for `AKIA[0-9A-Z]{16}`, PEM private-key headers,
+  JWT-looking three-segment literals, `Bearer <literal>`, and nonempty quoted
+  assignments to `password`, `token`, `cookie`, or `credential`. Do not fail
+  merely because code names a forbidden key or error code.
 
 - [ ] **Step 2: Verify RED**
 
@@ -543,7 +634,11 @@ package and keep gallery behavior generated per project.
 ### Task 6: Skill And Builder Routing For Supporting Interaction State
 
 **Files:**
+- Record baseline in:
+  `.superpowers/sdd/2026-08-26-fixed-state-logic-batch-3/task-6-report.md`
 - Create: `tests/supporting-interaction-state-routing.test.mjs`
+- Create: `tests/supporting-interaction-skill-contract.test.mjs`
+- Modify: `skills/buyna-website-builder/SKILL.md`
 - Modify: `skills/buyna-website-builder/scripts/route-builder.mjs`
 - Modify: `skills/buyna-website-builder/references/routing-map.md`
 - Modify: `skills/buyna-s3-storage/SKILL.md`
@@ -558,6 +653,14 @@ package and keep gallery behavior generated per project.
 - Synchronize: `.agents/skills/buyna-website-builder/**`
 
 **Routing contract:**
+- Extend the public signature to
+  `planWebsiteRoute({ capabilities, workflowState, requestedSlice,
+  releaseIntent = false, mode = 'build', dashboardSlice = null })`.
+- Extend internal
+  `routeForGate({ gate, capabilities, paymentArchitecture, mode,
+  dashboardSelection })`. Route output always includes
+  `dashboardSlice` (`null`, one approved slice, or `'all'`) and
+  `dashboardSlices` (the exact approved slice list selected for this call).
 - Every applicable `dashboard_integration` selects
   `buyna-auth-session-core` and `buyna-merchant-context-core` exactly once.
 - Product or booking Dashboard/file work selects `buyna-merchant-file-core`
@@ -574,9 +677,13 @@ package and keep gallery behavior generated per project.
   Dashboard login repair, cross-host authorization repair, product storefront
   gallery, static local preview, and checkout-only payment repair. Record any
   regenerated state logic, missing module route, repeated approval, unrelated
-  module, Git/AWS intent, or fixed UI design.
+  module, Git/AWS intent, or fixed UI design. Write the scenario input,
+  observed route, expected route, and mismatch into
+  `.superpowers/sdd/2026-08-26-fixed-state-logic-batch-3/task-6-report.md` under
+  `## BASELINE_SCENARIOS`; do not create a second repository documentation
+  file for this transient evidence.
 
-- [ ] **Step 2: Write failing executable route tests**
+- [ ] **Step 2: Write failing executable route and Skill contract tests**
 
   Exercise `planWebsiteRoute`, not prose-only regex checks. Assert:
 
@@ -594,8 +701,50 @@ package and keep gallery behavior generated per project.
   are exactly `products`, `services`, `media`, and `page_editor`. Orders,
   customers, settings, static local preview, and checkout-only repair omit file
   core; non-Dashboard routes omit auth/context too. Assert route output does
-  not name the deferred gallery package. Assert bounded work-package
-  authorization is inherited and no child Skill asks again.
+  not name the deferred gallery package.
+
+  Test the public Dashboard selection rules exactly:
+
+  - one persisted slice plus omitted `dashboardSlice` auto-selects that slice;
+  - more than one persisted slice plus omitted `dashboardSlice` returns
+    `action: 'blocked'`, `reason: 'DASHBOARD_SLICE_REQUIRED'`;
+  - zero persisted slices returns `action: 'blocked'`,
+    `reason: 'DASHBOARD_SLICES_NOT_CONFIGURED'`;
+  - an unknown or non-persisted slice returns `action: 'blocked'`,
+    `reason: 'DASHBOARD_SLICE_NOT_APPROVED'`;
+  - explicit `dashboardSlice: 'all'` selects every persisted slice only when
+    at least one exists and the bounded work package includes
+    `dashboard_integration`; otherwise return
+    `DASHBOARD_FULL_SCOPE_APPROVAL_REQUIRED`;
+  - a non-Dashboard target supplied with `dashboardSlice` returns
+    `action: 'blocked'`, `reason: 'DASHBOARD_SLICE_NOT_APPLICABLE'`;
+  - every successful and blocked route includes stable `dashboardSlice` and
+    `dashboardSlices` fields and preserves `externalActions`.
+
+  Before any Skill prose edit, make
+  `tests/supporting-interaction-skill-contract.test.mjs` red. It must parse all
+  edited Skills and assert their exact package links and ownership:
+
+  - S3 Skill links `buyna-merchant-file-core` and its upload queue/executor
+    Adapter contract;
+  - Builder Skill names the public `dashboardSlice` selection contract and
+    keeps itself as the single entrypoint without adding a rigid phase;
+  - Dashboard Skill orders `buyna-auth-session-core` before
+    `buyna-merchant-context-core` and both before business APIs;
+  - product and booking Skills consume one immutable merchant context rather
+    than accepting browser owner IDs;
+  - frontend and storefront Skills say file/gallery visual UI is generated per
+    project and never name a shared theme/component;
+  - onboarding registers exact host and membership inputs for context
+    resolution;
+  - operations verifies all accepted manifest modules and the deferred gallery;
+  - every child Skill inherits Builder `configuration.workPackage` and the
+    already resolved auth/context, does not rerun identity resolution, and does
+    not reopen approval inside the approved slice.
+
+  The Skill contract test must also reject a fixed login screen, Dashboard
+  shell, gallery theme, file-card component, colors/fonts/spacing/icons, or
+  copied visual markup as a shared-module requirement.
 
 - [ ] **Step 3: Verify RED**
 
@@ -603,14 +752,24 @@ package and keep gallery behavior generated per project.
 
   ```powershell
   node --test tests/supporting-interaction-state-routing.test.mjs
+  node --test tests/supporting-interaction-skill-contract.test.mjs
   ```
 
-  Expected: missing auth/context/file-queue route dependencies.
+  Expected: route test fails for missing auth/context/file-queue and public
+  Dashboard slice behavior; Skill contract test fails for missing module links,
+  auth/context inheritance, or generated-UI boundary. Both must be red before
+  editing `route-builder.mjs` or any Skill.
 
 - [ ] **Step 4: Implement deterministic Builder selection**
 
-  Extend `routeForGate` and `assertSelectedDependencyContract` without adding a
-  new rigid website phase. Use the persisted capability set:
+  Extend the public `planWebsiteRoute` signature, a normalization helper,
+  `routeForGate`, `assertSelectedDependencyContract`, dependency closure, and
+  every route output without adding a new rigid website phase. Normalize
+  `dashboardSelection` from the persisted
+  `workflowState.configuration.dashboardSlices` before `routeForGate`. Never
+  trust an externally supplied slice that is not persisted. Compute persisted
+  `configuration.workPackage.gates` before normalizing `'all'`, so full-scope
+  authorization is checked before route selection. Use these rules:
 
   - `dashboard_integration + requiresDashboard` selects auth and context;
   - `dashboard_integration + dashboardSlice in
@@ -621,6 +780,9 @@ package and keep gallery behavior generated per project.
   - `checkout_payment`, `testing_upload_gate`, and `aws_release` do not select
     these modules unless the requested target itself is Dashboard/file work.
 
+  `dashboardSlice: 'all'` passes the full persisted array to `routeForGate`,
+  which unions dependencies once. A single slice passes a one-item array.
+  Blocked selection results are produced before domain dependency selection.
   Keep manifest verification fail-closed and preserve existing Batch 1/2 route
   ordering and payment architecture separation.
 
@@ -651,6 +813,7 @@ package and keep gallery behavior generated per project.
 
   ```powershell
   node --test tests/supporting-interaction-state-routing.test.mjs
+  node --test tests/supporting-interaction-skill-contract.test.mjs
   npm test --prefix packages/buyna-merchant-file-core
   npm test --prefix packages/buyna-auth-session-core
   npm test --prefix packages/buyna-merchant-context-core
@@ -670,7 +833,7 @@ package and keep gallery behavior generated per project.
   Commit:
 
   ```powershell
-  git add skills .agents/skills/buyna-website-builder tests/supporting-interaction-state-routing.test.mjs
+  git add skills .agents/skills/buyna-website-builder tests/supporting-interaction-state-routing.test.mjs tests/supporting-interaction-skill-contract.test.mjs
   git commit -m "feat: route supporting merchant interaction states"
   ```
 
@@ -694,16 +857,22 @@ package and keep gallery behavior generated per project.
   authenticated session
     -> exact host + membership merchant context
     -> file queue selected/validating/uploading/confirming
-    -> existing merchant file service confirmUpload
+    -> upload effect executor unique claim/replay
+    -> existing merchant file service confirmUpload handler
     -> queue confirmation_succeeded/ready
   ```
 
   Assert every Adapter receives the same server-owned `projectId + sellerId`.
   Repeat with a second seller and assert cross-host session reuse returns 403,
   never confirms metadata, and never touches storage. Verify retry is
-  idempotent and stale progress cannot change the final ready item.
+  idempotent and stale progress cannot change the final ready item. Distinguish
+  the two retry cases: replaying a completion/confirmation for the same
+  `attemptId` preserves the original effect/request key, while an explicit
+  `retry` after failure allocates a new `attemptId` and therefore a new
+  deterministic effect/request key. In both cases the executor's unique
+  idempotency record prevents duplicate external effects for one key.
 
-- [ ] **Step 2: Run the new integration test and verify RED**
+- [ ] **Step 2: Run the new integration test and classify the initial result**
 
   Run:
 
@@ -711,20 +880,41 @@ package and keep gallery behavior generated per project.
   node --test tests/supporting-interaction-state-integration.test.mjs
   ```
 
-  Expected: fail if the modules cannot compose through their published
-  interfaces or if server scope is dropped.
+  Expected: GREEN is acceptable because Tasks 1-3 may already compose through
+  their published interfaces. If RED, record the exact contract defect; do not
+  weaken the test merely to force GREEN.
 
-- [ ] **Step 3: Make only the minimum red-green integration repair**
+- [ ] **Step 3: If Step 2 is RED, make only the minimum red-green integration repair**
 
   Do not add project SQL, S3 SDK, middleware, DOM, or visual code to make the
   test pass. Repair only mismatched public contracts or missing scope/effect
-  data, then rerun the focused package tests.
+  data, then rerun the focused package tests. If Step 2 was GREEN, make no
+  artificial production change and continue directly to Step 4.
 
-- [ ] **Step 4: Run every package and root test**
+- [ ] **Step 4: Run every package and root test with fail-on-any propagation**
 
-  Discover every `packages/*/package.json` with a `test` script and run it;
-  then run every root `tests/*.test.mjs`. Expected: zero failed, cancelled, or
-  skipped required tests and no hidden package omitted.
+  Run this exact PowerShell block:
+
+  ```powershell
+  $ErrorActionPreference = 'Stop'
+  $packageDirs = Get-ChildItem -LiteralPath .\packages -Directory | Sort-Object Name
+  foreach ($packageDir in $packageDirs) {
+    $packageJsonPath = Join-Path $packageDir.FullName 'package.json'
+    if (-not (Test-Path -LiteralPath $packageJsonPath)) { continue }
+    $packageJson = Get-Content -Raw -LiteralPath $packageJsonPath | ConvertFrom-Json
+    if (-not $packageJson.scripts.test) { continue }
+    & npm test --prefix $packageDir.FullName
+    if ($LASTEXITCODE -ne 0) { throw "PACKAGE_TEST_FAILED:$($packageDir.Name):$LASTEXITCODE" }
+  }
+  $rootTests = @(Get-ChildItem -LiteralPath .\tests -Filter '*.test.mjs' -File | Sort-Object Name | ForEach-Object FullName)
+  if ($rootTests.Count -eq 0) { throw 'ROOT_TESTS_NOT_FOUND' }
+  & node --test @rootTests
+  if ($LASTEXITCODE -ne 0) { throw "ROOT_TEST_FAILED:$LASTEXITCODE" }
+  ```
+
+  Expected: zero failed or cancelled tests. Any package or root failure throws
+  immediately and makes the verification step fail; no package with a declared
+  test script may be omitted.
 
 - [ ] **Step 5: Run repository and official Skill validation**
 
@@ -759,10 +949,21 @@ package and keep gallery behavior generated per project.
 
 - [ ] Every Batch 3 spec item maps to Tasks 1-4.
 - [ ] Auth identity property names match merchant-context consumption exactly.
+- [ ] Public auth identity has exactly four allowed keys and no internal
+  session-record ID or credential-bearing field.
+- [ ] File queue state replay and external effect replay have separate tests,
+  deterministic request keys, and a unique Adapter claim contract.
 - [ ] Builder selection refers only to packages registered by Task 5.
+- [ ] `dashboardSlice` is represented consistently in the public signature,
+  normalization, `routeForGate`, dependency closure, success output, and every
+  blocked output.
 - [ ] The deferred gallery package is absent from disk, manifest, and routes.
 - [ ] Existing file service compatibility remains explicitly tested.
-- [ ] Every Skill prose edit is preceded by a failing executable test.
+- [ ] Every Skill prose edit is preceded by the failing executable Skill
+  contract test, and fresh scenario baselines are saved in the Task 6 report.
 - [ ] Shared modules define behavior only; every visible UI/UX choice remains
   generated inside the merchant project.
+- [ ] Boundary tests inspect runtime exports and raw secret literals instead of
+  rejecting necessary security vocabulary.
+- [ ] Full verification commands propagate any package or root test failure.
 - [ ] No step provisions, deploys, migrates, or mutates live resources.
