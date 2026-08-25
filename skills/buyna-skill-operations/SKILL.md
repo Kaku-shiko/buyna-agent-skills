@@ -36,7 +36,7 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
   repository-level `packages/`.
 - Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
-- Require `buyna-merchant-dashboard-ui`, `buyna-merchant-catalog-core`,
+- Require `buyna-merchant-dashboard-core`, `buyna-merchant-dashboard-headless`, `buyna-merchant-catalog-core`,
   `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`, and
   `buyna-merchant-file-core` under the installed module root.
 - Require a new Codex task after installation or update so discovery refreshes.

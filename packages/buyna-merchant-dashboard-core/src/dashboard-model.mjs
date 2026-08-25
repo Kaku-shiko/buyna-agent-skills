@@ -1,11 +1,11 @@
 export const DASHBOARD_NAVIGATION=Object.freeze([
-  {key:'dashboard',label:'仪表盘',href:'/seller',icon:'▦'},
-  {key:'products',label:'商品管理',href:'/seller/products',icon:'◇'},
-  {key:'categories',label:'分类管理',href:'/seller/categories',icon:'☰'},
-  {key:'coupons',label:'优惠券管理',href:'/seller/coupons',icon:'%'},
-  {key:'orders',label:'订单',href:'/seller/orders',icon:'▤'},
-  {key:'paidCustomers',label:'付费客户',href:'/seller/paid-customers',icon:'✦'},
-  {key:'paymentSettings',label:'支付/订阅设置',href:'/seller/settings/payment',icon:'◇'},
+  {key:'dashboard',label:'仪表盘',href:'/seller',icon:'dashboard'},
+  {key:'products',label:'商品管理',href:'/seller/products',icon:'products'},
+  {key:'categories',label:'分类管理',href:'/seller/categories',icon:'categories'},
+  {key:'coupons',label:'优惠券管理',href:'/seller/coupons',icon:'coupons'},
+  {key:'orders',label:'订单',href:'/seller/orders',icon:'orders'},
+  {key:'paidCustomers',label:'付费客户',href:'/seller/paid-customers',icon:'customers'},
+  {key:'paymentSettings',label:'支付/订阅设置',href:'/seller/settings/payment',icon:'settings'},
 ]);
 const column=(key,label,options={})=>Object.freeze({key,label,...options});
 export const DASHBOARD_TABLES=Object.freeze({

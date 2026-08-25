@@ -34,7 +34,8 @@ buyna-agent-skills/
 │   ├── install.ps1
 │   └── validate.ps1
 ├── packages/
-│   ├── buyna-merchant-dashboard-ui/
+│   ├── buyna-merchant-dashboard-core/       # fixed functions and state contracts
+│   ├── buyna-merchant-dashboard-headless/   # fixed interactions, no visual theme
 │   ├── buyna-merchant-catalog-core/
 │   ├── buyna-cart-core/
 │   ├── buyna-order-core/

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "skills": ["aws-project-deployer","buyai-booking-service-backend","buyai-checkout-address-ux","buyai-dashboard-data-interaction","buyai-globepay-checkout","buyai-globepay-config","buyai-globepay-payment","buyai-globepay-recurring","buyai-globepay-status-sync","buyai-merchant-builder","buyai-product-merchant-backend","buyai-storefront-layout-ux","buyna-aws-data-layer","buyna-aws-release","buyna-customer-intake","buyna-frontend-builder","buyna-gmv-commerce","buyna-merchant-onboarding","buyna-page-structure","buyna-project-resource-registry","buyna-s3-storage","buyna-skill-operations","buyna-testing-quality","buyna-unified-merchant-architecture","buyna-website-builder","buyna-website-design"],
-  "packages": ["buyna-cart-core","buyna-commerce-settlement-core","buyna-gmv-core","buyna-integration-receipt-core","buyna-merchant-catalog-core","buyna-merchant-dashboard-ui","buyna-merchant-file-core","buyna-merchant-provisioning-core","buyna-order-core","buyna-postgres-merchant-core","buyna-resource-evidence-core","buyna-runtime-slot-core","buyna-workflow-state-core"],
+  "packages": ["buyna-cart-core","buyna-commerce-settlement-core","buyna-gmv-core","buyna-integration-receipt-core","buyna-merchant-catalog-core","buyna-merchant-dashboard-core","buyna-merchant-dashboard-headless","buyna-merchant-file-core","buyna-merchant-provisioning-core","buyna-order-core","buyna-postgres-merchant-core","buyna-resource-evidence-core","buyna-runtime-slot-core","buyna-workflow-state-core"],
   "profiles": {
     "website-builder": {
       "skills": ["buyna-customer-intake","buyna-website-design","buyna-page-structure","buyna-frontend-builder","buyai-product-merchant-backend","buyai-booking-service-backend","buyai-dashboard-data-interaction","buyai-checkout-address-ux","buyai-globepay-payment","buyna-gmv-commerce","buyna-testing-quality","buyna-aws-release","buyna-project-resource-registry","buyna-merchant-onboarding","buyna-s3-storage"],
-      "packages": ["buyna-workflow-state-core","buyna-postgres-merchant-core","buyna-cart-core","buyna-order-core","buyna-merchant-file-core","buyna-integration-receipt-core","buyna-merchant-catalog-core","buyna-merchant-dashboard-ui"]
+      "packages": ["buyna-workflow-state-core","buyna-postgres-merchant-core","buyna-cart-core","buyna-order-core","buyna-merchant-file-core","buyna-integration-receipt-core","buyna-merchant-catalog-core","buyna-merchant-dashboard-core","buyna-merchant-dashboard-headless"]
     }
   },
   "websitePhases": ["customer_intake","design_and_structure","frontend_code","dashboard_integration","checkout_payment","testing_upload_gate","aws_release"]

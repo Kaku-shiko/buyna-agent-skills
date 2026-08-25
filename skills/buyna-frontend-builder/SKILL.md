@@ -1,6 +1,6 @@
 ---
 name: buyna-frontend-builder
-description: "Build or repair Buyna.ai public and merchant-admin frontends using the approved project framework. Use in Phase 4 UI mode for runnable desktop/mobile interfaces with mock adapters and API contracts, or within Phase 5 integration slices for real API connectivity."
+description: "Use when building or repairing Buyna.ai public or merchant-admin frontends, including runnable desktop/mobile UI, mock adapters, API contracts, and real API integration slices."
 ---
 
 # Buyna.ai Frontend Builder
@@ -19,7 +19,7 @@ core.
 1. Read the approved customer record, the complete output from `buyna-website-design`, and the approved page/content plan from `buyna-page-structure`.
    For a product merchant Dashboard, read
    `references/product-merchant-dashboard-ui.md` and
-   `references/merchant-dashboard-fixed-ui.md`.
+   `references/merchant-dashboard-functional-core.md`.
 2. Inspect existing routes/components and preserve approved project patterns.
 3. Implement the approved public pages and merchant Dashboard as actual runnable project source code, including navigation, dashboard, lists, details, forms, tables, actions, settings, loading, empty, success, validation, permission, and failure states required by the approved scope. Do not add another pre-code approval when the combined design-and-structure package already contains the Dashboard composition.
    For product commerce, include the approved cart presentation and connect it
@@ -31,13 +31,13 @@ core.
 6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
 7. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
 
-For a product merchant Dashboard, use
-`packages/buyna-merchant-dashboard-ui` instead of regenerating its shell,
-navigation, table, status, pagination, dialog, and responsive-state code.
-This is a fixed functional scaffold, not a fixed visual design. Configure it
-with the approved project design tokens and API/router adapters. Generate the
-project presentation from the approved design; add new behavior only for an
-explicitly approved requirement not covered by the fixed package.
+For a product merchant Dashboard, use `packages/buyna-merchant-dashboard-core`
+for the fixed capability contract and `packages/buyna-merchant-dashboard-headless`
+for reusable drawer, navigation, table, status, pagination, dialog, and
+responsive interaction behavior. These modules contain no approved visual
+theme. Generate the Dashboard stylesheet and component presentation inside the
+merchant project from its approved design. Do not use or recreate a shared
+Buyna Dashboard skin.
 
 ## Dashboard UI Boundary
 

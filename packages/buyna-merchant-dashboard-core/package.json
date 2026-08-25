@@ -1,0 +1,13 @@
+{
+  "name": "@buyna/merchant-dashboard-core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./model": "./src/dashboard-model.mjs",
+    "./theme-contract": "./src/theme-contract.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/dashboard-core.test.mjs"
+  }
+}

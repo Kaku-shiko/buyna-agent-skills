@@ -1,0 +1,12 @@
+{
+  "name": "@buyna/merchant-dashboard-headless",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@buyna/merchant-dashboard-core": ">=0.1.0",
+    "react": ">=18"
+  }
+}
