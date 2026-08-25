@@ -1,0 +1,273 @@
+function fail(code) {
+  const error = new Error(code);
+  error.code = code;
+  throw error;
+}
+
+function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+}
+
+function requiredText(value, code) {
+  if (typeof value !== 'string' || value.trim() === '') fail(code);
+  return value.trim();
+}
+
+function normalizeTimestamp(value) {
+  const match = typeof value === 'string'
+    ? /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-]\d{2}:\d{2})$/.exec(value)
+    : null;
+  if (!match) {
+    fail('AUTH_IDENTITY_TIMESTAMP_INVALID');
+  }
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, fraction = '', zone] = match;
+  const components = [yearText, monthText, dayText, hourText, minuteText, secondText]
+    .map(Number);
+  const [year, month, day, hour, minute, second] = components;
+  const millisecond = Number(fraction.padEnd(3, '0'));
+  const localParts = new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
+  if (
+    localParts.getUTCFullYear() !== year
+    || localParts.getUTCMonth() !== month - 1
+    || localParts.getUTCDate() !== day
+    || localParts.getUTCHours() !== hour
+    || localParts.getUTCMinutes() !== minute
+    || localParts.getUTCSeconds() !== second
+    || localParts.getUTCMilliseconds() !== millisecond
+  ) {
+    fail('AUTH_IDENTITY_TIMESTAMP_INVALID');
+  }
+  if (zone !== 'Z') {
+    const [zoneHour, zoneMinute] = zone.slice(1).split(':').map(Number);
+    if (zoneHour > 23 || zoneMinute > 59) fail('AUTH_IDENTITY_TIMESTAMP_INVALID');
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) fail('AUTH_IDENTITY_TIMESTAMP_INVALID');
+  return parsed.toISOString();
+}
+
+function normalizeIdentity(identity) {
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
+    fail('AUTH_IDENTITY_INVALID');
+  }
+  const allowedFields = new Set(['subjectId', 'permissions', 'issuedAt', 'expiresAt']);
+  if (Reflect.ownKeys(identity).some((key) => !allowedFields.has(key))) {
+    fail('AUTH_IDENTITY_FIELD_FORBIDDEN');
+  }
+  const subjectId = requiredText(identity.subjectId, 'AUTH_IDENTITY_SUBJECT_REQUIRED');
+  if (
+    !Array.isArray(identity.permissions)
+    || identity.permissions.some((permission) => (
+      typeof permission !== 'string' || permission.trim() === ''
+    ))
+  ) {
+    fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+  }
+  const permissions = identity.permissions.map((permission) => permission.trim());
+  if (new Set(permissions).size !== permissions.length) {
+    fail('AUTH_IDENTITY_PERMISSIONS_INVALID');
+  }
+  const issuedAt = normalizeTimestamp(identity.issuedAt);
+  const expiresAt = normalizeTimestamp(identity.expiresAt);
+  if (new Date(issuedAt).valueOf() >= new Date(expiresAt).valueOf()) {
+    fail('AUTH_IDENTITY_TIME_RANGE_INVALID');
+  }
+  return deepFreeze({ subjectId, permissions, issuedAt, expiresAt });
+}
+
+export const AUTH_SESSION_STATES = Object.freeze({
+  ANONYMOUS: 'anonymous',
+  AUTHENTICATING: 'authenticating',
+  AUTHENTICATED: 'authenticated',
+  EXPIRED: 'expired',
+  FORBIDDEN: 'forbidden',
+  LOGGING_OUT: 'logging_out',
+});
+
+export const AUTH_SESSION_TRANSITIONS = deepFreeze({
+  anonymous: ['authenticating'],
+  authenticating: ['authenticated', 'anonymous'],
+  authenticated: ['expired', 'forbidden', 'logging_out'],
+  expired: [],
+  forbidden: [],
+  logging_out: ['anonymous'],
+});
+
+export function createAuthSession({ clock, initialIdentity } = {}) {
+  const now = typeof clock === 'function' ? clock : () => new Date();
+
+  function timestamp() {
+    const value = now();
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.valueOf())) fail('AUTH_CLOCK_INVALID');
+    return parsed.toISOString();
+  }
+
+  const createdAt = timestamp();
+  const trustedIdentity = initialIdentity == null
+    ? null
+    : normalizeIdentity(initialIdentity);
+  const initiallyExpired = trustedIdentity !== null
+    && new Date(trustedIdentity.expiresAt).valueOf() <= new Date(createdAt).valueOf();
+  let current = {
+    state: initiallyExpired
+      ? AUTH_SESSION_STATES.EXPIRED
+      : trustedIdentity
+        ? AUTH_SESSION_STATES.AUTHENTICATED
+        : AUTH_SESSION_STATES.ANONYMOUS,
+    attemptId: null,
+    identity: trustedIdentity,
+    errorCode: initiallyExpired ? 'AUTH_SESSION_EXPIRED' : null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+
+  function snapshot() {
+    return deepFreeze(structuredClone(current));
+  }
+
+  function transition(nextState, changes = {}) {
+    if (!AUTH_SESSION_TRANSITIONS[current.state]?.includes(nextState)) {
+      fail('AUTH_INVALID_TRANSITION');
+    }
+    current = {
+      ...current,
+      ...changes,
+      state: nextState,
+      updatedAt: timestamp(),
+    };
+    return snapshot();
+  }
+
+  function assertCurrentAttempt(attemptId) {
+    if (attemptId !== current.attemptId) fail('AUTH_STALE_ATTEMPT');
+  }
+
+  function beginAuthentication({ attemptId } = {}) {
+    const normalizedAttemptId = requiredText(attemptId, 'AUTH_ATTEMPT_ID_REQUIRED');
+    return transition(AUTH_SESSION_STATES.AUTHENTICATING, {
+      attemptId: normalizedAttemptId,
+      identity: null,
+      errorCode: null,
+    });
+  }
+
+  function acceptAuthentication({ attemptId, identity } = {}) {
+    assertCurrentAttempt(attemptId);
+    const normalized = normalizeIdentity(identity);
+    if (new Date(normalized.expiresAt).valueOf() <= new Date(timestamp()).valueOf()) {
+      fail('AUTH_IDENTITY_EXPIRED');
+    }
+    return transition(AUTH_SESSION_STATES.AUTHENTICATED, {
+      attemptId: null,
+      identity: normalized,
+      errorCode: null,
+    });
+  }
+
+  function rejectAuthentication({ attemptId, code } = {}) {
+    assertCurrentAttempt(attemptId);
+    const errorCode = code === undefined
+      ? 'AUTH_AUTHENTICATION_REJECTED'
+      : requiredText(code, 'AUTH_REJECTION_CODE_REQUIRED');
+    return transition(AUTH_SESSION_STATES.ANONYMOUS, {
+      attemptId: null,
+      identity: null,
+      errorCode,
+    });
+  }
+
+  function expire({ reason } = {}) {
+    const errorCode = reason === undefined
+      ? 'AUTH_SESSION_EXPIRED'
+      : requiredText(reason, 'AUTH_EXPIRY_REASON_REQUIRED');
+    return transition(AUTH_SESSION_STATES.EXPIRED, { errorCode });
+  }
+
+  function forbid({ reason } = {}) {
+    const errorCode = reason === undefined
+      ? 'AUTH_SESSION_FORBIDDEN'
+      : requiredText(reason, 'AUTH_FORBIDDEN_REASON_REQUIRED');
+    return transition(AUTH_SESSION_STATES.FORBIDDEN, { errorCode });
+  }
+
+  function beginLogout() {
+    return transition(AUTH_SESSION_STATES.LOGGING_OUT, { errorCode: null });
+  }
+
+  function completeLogout() {
+    return transition(AUTH_SESSION_STATES.ANONYMOUS, {
+      attemptId: null,
+      identity: null,
+      errorCode: null,
+    });
+  }
+
+  function requiredPermissions(value) {
+    if (value === undefined) return [];
+    if (
+      !Array.isArray(value)
+      || value.some((permission) => (
+        typeof permission !== 'string' || permission.trim() === ''
+      ))
+    ) {
+      fail('AUTH_PERMISSION_REQUIREMENTS_INVALID');
+    }
+    const normalized = value.map((permission) => permission.trim());
+    if (new Set(normalized).size !== normalized.length) {
+      fail('AUTH_PERMISSION_REQUIREMENTS_INVALID');
+    }
+    return normalized;
+  }
+
+  function denied(statusCode, code) {
+    return deepFreeze({ allowed: false, statusCode, code });
+  }
+
+  function requireAuthorization({ permissions } = {}) {
+    const required = requiredPermissions(permissions);
+    if (
+      current.state === AUTH_SESSION_STATES.AUTHENTICATED
+      && new Date(current.identity.expiresAt).valueOf() <= new Date(timestamp()).valueOf()
+    ) {
+      transition(AUTH_SESSION_STATES.EXPIRED, {
+        errorCode: 'AUTH_SESSION_EXPIRED',
+      });
+    }
+
+    if (current.state === AUTH_SESSION_STATES.EXPIRED) {
+      return denied(401, 'AUTH_SESSION_EXPIRED');
+    }
+    if (current.state === AUTH_SESSION_STATES.FORBIDDEN) {
+      return denied(403, 'AUTH_SESSION_FORBIDDEN');
+    }
+    if (current.state !== AUTH_SESSION_STATES.AUTHENTICATED) {
+      return denied(401, 'AUTH_SESSION_REQUIRED');
+    }
+    if (required.some((permission) => !current.identity.permissions.includes(permission))) {
+      return denied(403, 'AUTH_PERMISSION_FORBIDDEN');
+    }
+    return deepFreeze({
+      allowed: true,
+      statusCode: 200,
+      code: 'AUTH_AUTHORIZED',
+      identity: current.identity,
+    });
+  }
+
+  return Object.freeze({
+    beginAuthentication,
+    acceptAuthentication,
+    rejectAuthentication,
+    expire,
+    forbid,
+    beginLogout,
+    completeLogout,
+    requireAuthorization,
+    snapshot,
+  });
+}

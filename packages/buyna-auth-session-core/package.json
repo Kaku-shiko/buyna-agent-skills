@@ -1,0 +1,10 @@
+{
+  "name": "@buyna/auth-session-core",
+  "version": "0.1.0",
+  "description": "Framework-neutral trusted authentication session state",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "scripts": {
+    "test": "node --test test/auth-session.test.mjs"
+  }
+}
