@@ -53,6 +53,17 @@ S3/PostgreSQL 连接仍由各项目代码负责。`buyna-storefront-gallery-core
 `scaffoldMerchantProject` 只生成被阻塞的本地候选资源记录，不预填 IP、实例 ID、ARN
 或其他生产目标；资源登记 Skill 核验现有资源后再由项目写入。
 
+### 商家经营概览与通知投递边界
+
+| Fixed module | Project-generated Adapter/presentation |
+| --- | --- |
+| `buyna-commerce-read-model-core`: metric definitions, trusted-fact validation, timezone buckets, sorting | scoped SQL/ORM facts query, API, chart mapping, labels, cards, tables, charts, CSS |
+| `buyna-delivery-state-core`: canonical notification intent/digest, source-event reconciliation, transition, lease/attempts, retry, idempotency, safe receipt | transactional source-event row Adapter, recipient lookup, template copy, email/SMS provider, worker schedule, provider credentials |
+
+这两个包只固定可复用的程序行为和安全数据形状，不固定 Dashboard UI、图表样式、文案或
+供应商选择。merchant Dashboard sales metrics are not Buyna CRM GMV；前者只服务当前商家
+后台经营概览，不能导入、替代或对外暴露 CRM GMV。
+
 当前预留：
 
 - `planned-skills/buyna-erp/`

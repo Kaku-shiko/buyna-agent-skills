@@ -121,6 +121,13 @@ UI 均由项目代码负责。完整安装继续遍历 `repository-manifest.json
 `scaffoldMerchantProject` 生成的 `resources.yaml` 是被阻塞的本地候选记录，不包含
 IP、实例 ID、ARN 或其他生产部署目标；必须由资源登记流程核验现有资源后再写入项目。
 
+### 商家经营概览与通知投递边界
+
+`buyna-commerce-read-model-core` 固定指标和时间分桶，项目生成 scoped SQL/ORM、API、chart
+和 UI；`buyna-delivery-state-core` 固定通知状态、重试与幂等，项目生成 template、provider、
+worker 和界面。完整职责表见仓库 README。merchant Dashboard sales metrics are not Buyna
+CRM GMV；经营概览只能读取当前商户作用域内的可信事实，不得接管或显示 CRM GMV。
+
 ## 5. 第一次安装
 
 ### 方法 A：Skill-only安装

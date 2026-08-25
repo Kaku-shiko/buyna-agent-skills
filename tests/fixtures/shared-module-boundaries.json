@@ -97,5 +97,59 @@
     "literalOrCommentSecretSignatures": [
       "[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"
     ]
+  },
+  "readModelDeliverySourceBoundary": {
+    "stylesheetExtensions": ["css", "scss", "sass", "less", "styl", "stylus"],
+    "componentExtensions": ["jsx", "tsx", "vue", "svelte"],
+    "scannedSourceExtensions": ["mjs", "js", "cjs", "mts", "cts", "ts", "json"],
+    "forbiddenModuleSpecifiers": {
+      "uiOrChartImport": [
+        "^(?:react(?:-dom)?|react(?:-dom)?/.*|vue|vue/.*|svelte|svelte/.*|@angular/.*|lit|chart\\.js|highcharts|echarts|recharts|d3(?:/.*)?|@visx/.*)$"
+      ],
+      "sqlOrOrmImport": [
+        "^(?:pg|pg-promise|knex|prisma|@prisma/.*|drizzle-orm|sequelize|typeorm|mysql2|better-sqlite3)(?:/.*)?$"
+      ],
+      "awsSdkImport": ["^@aws-sdk/"],
+      "providerTransportImport": [
+        "^(?:axios|got|undici|node-fetch|node:https?|https?|stripe|@stripe/.*|globepay|worldpay|sendgrid|@sendgrid/.*)(?:/.*)?$"
+      ],
+      "smtpOrSmsImport": [
+        "^(?:nodemailer|smtp-client|emailjs|twilio|@twilio/.*|vonage|@vonage/.*)(?:/.*)?$"
+      ],
+      "projectRouteImport": ["(?:^|/)routes?(?:/|$)"]
+    },
+    "merchantIdentifierPatterns": [
+      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b",
+      "\\bseller_(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
+    ],
+    "productionIdentifierPatterns": [
+      "\\bhttps?:\\/\\/[^\\s\"']+",
+      "\\b(?:[a-z0-9-]+\\.)+(?:com|net|org|io|ai|jp|life|co|dev|app)\\b",
+      "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
+      "\\barn:(?:aws|aws-cn|aws-us-gov):",
+      "\\bi-[0-9a-f]{8,17}\\b"
+    ],
+    "rawSecretSignatures": [
+      "\\bAKIA[0-9A-Z]{16}\\b",
+      "-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+      "\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}"
+    ],
+    "rawSecretAssignmentKeys": [
+      "password", "passwd", "apiKey", "api_key", "accessToken", "access_token",
+      "authToken", "auth_token", "secret", "secretKey", "secret_key", "credentialCode",
+      "credential_code", "privateKey", "private_key"
+    ],
+    "forbiddenExecutablePatterns": [
+      "\\b(?:fetch|globalThis\\.fetch|https?\\.(?:request|get))\\s*\\(",
+      "\\b(?:SELECT\\b[\\s\\S]{0,160}\\bFROM|INSERT\\s+INTO|UPDATE\\s+[A-Za-z_][A-Za-z0-9_.]*\\s+SET|DELETE\\s+FROM|CREATE\\s+(?:TABLE|SCHEMA|DATABASE))\\b",
+      "\\.(?:query|send)\\s*\\(\\s*(?:`|[\"'](?:SELECT|INSERT|UPDATE|DELETE|CREATE)\\b)"
+    ],
+    "deliveryForbiddenLiteralPatterns": [
+      "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b",
+      "(?:^|[^0-9])\\+?[0-9][0-9 ()-]{7,}[0-9](?:$|[^0-9])",
+      "\\bhttps?:\\/\\/[^\\s\"']+",
+      "\\b(?:process\\.env|credential(?:Code|_code)|secret(?:Name|Id)|getSecretValue)\\b",
+      "(?:<html\\b|<body\\b|\\bDear customer\\b|\\bThank you for your order\\b|お客様各位|ご注文ありがとうございます)"
+    ]
   }
 }
