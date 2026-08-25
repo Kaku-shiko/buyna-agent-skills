@@ -104,23 +104,24 @@
     "scannedSourceExtensions": ["mjs", "js", "cjs", "mts", "cts", "ts", "json"],
     "forbiddenModuleSpecifiers": {
       "uiOrChartImport": [
-        "^(?:react(?:-dom)?|react(?:-dom)?/.*|vue|vue/.*|svelte|svelte/.*|@angular/.*|lit|chart\\.js|highcharts|echarts|recharts|d3(?:/.*)?|@visx/.*)$"
+        "^(?:react(?:-dom)?|react(?:-dom)?/.*|preact|preact/.*|vue|vue/.*|svelte|svelte/.*|@angular/.*|lit|chart\\.js|apexcharts|highcharts|echarts|recharts|d3(?:/.*)?|@visx/.*)$"
       ],
+      "stylesheetImport": ["\\.(?:css|scss|sass|less|styl|stylus)(?:\\?.*)?$"],
       "sqlOrOrmImport": [
         "^(?:pg|pg-promise|knex|prisma|@prisma/.*|drizzle-orm|sequelize|typeorm|mysql2|better-sqlite3)(?:/.*)?$"
       ],
-      "awsSdkImport": ["^@aws-sdk/"],
+      "awsSdkImport": ["^(?:@aws-sdk/|aws-sdk(?:/.*)?$)"],
       "providerTransportImport": [
         "^(?:axios|got|undici|node-fetch|node:https?|https?|stripe|@stripe/.*|globepay|worldpay|sendgrid|@sendgrid/.*)(?:/.*)?$"
       ],
       "smtpOrSmsImport": [
-        "^(?:nodemailer|smtp-client|emailjs|twilio|@twilio/.*|vonage|@vonage/.*)(?:/.*)?$"
+        "^(?:nodemailer|smtp-client|emailjs|mailgun\\.js|twilio|@twilio/.*|vonage|@vonage/.*)(?:/.*)?$"
       ],
       "projectRouteImport": ["(?:^|/)routes?(?:/|$)"]
     },
     "merchantIdentifierPatterns": [
-      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b",
-      "\\bseller_(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
+      "\\b(?:medinance|asuka|sanwa|sanwashoji|tuyipaiban|bluesequoia|ectecshop|chameleon|xinghe|edupay|nicepeople|shop_sanwa_life)\\b",
+      "\\bseller_(?:medinance|asuka|sanwa|sanwashoji|tuyipaiban|bluesequoia|ectecshop|chameleon|xinghe|edupay|nicepeople|shop_sanwa_life)\\b"
     ],
     "productionIdentifierPatterns": [
       "\\bhttps?:\\/\\/[^\\s\"']+",
@@ -137,7 +138,9 @@
     "rawSecretAssignmentKeys": [
       "password", "passwd", "apiKey", "api_key", "accessToken", "access_token",
       "authToken", "auth_token", "secret", "secretKey", "secret_key", "credentialCode",
-      "credential_code", "privateKey", "private_key"
+      "credential_code", "privateKey", "private_key", "clientSecret", "client_secret",
+      "sessionToken", "session_token", "smtpPassword", "smtp_password", "databaseUrl",
+      "database_url"
     ],
     "forbiddenExecutablePatterns": [
       "\\b(?:fetch|globalThis\\.fetch|https?\\.(?:request|get))\\s*\\(",
