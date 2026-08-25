@@ -22,6 +22,15 @@ For 商品管理/分类管理 use `buyna-merchant-catalog-core`. For seller Orde
 order detail, and CSV use `buyna-order-core`. The current project generates only
 Adapters and API wiring.
 
+For the approved Dashboard overview only, call
+`buyna-commerce-read-model-core` through the Dashboard Skill Adapter contract.
+Inventory/orders/bookings/customers/paid customers keep their existing cores.
+For an explicit persisted approved order/booking notification operation only,
+call `buyna-delivery-state-core`; write the immutable source event in the domain
+transaction and dispatch through the reconciler. Preserve fresh auth -> fresh
+merchant context -> business Adapter order. The project owns SQL/ORM, chart
+presentation, templates, recipients, and email/SMS providers.
+
 Save frontend and backend code and tests. Stop before the next slice only when
 it is outside the approved work package or requires a new risk authorization.
 Complete the phase only when all approved Dashboard slices have no

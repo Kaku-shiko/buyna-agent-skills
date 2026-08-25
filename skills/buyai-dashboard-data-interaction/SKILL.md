@@ -27,6 +27,19 @@ editing/saving/saved/validation transitions, duplicate-save suppression, and
 stale-response rejection. Generate the page Adapter and presentation; do not
 regenerate this state machine.
 
+When the authoritative route selects the Dashboard overview, read
+`references/commerce-read-model-adapter-contract.md` and call
+`buyna-commerce-read-model-core`. Do not use it for inventory, orders,
+bookings, customers, or paid-customer lists; those keep their existing fixed
+core and project service.
+
+Only when the route carries an explicit persisted approved
+`order_notification` or `booking_notification`, read
+`references/delivery-state-adapter-contract.md` and call
+`buyna-delivery-state-core`. Omission selects no delivery work. The request
+order is fresh auth, fresh merchant context, fixed read-model or delivery
+service, then the project presentation or provider Adapter.
+
 ## Entry Gate
 
 Require runnable Dashboard source, desktop/mobile states, marked mock adapter,

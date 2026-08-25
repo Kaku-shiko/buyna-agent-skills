@@ -14,6 +14,8 @@ const dashboardSliceValues=Object.freeze([
   'dashboard','merchant_identity','products','categories','services','media','page_editor',
   'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings',
 ]);
+const notificationOperationValues=Object.freeze(['order_notification','booking_notification']);
+const notificationOperationSlices=Object.freeze({order_notification:'orders',booking_notification:'bookings'});
 import {isTrustedWorkflowState,issueWorkflowTransition,trustWorkflowState} from './workflow-provenance.mjs';
 export {isTrustedWorkflowState} from './workflow-provenance.mjs';
 function requireTrustedWorkflowState(state){
@@ -77,13 +79,14 @@ export function createWorkflow({projectId,now=new Date().toISOString(),workflowV
   const id=requiredText(projectId,'PROJECT_ID_REQUIRED');
   if(!Array.isArray(dashboardSlices)||dashboardSlices.length)throw new Error('DASHBOARD_SLICES_REQUIRE_APPROVED_TRANSITION');
   const gates=Object.fromEntries(gateOrder.map((gate,index)=>[gate,{status:index===0?'ready':'locked'}]));
-  return trustWorkflowState({schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[]},deferredMaterials:[]});
+  return trustWorkflowState({schemaVersion:1,workflowId:'buyna-website',workflowVersion,projectId:id,currentGate:gateOrder[0],createdAt:now,updatedAt:now,gates,configuration:{interactionMode:normalizeInteractionMode(interactionMode),dashboardSlices:[],notificationOperations:[]},deferredMaterials:[]});
 }
 
 export const WORKFLOW_GATES=gateOrder;
 export const INTERACTION_MODES=interactionModes;
 export const PAYMENT_ARCHITECTURES=paymentArchitectures;
 export const DASHBOARD_SLICES=dashboardSliceValues;
+export const NOTIFICATION_OPERATIONS=notificationOperationValues;
 
 const commonInteractionPolicy=Object.freeze({
   maxActionQuestionsPerTurn:1,
@@ -254,6 +257,42 @@ export function setApprovedDashboardSlices({state,slices,approvedBy,now=new Date
   return result(state,next,{event:'dashboard_slices_approved',slices:[...selected],approvedBy:actor,at:now});
 }
 
+export function setApprovedNotificationOperations({state,operations,approvedBy,now=new Date().toISOString()}={}){
+  const next=copyState(state);
+  const design=next.gates?.design_and_structure;
+  if(design?.status!=='approved'||!design.delivery)throw new Error('NOTIFICATION_OPERATION_DESIGN_APPROVAL_REQUIRED');
+  validateDeliveryEvidence(next,'design_and_structure',design.delivery);
+  if(next.currentGate!=='frontend_code'||next.gates?.frontend_code?.status!=='ready'||next.gates.frontend_code.delivery!==undefined)throw new Error('NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED');
+  const existing=next.configuration?.notificationOperations??[];
+  if(!Array.isArray(existing))throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  if(existing.length)throw new Error('NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED');
+  if(!nonEmptyArray(operations))throw new Error('NOTIFICATION_OPERATIONS_REQUIRED');
+  const selected=operations.map(value=>requiredText(value,'NOTIFICATION_OPERATION_INVALID'));
+  if(new Set(selected).size!==selected.length||selected.some(value=>!notificationOperationValues.includes(value)))throw new Error('NOTIFICATION_OPERATION_INVALID');
+  const slices=next.configuration?.dashboardSlices??[];
+  const capabilities=normalizeWebsiteCapabilities(next.configuration?.capabilities);
+  for(const operation of selected){
+    const matchingSlice=notificationOperationSlices[operation];
+    const domainMatches=operation==='order_notification'
+      ? capabilities.requiresCatalog||capabilities.requiresCart
+      : capabilities.requiresBooking;
+    if(!slices.includes(matchingSlice)||!domainMatches)throw new Error('NOTIFICATION_OPERATION_NOT_APPLICABLE');
+  }
+  const actor=requiredText(approvedBy,'APPROVER_REQUIRED');
+  if(actor!==next.configuration?.dashboardSliceApproval?.approvedBy)throw new Error('NOTIFICATION_OPERATION_APPROVER_MISMATCH');
+  if(!validTimestamp(now))throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  next.configuration.notificationOperations=[...selected];
+  next.configuration.notificationOperationApproval={
+    operations:[...selected],approvedBy:actor,approvedAt:now,
+    authorizationEvidence:{
+      source:'workflow_transition',event:'notification_operations_approved',operations:[...selected],
+      approvedBy:actor,approvedAt:now,
+    },
+  };
+  next.updatedAt=now;
+  return result(state,next,{event:'notification_operations_approved',operations:[...selected],approvedBy:actor,at:now});
+}
+
 export function authorizeWorkPackage({state,gates,authorizedBy,scope,now=new Date().toISOString()}={}){
   const next=copyState(state);
   if(!nonEmptyArray(gates))throw new Error('WORK_PACKAGE_GATES_REQUIRED');
@@ -338,6 +377,37 @@ function validateDashboardSliceApproval(state){
   if(design?.status!=='approved'||!design.delivery)throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
 }
 
+function validateNotificationOperationApproval(state){
+  const operations=state.configuration?.notificationOperations;
+  if(operations===undefined)return;
+  if(!Array.isArray(operations))throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  const evidence=state.configuration?.notificationOperationApproval;
+  if(operations.length===0){
+    if(evidence!==undefined)throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+    return;
+  }
+  if(new Set(operations).size!==operations.length||operations.some(value=>typeof value!=='string'||!notificationOperationValues.includes(value)))throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  exactObjectKeys(evidence,['operations','approvedBy','approvedAt','authorizationEvidence'],'NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  const actor=requiredText(evidence.approvedBy,'NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  if(!sameStringArray(evidence.operations,operations)||!validTimestamp(evidence.approvedAt))throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  if(actor!==state.configuration?.dashboardSliceApproval?.approvedBy)throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  const authorization=evidence.authorizationEvidence;
+  exactObjectKeys(authorization,['source','event','operations','approvedBy','approvedAt'],'NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  if(authorization.source!=='workflow_transition'||authorization.event!=='notification_operations_approved'
+    ||!sameStringArray(authorization.operations,operations)||authorization.approvedBy!==actor
+    ||authorization.approvedAt!==evidence.approvedAt)throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  const design=state.gates?.design_and_structure;
+  if(design?.status!=='approved'||!design.delivery)throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  const slices=state.configuration?.dashboardSlices??[];
+  const capabilities=normalizeWebsiteCapabilities(state.configuration?.capabilities);
+  for(const operation of operations){
+    const domainMatches=operation==='order_notification'
+      ? capabilities.requiresCatalog||capabilities.requiresCart
+      : capabilities.requiresBooking;
+    if(!slices.includes(notificationOperationSlices[operation])||!domainMatches)throw new Error('NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID');
+  }
+}
+
 function validateWorkPackageAuthorization(state){
   const workPackage=state.configuration?.workPackage;
   if(workPackage===undefined)return;
@@ -380,6 +450,7 @@ function validateRepairAuthorization(state){
 
 function validateAuthorizationConfiguration(state){
   validateDashboardSliceApproval(state);
+  validateNotificationOperationApproval(state);
   validateWorkPackageAuthorization(state);
   validateRepairAuthorization(state);
 }

@@ -117,6 +117,35 @@ test('trusted store saves, crosses serialization, verifies, and resumes the next
   }finally{await rm(context.projectRoot,{recursive:true,force:true})}
 });
 
+test('verified store preserves notification operation approval evidence across serialization',async()=>{
+  const projectRoot=await mkdtemp(path.join(tmpdir(),'buyna-notification-approval-'));
+  try{
+    const storeArgs=await storeContext(projectRoot),store=createVerifiedWorkflowStore(storeArgs);
+    await store.initializeWorkflow({state:createWorkflow({projectId:'notification-store',now:timestamp}),now:timestamp});
+    const apply=async make=>{
+      const loaded=await store.loadVerifiedWorkflow();
+      await store.saveWorkflow({loadedState:loaded,transition:make(loaded)});
+    };
+    const capabilities={siteType:'commerce',requiresDashboard:true,requiresCart:true,requiresCheckout:true,requiresPayment:false,requiresBooking:false};
+    await apply(state=>workflowCore.startGate({state,gate:'customer_intake'}));
+    await apply(state=>workflowCore.recordDelivery({state,gate:'customer_intake',delivery:{record:'intake.json',capabilities}}));
+    await apply(state=>workflowCore.requestApproval({state,gate:'customer_intake'}));
+    await apply(state=>workflowCore.approveGate({state,gate:'customer_intake',approvedBy:'user'}));
+    await apply(state=>workflowCore.startGate({state,gate:'design_and_structure'}));
+    await apply(state=>workflowCore.recordDelivery({state,gate:'design_and_structure',delivery:{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'}}));
+    await apply(state=>workflowCore.requestApproval({state,gate:'design_and_structure'}));
+    await apply(state=>workflowCore.approveGate({state,gate:'design_and_structure',approvedBy:'user'}));
+    await apply(state=>workflowCore.setApprovedDashboardSlices({state,slices:['orders'],approvedBy:'user'}));
+    await apply(state=>workflowCore.setApprovedNotificationOperations({state,operations:['order_notification'],approvedBy:'user'}));
+
+    const resumed=await createVerifiedWorkflowStore(storeArgs).loadVerifiedWorkflow();
+    assert.deepEqual(resumed.configuration.notificationOperations,['order_notification']);
+    assert.equal(resumed.configuration.notificationOperationApproval.authorizationEvidence.event,'notification_operations_approved');
+    assert.equal(isTrustedWorkflowState(resumed),true);
+    assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(resumed));
+  }finally{await rm(projectRoot,{recursive:true,force:true})}
+});
+
 test('save requires the exact state returned by a verified load',async()=>{
   const context=await fixture();
   try{

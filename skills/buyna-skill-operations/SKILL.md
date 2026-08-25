@@ -46,7 +46,8 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
   `buyna-merchant-catalog-core`, `buyna-inventory-core`, `buyna-coupon-core`,
   `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`,
   `buyna-merchant-file-core`, `buyna-auth-session-core`, and
-  `buyna-merchant-context-core` under the installed module root. A
+  `buyna-merchant-context-core`, `buyna-commerce-read-model-core`, and
+  `buyna-delivery-state-core` under the installed module root. A
   payment-capable website profile also requires `buyna-checkout-flow-core` and
   `buyna-commerce-settlement-core`.
 - Verify the `buyai-coupon-commerce` Skill is present when the persisted

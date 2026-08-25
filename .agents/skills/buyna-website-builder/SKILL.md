@@ -70,7 +70,11 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    `frontend_code` and that gate is `ready`, before frontend start or delivery.
    `DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED` means return to approved scope instead
    of rewriting a later or completed workflow. Never write
-   `configuration.dashboardSlices` directly. Create bounded execution approval
+   `configuration.dashboardSlices` directly. In the same approved design/work
+   package decision, persist only requested order/booking notification work via
+   `setApprovedNotificationOperations`; this does not add a second confirmation.
+   Never write `configuration.notificationOperations` directly. A later
+   addition returns `NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED`. Create bounded execution approval
    only through `authorizeWorkPackage`. These workflow transitions own the
    actor, scope, timestamp, and event evidence consumed by routing.
 3. Run `scripts/route-builder.mjs` with the capabilities persisted in the loaded
@@ -78,8 +82,10 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    requested slice, release intent, and `dashboardSlice` when the target is
    `dashboard_integration`. The value must be one persisted
    `configuration.dashboardSlices` entry. Omission auto-selects only a single
-   persisted entry; `all` requires the approved bounded work package. Then pass
-   `build | repair | resume` mode.
+   persisted entry; `all` requires the approved bounded work package. Pass
+   `notificationOperation` only for one matching operation already persisted by
+   the workflow transition; omission means no delivery work. Then pass `build |
+   repair | resume` mode.
    When it returns `CAPABILITY_SCOPE_CHANGE_REQUIRED`, return to scope/capability
    intake. When it returns `reopen_repair`, record the separately authorized
    repair slice with `openRepairSlice` and run the same input against the new state.
@@ -124,6 +130,10 @@ core. The JSON stdin route is not a persisted-state loader.
   Dashboard work.
 - `buyna-merchant-file-core`: file lifecycle and upload-queue effects only for
   approved file-capable Dashboard slices.
+- `buyna-commerce-read-model-core`: merchant sales metrics and trends only for
+  the approved Dashboard overview; it is separate from CRM GMV.
+- `buyna-delivery-state-core`: retry/lease/idempotent notification state only
+  for an explicit approved matching order/booking notification operation.
 - `buyna-checkout-flow-core`: minimum fields, method selection, review,
   submission, snapshot, and local order lock.
 - `buyna-commerce-settlement-core`: trusted result reconciliation, legal

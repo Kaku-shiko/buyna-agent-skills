@@ -281,6 +281,43 @@ test('Dashboard slice approval is limited to the ready frontend boundary',()=>{
   assert.deepEqual(completed,completedSnapshot);
 });
 
+test('notification operation approval persists exact provenance and rejects later expansion',()=>{
+  let state=createWorkflow({projectId:'notification-approval'});
+  state=completeGate(state,'customer_intake',intake(commerceCapabilities,'fixed-cores'));
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  state=workflowCore.setApprovedDashboardSlices({state,slices:['orders'],approvedBy:'user'}).state;
+  assert.throws(()=>workflowCore.setApprovedNotificationOperations({
+    state,operations:['order_notification'],approvedBy:'different-approver',
+  }),/NOTIFICATION_OPERATION_APPROVER_MISMATCH/);
+  const transition=workflowCore.setApprovedNotificationOperations({
+    state,operations:['order_notification'],approvedBy:'user',now:'2026-08-26T04:30:00.000Z',
+  });
+  assert.deepEqual(transition.state.configuration.notificationOperationApproval,{
+    operations:['order_notification'],approvedBy:'user',approvedAt:'2026-08-26T04:30:00.000Z',
+    authorizationEvidence:{
+      source:'workflow_transition',event:'notification_operations_approved',
+      operations:['order_notification'],approvedBy:'user',approvedAt:'2026-08-26T04:30:00.000Z',
+    },
+  });
+  assert.deepEqual(transition.event,{
+    event:'notification_operations_approved',operations:['order_notification'],
+    approvedBy:'user',at:'2026-08-26T04:30:00.000Z',
+  });
+  assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(transition.state));
+  assert.throws(()=>workflowCore.setApprovedNotificationOperations({
+    state:transition.state,operations:['order_notification','booking_notification'],approvedBy:'user',
+  }),/NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED/);
+  for(const mutate of [
+    record=>{record.authorizationEvidence.approvedBy='other';},
+    record=>{record.authorizationEvidence.operations=['booking_notification'];},
+    record=>{record.authorizationEvidence.extra=true;},
+  ]){
+    const forged=structuredClone(transition.state);
+    mutate(forged.configuration.notificationOperationApproval);
+    assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(forged),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+  }
+});
+
 test('lifecycle capabilities normalize once and persist through real intake approval',()=>{
   assert.equal(typeof workflowCore.normalizeWebsiteCapabilities,'function');
   const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};

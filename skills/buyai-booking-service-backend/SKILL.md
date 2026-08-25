@@ -26,6 +26,13 @@ each protected request obtain fresh trusted auth and resolve the current server-
 calling booking, service, capacity, or file Adapters. Resolve anew for every
 request and host; browser owner IDs are never authority.
 
+For an explicitly approved inquiry or `booking_notification`, call
+`packages/buyna-delivery-state-core`; do not generate a notification state
+machine. Write its immutable notification source event inside the matching
+booking transaction, then let the reconciler create and dispatch delivery after
+commit/restart. Direct best-effort enqueue after commit is forbidden.
+Notification failure never changes booking or payment success.
+
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 
 ## Dashboard Contract Boundary

@@ -39,6 +39,11 @@ const requestedSlices = Object.freeze([...gates, "local_preview"]);
 const repairSlices = Object.freeze(["frontend_code", "dashboard_integration", "checkout_payment", "testing_upload_gate"]);
 const paymentArchitectures = Object.freeze(["fixed-cores", "legacy-globepay-service"]);
 const fileCapableDashboardSlices = Object.freeze(["products", "services", "media", "page_editor"]);
+const readModelDashboardSlices = Object.freeze(["dashboard"]);
+const notificationOperationSlices = Object.freeze({
+  order_notification: "orders",
+  booking_notification: "bookings",
+});
 const dependencyRules = Object.freeze({
   "buyai-product-merchant-backend": () => ({
     skills: [],
@@ -112,6 +117,16 @@ function assertSelectedDependencyContract(selected) {
     && !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name))) {
     throw new Error("DASHBOARD_SECURITY_DEPENDENCY_INCOMPLETE");
   }
+  if (modules.has("buyna-commerce-read-model-core")
+    && (!skills.has("buyai-dashboard-data-interaction")
+      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
+    throw new Error("COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE");
+  }
+  if (modules.has("buyna-delivery-state-core")
+    && (!skills.has("buyai-dashboard-data-interaction")
+      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
+    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
+  }
   if (skills.has("buyai-checkout-address-ux")
     && selected.commerceArchitecture !== "legacy-globepay-service"
     && !modules.has("buyna-checkout-flow-core")) {
@@ -143,6 +158,7 @@ function withManifestVerification(route) {
     ...route,
     dashboardSlice: route.dashboardSlice ?? null,
     dashboardSlices: Array.isArray(route.dashboardSlices) ? [...route.dashboardSlices] : [],
+    notificationOperation: route.notificationOperation ?? null,
     manifestVerification: { profile: "website-builder", verified: true },
   };
 }
@@ -181,6 +197,7 @@ function authorizationEvidenceFailure(error) {
     "WORK_PACKAGE_AUTHORIZATION_EVIDENCE_INVALID",
     "REPAIR_AUTHORIZATION_EVIDENCE_INVALID",
     "DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID",
+    "NOTIFICATION_OPERATION_APPROVAL_EVIDENCE_INVALID",
   ]);
   let current = error;
   while (current instanceof Error) {
@@ -257,7 +274,27 @@ function normalizeDashboardSelection({ targetGate, dashboardSlice, persistedSlic
   return { dashboardSlice, dashboardSlices: [dashboardSlice] };
 }
 
-function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboardSelection }) {
+function normalizeNotificationSelection({ targetGate, notificationOperation, persistedOperations, dashboardSelection, capabilities }) {
+  if (notificationOperation === null || notificationOperation === undefined) return { notificationOperation: null };
+  if (targetGate !== "dashboard_integration") return { blocked: "NOTIFICATION_OPERATION_NOT_APPLICABLE", notificationOperation: null };
+  if (typeof notificationOperation !== "string"
+    || !Object.prototype.hasOwnProperty.call(notificationOperationSlices, notificationOperation)
+    || !Array.isArray(persistedOperations)
+    || !persistedOperations.includes(notificationOperation)) {
+    return { blocked: "NOTIFICATION_OPERATION_NOT_APPROVED", notificationOperation: null };
+  }
+  const matchingSlice = notificationOperationSlices[notificationOperation];
+  const selectedSlices = dashboardSelection.dashboardSlices ?? [];
+  const domainMatches = notificationOperation === "order_notification"
+    ? capabilities.requiresCatalog || capabilities.requiresCart
+    : capabilities.requiresBooking;
+  if (!selectedSlices.includes(matchingSlice) || !domainMatches) {
+    return { blocked: "NOTIFICATION_OPERATION_NOT_APPLICABLE", notificationOperation: null };
+  }
+  return { notificationOperation };
+}
+
+function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboardSelection, notificationSelection }) {
   const fixedModules = ["buyna-workflow-state-core"];
   if (gate === "customer_intake") return { skills: ["buyna-customer-intake"], fixedModules, commerceArchitecture: null };
   if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure"], fixedModules, commerceArchitecture: null };
@@ -278,6 +315,10 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboard
     if (dashboardSelection.dashboardSlices.some((slice) => fileCapableDashboardSlices.includes(slice))) {
       addUnique(fixedModules, ["buyna-merchant-file-core"]);
     }
+    if (dashboardSelection.dashboardSlices.some((slice) => readModelDashboardSlices.includes(slice))) {
+      addUnique(fixedModules, ["buyna-commerce-read-model-core"]);
+    }
+    if (notificationSelection.notificationOperation) addUnique(fixedModules, ["buyna-delivery-state-core"]);
     return { skills, fixedModules, commerceArchitecture: null };
   }
   if (gate === "testing_upload_gate") return { skills: ["buyna-testing-quality"], fixedModules, commerceArchitecture: null };
@@ -311,7 +352,7 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboard
   };
 }
 
-export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build", dashboardSlice = null } = {}) {
+export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build", dashboardSlice = null, notificationOperation = null } = {}) {
   if (!requestedSlices.includes(requestedSlice)) throw new Error("REQUESTED_SLICE_INVALID");
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
@@ -319,7 +360,9 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     rawState?.configuration?.workPackage
     || rawState?.activeRepair
     || rawState?.configuration?.dashboardSliceApproval
-    || (Array.isArray(rawState?.configuration?.dashboardSlices)&&rawState.configuration.dashboardSlices.length>0),
+    || rawState?.configuration?.notificationOperationApproval
+    || (Array.isArray(rawState?.configuration?.dashboardSlices)&&rawState.configuration.dashboardSlices.length>0)
+    || (Array.isArray(rawState?.configuration?.notificationOperations)&&rawState.configuration.notificationOperations.length>0),
   );
   if (authorizationBearing && !isTrustedWorkflowState(rawState)) {
     let capabilities;
@@ -437,7 +480,31 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
       externalActions: { git: false, aws: false },
     });
   }
-  const selected = routeForGate({ gate: targetGate, capabilities, paymentArchitecture, mode, dashboardSelection });
+  const notificationSelection = normalizeNotificationSelection({
+    targetGate,
+    notificationOperation,
+    persistedOperations: workflowState.configuration?.notificationOperations,
+    dashboardSelection,
+    capabilities,
+  });
+  if (notificationSelection.blocked) {
+    return withManifestVerification({
+      action: "blocked",
+      targetGate,
+      requestedSlice,
+      reason: notificationSelection.blocked,
+      skills: [],
+      fixedModules: ["buyna-workflow-state-core"],
+      notApplicableGates: skippedGates,
+      continueWithoutConfirmation: false,
+      commerceArchitecture: null,
+      dashboardSlice: dashboardSelection.dashboardSlice,
+      dashboardSlices: dashboardSelection.dashboardSlices,
+      notificationOperation: null,
+      externalActions: { git: false, aws: false },
+    });
+  }
+  const selected = routeForGate({ gate: targetGate, capabilities, paymentArchitecture, mode, dashboardSelection, notificationSelection });
   const base = {
     targetGate,
     requestedSlice,
@@ -448,6 +515,7 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     commerceArchitecture: selected.commerceArchitecture,
     dashboardSlice: dashboardSelection.dashboardSlice,
     dashboardSlices: dashboardSelection.dashboardSlices,
+    notificationOperation: notificationSelection.notificationOperation,
     ...(capabilityMigration ? { capabilityMigration } : {}),
     externalActions: { git: false, aws: targetGate === "aws_release" && releaseIntent === true },
   };

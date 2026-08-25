@@ -46,7 +46,14 @@ For shopping-cart, checkout-order creation, seller Orders, order detail, or
 order CSV, read `references/cart-order-fixed-cores.md`. Call
 `packages/buyna-cart-core` and `packages/buyna-order-core`; generate only the
 project Store/Database Adapters, routes, pricing configuration, custom-field
-mapping, and notification templates.
+    mapping, and notification templates.
+
+For an explicitly approved `order_notification`, call
+`packages/buyna-delivery-state-core`; do not generate a notification state
+machine. Write its immutable notification source event in the same transaction
+as the matching order event, then let the reconciler create and dispatch the
+delivery after commit/restart. Direct best-effort enqueue after commit is
+forbidden. Notification failure does not change order or payment success.
 
 Select one checkout recipe from the persisted workflow:
 

@@ -262,6 +262,7 @@ export function createVerifiedWorkflowStore({projectRoot,pinnedAuthority,authori
   async function initializeWorkflow({state,now=new Date().toISOString()}={}){
     const fresh=state?.currentGate===WORKFLOW_GATES[0]&&state?.status===undefined&&state?.activeRepair===undefined
       &&Array.isArray(state?.configuration?.dashboardSlices)&&state.configuration.dashboardSlices.length===0
+      &&Array.isArray(state?.configuration?.notificationOperations)&&state.configuration.notificationOperations.length===0
       &&state?.configuration?.workPackage===undefined
       &&WORKFLOW_GATES.every((gate,index)=>state?.gates?.[gate]?.status===(index===0?'ready':'locked')&&state.gates[gate].delivery===undefined);
     if(!fresh||!isTrustedWorkflowState(state))throw new Error('WORKFLOW_INITIAL_STATE_REQUIRED');

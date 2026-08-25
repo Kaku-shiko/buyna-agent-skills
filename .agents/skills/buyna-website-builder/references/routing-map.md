@@ -25,6 +25,10 @@ Input:
 - `dashboardSlice`: for a Dashboard target, one value already persisted in
   `workflowState.configuration.dashboardSlices`, or `all` when the bounded work
   package includes `dashboard_integration`.
+- `notificationOperation`: optional `order_notification` or
+  `booking_notification` already persisted through
+  `setApprovedNotificationOperations` and matching the selected approved slice.
+  Omission selects no delivery module.
 
 Persist Dashboard slices with `setApprovedDashboardSlices` after approved
 design/page-structure evidence, only at `currentGate=frontend_code` while the
@@ -33,6 +37,12 @@ state returns `DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED`. Persist bounded work with
 and repair scope with `openRepairSlice`. The router requires `workflow transition evidence`
 for each record (exact actor, scope, timestamp, and event); a hand-built
 configuration object is blocked before module selection.
+Persist matching notification operations in the same approved design/work
+package decision, without a second confirmation prompt. The workflow transition
+requires `orders` plus product/order capability for `order_notification`, or
+`bookings` plus booking capability for `booking_notification`. Later expansion
+returns `NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED`; callers never edit the
+configuration directly.
 
 Opaque provenance is runtime-owned. Serialized workflow JSON is not trusted.
 At trusted server initialization, `loadPinnedWorkflowAuthority` reads the pinned
@@ -46,7 +56,8 @@ state digest to equal the local append-only journal evidence. Each save uses a c
 commit (CAS) from the prior signed head and locally verifies the signed
 acknowledgement. Old locally valid files therefore cannot roll the workflow back.
 This provenance requirement also applies whenever `dashboardSlices` or
-`dashboardSliceApproval` is nonempty, even without a work package or repair.
+`dashboardSliceApproval`, `notificationOperations`, or its approval is nonempty,
+even without a work package or repair.
 The Store accepts only the opaque, single-use proof returned with the exact
 workflow-core transition; reconstructed state/event JSON is not persistable.
 Immutable revision-plus-nonce candidates and an atomic current pointer let a
@@ -73,6 +84,12 @@ Output:
   `DASHBOARD_SLICES_NOT_CONFIGURED`; unapproved input returns
   `DASHBOARD_SLICE_NOT_APPROVED`; and unbounded `all` returns
   `DASHBOARD_FULL_SCOPE_APPROVAL_REQUIRED`.
+- `notificationOperation` is stable on every result. The Dashboard overview
+  selects `buyna-commerce-read-model-core` exactly once. Other list/detail
+  slices do not. `buyna-delivery-state-core` is selected exactly once only for
+  an explicit persisted matching operation; unapproved input returns
+  `NOTIFICATION_OPERATION_NOT_APPROVED`, while slice/domain mismatch returns
+  `NOTIFICATION_OPERATION_NOT_APPLICABLE` before business dependencies.
 - A fully evidenced completed workflow in repair mode returns `action:
   reopen_repair` and an `openRepairSlice` transition until a matching separate
   repair slice exists.
@@ -111,6 +128,12 @@ is entered directly; otherwise the router returns `currentGate`.
   `buyna-merchant-context-core`. Persisted `products`, `services`, `media`, or
   `page_editor` slices also select `buyna-merchant-file-core`; other slices do
   not.
+- Only persisted `dashboard` selects `buyna-commerce-read-model-core`.
+  Inventory, order, booking, customer, and paid-customer data keep their
+  existing fixed cores and project APIs.
+- Only an explicit persisted operation matching selected `orders` or `bookings`
+  and domain capabilities selects `buyna-delivery-state-core`. `all` never
+  implies delivery; the operation is still required.
 - Product with provider payment: execute cart/order, checkout-flow core,
   GlobePay transport/verification Adapters, then settlement core and GMV.
 - Paid booking: `requiresBooking=true`, `requiresCheckout=true`, and

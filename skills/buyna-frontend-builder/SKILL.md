@@ -50,6 +50,12 @@ Every interactive Dashboard page creates its own operation instance through
 project owns all visible loading, empty, error, permission, dialog, and save
 presentation.
 
+When selected, consume stable `buyna-commerce-read-model-core` metrics and
+`buyna-delivery-state-core` state through project Adapters. Generate every
+chart, component, message copy, label, color, font, spacing, responsive
+behavior, and CSS per project. Fixed data/state never supplies a Dashboard
+visual design, chart library, template copy, or provider UI.
+
 ## Dashboard UI Boundary
 
 Phase 4 owns Dashboard presentation only: project-specific layout, navigation, components,
