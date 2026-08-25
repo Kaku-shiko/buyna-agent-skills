@@ -26,7 +26,8 @@ project persistence or API work.
 
 When the Website Builder invokes this Skill, inherit its persisted capability,
 interaction mode, and bounded work package. Return evidence to the Builder;
-do not reopen approved design or ask the same implementation confirmation.
+do not reopen approved design, ask the same implementation confirmation, or
+reinvoke sibling Skills already present in the Builder route.
 
 ## Visual Boundary
 

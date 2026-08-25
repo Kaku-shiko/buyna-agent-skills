@@ -7,6 +7,11 @@ description: "Connect one approved Buyna.ai merchant Dashboard page or related s
 
 Complete one approved Dashboard page or closely related interaction slice at a time without redesigning its UI.
 
+When invoked by `buyna-website-builder`, inherit its persisted capabilities,
+interaction mode, and bounded work package. Its returned `skills` and
+`fixedModules` are authoritative; references below reuse an already returned
+child and never trigger a second sibling invocation.
+
 For every interactive page, call
 `packages/buyna-merchant-dashboard-core.createDashboardOperation`. The fixed
 operation state owns legal loading/ready/empty/error/forbidden and

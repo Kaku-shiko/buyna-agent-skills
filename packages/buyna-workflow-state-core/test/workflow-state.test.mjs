@@ -128,6 +128,43 @@ const intake=(capabilities=contentCapabilities,paymentArchitecture)=>({
   ...(paymentArchitecture?{paymentArchitecture}:{}),
 });
 
+test('lifecycle capabilities normalize once and persist through real intake approval',()=>{
+  assert.equal(typeof workflowCore.normalizeWebsiteCapabilities,'function');
+  const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};
+  let state=createWorkflow({projectId:'lifecycle-persistence'});
+  state=startGate({state,gate:'customer_intake'}).state;
+  state=recordDelivery({state,gate:'customer_intake',delivery:intake(capabilities,'fixed-cores')}).state;
+  assert.deepEqual(state.configuration.capabilities,capabilities);
+  state=requestApproval({state,gate:'customer_intake'}).state;
+  state=approveGate({state,gate:'customer_intake',approvedBy:'customer'}).state;
+  assert.deepEqual(state.configuration.capabilities,capabilities);
+});
+
+test('lifecycle capability equality includes coupon, catalog, and inventory flags',()=>{
+  const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};
+  let state=startGate({state:createWorkflow({projectId:'lifecycle-equality'}),gate:'customer_intake'}).state;
+  state=recordDelivery({state,gate:'customer_intake',delivery:intake(capabilities,'fixed-cores')}).state;
+  state.gates.customer_intake.delivery.capabilities.requiresCoupons=false;
+  assert.throws(()=>requestApproval({state,gate:'customer_intake'}),/SITE_CAPABILITIES_MISMATCH/);
+});
+
+test('legacy mixed booking-payment state does not infer product lifecycle capabilities',()=>{
+  const normalized=workflowCore.normalizeWebsiteCapabilities({
+    siteType:'mixed',requiresDashboard:true,requiresCart:false,requiresCheckout:true,
+    requiresPayment:true,requiresBooking:true,
+  });
+  assert.equal(normalized.requiresCatalog,false);
+  assert.equal(normalized.requiresInventory,false);
+  assert.equal(normalized.requiresCoupons,false);
+});
+
+test('lifecycle capability invariants reject impossible combinations',()=>{
+  const base={...contentCapabilities,siteType:'commerce',requiresCheckout:true};
+  assert.throws(()=>workflowCore.normalizeWebsiteCapabilities({...base,requiresCatalog:false,requiresInventory:true,requiresCoupons:false}),/INVENTORY_REQUIRES_CATALOG/);
+  assert.throws(()=>workflowCore.normalizeWebsiteCapabilities({...base,requiresCart:true,requiresCatalog:false,requiresInventory:false,requiresCoupons:false}),/CART_REQUIRES_CATALOG/);
+  assert.throws(()=>workflowCore.normalizeWebsiteCapabilities({...base,requiresCheckout:false,requiresCatalog:true,requiresInventory:false,requiresCoupons:true}),/COUPON_REQUIRES_CHECKOUT/);
+});
+
 test('frontend code cannot request approval without files passing checks and an interface contract',()=>{
   let state=createWorkflow({projectId:'shop-two'});
   state=completeGate(state,'customer_intake',intake());
@@ -252,6 +289,17 @@ test('verified history import validates canonical evidence and advances directly
   assert.equal(transition.event.event,'verified_history_imported');
   assert.equal(transition.state.gates.frontend_code.approvalMode,'imported_verified_evidence');
   assert.equal(transition.state.configuration.paymentArchitecture,'fixed-cores');
+});
+
+test('verified history import persists normalized lifecycle capabilities',()=>{
+  const capabilities={...commerceCapabilities,requiresCatalog:true,requiresInventory:true,requiresCoupons:true};
+  const transition=workflowCore.importVerifiedHistory({
+    state:createWorkflow({projectId:'recovered-lifecycle-shop'}),
+    requestedGate:'checkout_payment',
+    imports:importedHistory(capabilities,'fixed-cores'),
+    importedBy:'operator',
+  });
+  assert.deepEqual(transition.state.configuration.capabilities,capabilities);
 });
 
 test('static verified history imports approved gates and capability-legitimate not-applicable gates',()=>{

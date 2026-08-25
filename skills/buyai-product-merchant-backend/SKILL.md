@@ -75,7 +75,9 @@ When invoked by `buyna-website-builder`, inherit the saved
 `configuration.workPackage` authorization and `interactionMode`. An included
 `dashboard_integration` or `checkout_payment` slice returns evidence to the
 Builder and continues without another approval question. Standalone work uses
-its ordinary current-step approval.
+its ordinary current-step approval. The Builder's returned `skills` and
+`fixedModules` are the complete selection: do not reinvoke or add sibling
+Skills from `Combine Skills` when they are already returned or were not selected.
 
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 

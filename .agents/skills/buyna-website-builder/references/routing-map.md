@@ -12,8 +12,11 @@ Input:
   `requiresBooking`, `requiresCatalog`, `requiresInventory`, and
   `requiresCoupons`. After intake, the identical normalized persisted workflow
   value is authoritative; a mismatch returns
-  `CAPABILITY_SCOPE_CHANGE_REQUIRED`. Older records default catalog and
-  inventory on for product commerce and coupons off.
+  `CAPABILITY_SCOPE_CHANGE_REQUIRED`. Older `commerce` or cart-bearing records
+  default catalog and inventory on and coupons off. A legacy `mixed` record
+  without cart or explicit lifecycle flags defaults all three off and returns
+  `EXPLICIT_PRODUCT_CAPABILITY_MIGRATION_REQUIRED`; persist explicit flags at
+  intake before adding product work.
 - `workflowState`: canonical gate status plus real delivery/approval evidence
   for every prior gate in active or completed history.
 - `requestedSlice`: one canonical gate ID or `local_preview`.
@@ -24,7 +27,8 @@ Output:
 
 - `targetGate`, `skills`, and `fixedModules` are the minimum ready route.
 - `manifestVerification` confirms every selected Skill and fixed module is in
-  the installed `website-builder` profile.
+  the canonical repository manifest or installed namespaced manifest's
+  `website-builder` profile.
 - `notApplicableGates` contains only canonical optional gates.
 - `continueWithoutConfirmation` inherits the saved bounded work package.
 - `externalActions.git` and `externalActions.aws` are explicit.

@@ -8,10 +8,15 @@ const workflowCoreUrls = [
 ];
 const workflowCoreUrl = workflowCoreUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
 if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED");
-const { validateWorkflowReadinessEvidence } = await import(workflowCoreUrl.href);
+const {
+  normalizeWebsiteCapabilities,
+  validateWorkflowReadinessEvidence,
+  websiteCapabilitiesEqual,
+} = await import(workflowCoreUrl.href);
 
 const manifestUrls = [
   new URL("../../../repository-manifest.json", import.meta.url),
+  new URL("../../../buyna/repository-manifest.json", import.meta.url),
   new URL("../../../../repository-manifest.json", import.meta.url),
 ];
 const manifestUrl = manifestUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
@@ -31,29 +36,17 @@ const gates = Object.freeze([
 ]);
 const requestedSlices = Object.freeze([...gates, "local_preview"]);
 const repairSlices = Object.freeze(["frontend_code", "dashboard_integration", "checkout_payment", "testing_upload_gate"]);
-const capabilityKeys = Object.freeze([
-  "requiresDashboard",
-  "requiresCart",
-  "requiresCheckout",
-  "requiresPayment",
-  "requiresBooking",
-]);
-const lifecycleCapabilityKeys = Object.freeze([
-  "requiresCatalog",
-  "requiresInventory",
-  "requiresCoupons",
-]);
 const paymentArchitectures = Object.freeze(["fixed-cores", "legacy-globepay-service"]);
 const dependencyRules = Object.freeze({
-  "buyai-product-merchant-backend": ({ commerceArchitecture }) => ({
-    skills: ["buyai-checkout-address-ux"],
-    fixedModules: ["buyna-cart-core", "buyna-order-core"],
+  "buyai-product-merchant-backend": () => ({
+    skills: [],
+    fixedModules: [],
     legacyServices: [],
     paymentSafety: [],
   }),
   "buyai-checkout-address-ux": ({ commerceArchitecture }) => ({
     skills: [],
-    fixedModules: commerceArchitecture === "legacy-globepay-service" ? [] : ["buyna-checkout-flow-core"],
+    fixedModules: [],
     legacyServices: commerceArchitecture === "legacy-globepay-service" ? ["createGlobepayService"] : [],
     paymentSafety: commerceArchitecture === "legacy-globepay-service"
       ? ["provider-query", "exact-amount-currency", "idempotency"]
@@ -61,29 +54,25 @@ const dependencyRules = Object.freeze({
   }),
   "buyai-coupon-commerce": () => ({
     skills: [],
-    fixedModules: ["buyna-coupon-core"],
+    fixedModules: [],
     legacyServices: [],
     paymentSafety: [],
   }),
   "buyai-dashboard-data-interaction": () => ({
     skills: [],
-    fixedModules: ["buyna-merchant-dashboard-core"],
+    fixedModules: [],
     legacyServices: [],
     paymentSafety: [],
   }),
   "buyai-globepay-payment": ({ commerceArchitecture }) => ({
     skills: [],
-    fixedModules: commerceArchitecture === "checkout-flow+transport-adapters+settlement"
-      ? ["buyna-checkout-flow-core", "buyna-commerce-settlement-core"]
-      : [],
+    fixedModules: [],
     legacyServices: commerceArchitecture === "legacy-globepay-service" ? ["createGlobepayService"] : [],
     paymentSafety: ["provider-query", "exact-amount-currency", "idempotency"],
   }),
   "buyai-globepay-status-sync": ({ commerceArchitecture }) => ({
     skills: [],
-    fixedModules: commerceArchitecture === "checkout-flow+transport-adapters+settlement"
-      ? ["buyna-commerce-settlement-core"]
-      : [],
+    fixedModules: [],
     legacyServices: commerceArchitecture === "legacy-globepay-service" ? ["createGlobepayService"] : [],
     paymentSafety: ["provider-query", "exact-amount-currency", "idempotency"],
   }),
@@ -94,40 +83,34 @@ function requiredObject(value, code) {
   return value;
 }
 
-function normalizeCapabilities(value) {
-  const input = requiredObject(value, "CAPABILITIES_REQUIRED");
-  const capabilities = { siteType: String(input.siteType ?? "").trim().toLowerCase() };
-  if (!["content", "commerce", "service", "mixed"].includes(capabilities.siteType)) throw new Error("SITE_TYPE_INVALID");
-  for (const key of capabilityKeys) {
-    if (typeof input[key] !== "boolean") throw new Error("CAPABILITIES_REQUIRED");
-    capabilities[key] = input[key];
-  }
-  const productCommerce = capabilities.siteType === "commerce"
-    || capabilities.siteType === "mixed"
-    || capabilities.requiresCart;
-  const defaults = {
-    requiresCatalog: productCommerce,
-    requiresInventory: productCommerce,
-    requiresCoupons: false,
-  };
-  for (const key of lifecycleCapabilityKeys) {
-    if (input[key] !== undefined && typeof input[key] !== "boolean") throw new Error("CAPABILITIES_REQUIRED");
-    capabilities[key] = input[key] ?? defaults[key];
-  }
-  if (capabilities.requiresCart && !capabilities.requiresCheckout) throw new Error("CART_REQUIRES_CHECKOUT");
-  if (capabilities.requiresPayment && !capabilities.requiresCheckout) throw new Error("PAYMENT_REQUIRES_CHECKOUT");
-  if (capabilities.requiresInventory && !capabilities.requiresCatalog) throw new Error("INVENTORY_REQUIRES_CATALOG");
-  if (capabilities.requiresCoupons && !capabilities.requiresCheckout) throw new Error("COUPON_REQUIRES_CHECKOUT");
-  return capabilities;
-}
-
-function capabilitiesEqual(left, right) {
-  return left.siteType === right.siteType
-    && [...capabilityKeys, ...lifecycleCapabilityKeys].every((key) => left[key] === right[key]);
-}
-
 function addUnique(target, values) {
   for (const value of values) if (!target.includes(value)) target.push(value);
+}
+
+function assertSelectedDependencyContract(selected) {
+  const skills = new Set(selected.skills);
+  const modules = new Set(selected.fixedModules);
+  if (skills.has("buyai-product-merchant-backend")) {
+    if (["frontend_code", "dashboard_integration"].includes(selected.targetGate)
+      && !["buyna-merchant-catalog-core", "buyna-inventory-core"].some((name) => modules.has(name))) {
+      throw new Error("PRODUCT_DASHBOARD_DEPENDENCY_INCOMPLETE");
+    }
+    if (selected.targetGate === "checkout_payment"
+      && !["buyna-cart-core", "buyna-order-core"].every((name) => modules.has(name))) {
+      throw new Error("PRODUCT_CHECKOUT_DEPENDENCY_INCOMPLETE");
+    }
+  }
+  if (skills.has("buyai-coupon-commerce") && !modules.has("buyna-coupon-core")) {
+    throw new Error("COUPON_DEPENDENCY_INCOMPLETE");
+  }
+  if (skills.has("buyai-dashboard-data-interaction") && !modules.has("buyna-merchant-dashboard-core")) {
+    throw new Error("DASHBOARD_DEPENDENCY_INCOMPLETE");
+  }
+  if (skills.has("buyai-checkout-address-ux")
+    && selected.commerceArchitecture !== "legacy-globepay-service"
+    && !modules.has("buyna-checkout-flow-core")) {
+    throw new Error("CHECKOUT_DEPENDENCY_INCOMPLETE");
+  }
 }
 
 function lifecycleModules(capabilities, { dashboard = false } = {}) {
@@ -159,6 +142,7 @@ function withManifestVerification(route) {
 export function resolveRouteDependencyClosure(route) {
   const selected = requiredObject(route, "ROUTE_REQUIRED");
   if (!Array.isArray(selected.skills) || !Array.isArray(selected.fixedModules)) throw new Error("ROUTE_DEPENDENCIES_REQUIRED");
+  assertSelectedDependencyContract(selected);
   const skills = [];
   const fixedModules = [...selected.fixedModules];
   const legacyServices = [];
@@ -189,6 +173,19 @@ function notApplicableGates(capabilities) {
   if (!capabilities.requiresDashboard) result.push("dashboard_integration");
   if (!capabilities.requiresCheckout) result.push("checkout_payment");
   return result;
+}
+
+function legacyMixedMigration(rawCapabilities) {
+  if (!rawCapabilities || typeof rawCapabilities !== "object") return null;
+  const hasLifecycleEvidence = ["requiresCatalog", "requiresInventory", "requiresCoupons"]
+    .some((key) => Object.prototype.hasOwnProperty.call(rawCapabilities, key));
+  if (String(rawCapabilities.siteType ?? "").trim().toLowerCase() !== "mixed"
+    || rawCapabilities.requiresCart !== false
+    || hasLifecycleEvidence) return null;
+  return {
+    code: "EXPLICIT_PRODUCT_CAPABILITY_MIGRATION_REQUIRED",
+    action: "return_to_customer_intake_before_product_work",
+  };
 }
 
 function capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities }) {
@@ -261,18 +258,20 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
   const workflowState = verifyReadiness(rawState);
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
-  const persistedCapabilities = workflowState.configuration?.capabilities
-    ? normalizeCapabilities(workflowState.configuration.capabilities)
+  const persistedRawCapabilities = workflowState.configuration?.capabilities;
+  const capabilityMigration = legacyMixedMigration(persistedRawCapabilities);
+  const persistedCapabilities = persistedRawCapabilities
+    ? normalizeWebsiteCapabilities(persistedRawCapabilities)
     : null;
   let requestedCapabilities;
   try {
-    requestedCapabilities = normalizeCapabilities(rawCapabilities);
+    requestedCapabilities = normalizeWebsiteCapabilities(rawCapabilities);
   } catch (error) {
     if (persistedCapabilities) return capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities: persistedCapabilities });
     throw error;
   }
   const capabilities = persistedCapabilities ?? requestedCapabilities;
-  if (persistedCapabilities && !capabilitiesEqual(requestedCapabilities, persistedCapabilities)) {
+  if (persistedCapabilities && !websiteCapabilitiesEqual(requestedCapabilities, persistedCapabilities)) {
     return capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities: persistedCapabilities });
   }
   const paymentArchitecture = capabilities.requiresPayment
@@ -311,6 +310,7 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     notApplicableGates: skippedGates,
     continueWithoutConfirmation: activeRepair || workPackageGates.includes(targetGate),
     commerceArchitecture: selected.commerceArchitecture,
+    ...(capabilityMigration ? { capabilityMigration } : {}),
     externalActions: { git: false, aws: targetGate === "aws_release" && releaseIntent === true },
   };
   if (completed && !activeRepair) return withManifestVerification({ action: "reopen_repair", ...base, repairTransition: { type: "openRepairSlice", gate: targetGate } });

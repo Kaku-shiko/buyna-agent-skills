@@ -16,15 +16,23 @@ if ($Scope -eq 'User') {
     $installationRoot = Join-Path $env:USERPROFILE '.codex'
     $destinationRoot = Join-Path $installationRoot 'skills'
     $moduleDestinationRoot = Join-Path $installationRoot 'packages'
+    $manifestDestinationRoot = Join-Path $installationRoot 'buyna'
 } else {
     $resolvedProjectPath = [IO.Path]::GetFullPath($ProjectPath)
     $installationRoot = $resolvedProjectPath
     $destinationRoot = Join-Path $installationRoot '.agents\skills'
     $moduleDestinationRoot = Join-Path $installationRoot 'packages'
+    $manifestDestinationRoot = Join-Path $installationRoot '.agents\buyna'
+}
+
+$manifestDestinationPath = Join-Path $manifestDestinationRoot 'repository-manifest.json'
+if ((Test-Path -LiteralPath $manifestDestinationPath) -and -not $Force) {
+    throw "Namespaced manifest already exists: $manifestDestinationPath. Use -Force to update the installed manifest."
 }
 
 New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $moduleDestinationRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $manifestDestinationRoot -Force | Out-Null
 
 $obsoleteSkills = @('buyna-project-framework')
 foreach ($obsoleteSkill in $obsoleteSkills) {
@@ -91,7 +99,7 @@ foreach ($obsoleteSkill in $obsoleteSkills) {
     Write-Host "Installed fixed module: $moduleName"
 }
 
-Copy-Item -LiteralPath $manifestSourcePath -Destination (Join-Path $installationRoot 'repository-manifest.json') -Force
+Copy-Item -LiteralPath $manifestSourcePath -Destination $manifestDestinationPath -Force
 
 Write-Host ""
 Write-Host "Installation complete: $destinationRoot"

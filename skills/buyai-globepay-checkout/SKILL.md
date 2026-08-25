@@ -40,9 +40,13 @@ Read the saved workflow `paymentArchitecture` and use its matching sequence:
 Each request uses exactly the saved architecture. Missing or unknown architecture
 returns to workflow intake/configuration before payment creation.
 
-When a pending order contains a coupon snapshot, call `@buyna/coupon-core`
-`resolveCouponPaymentAmount({quote, orderTotal})` before provider order creation.
-Send only its positive integer result to GlobePay.
+When checkout uses a coupon, call the exported `@buyna/coupon-core`
+`createCouponModule(...)` contract. Use `quote(...)` for review, then
+`reserve(...)` at final confirmation. Persist the returned immutable discount
+snapshot on the local order/checkout snapshot and lock its positive integer
+`payableAmount`, currency, coupon id, and reservation id before provider order
+creation. Send that locked `payableAmount` to GlobePay; never recalculate a
+different amount in the transport Adapter.
 
 ## Method Rules
 

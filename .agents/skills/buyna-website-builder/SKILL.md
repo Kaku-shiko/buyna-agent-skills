@@ -12,7 +12,9 @@ configuration, framework wiring, and visual presentation.
 
 ## Start Or Resume
 
-- New build: create/load the workflow and begin at `customer_intake`.
+- New build: create a new workflow, invoke `buyna-customer-intake`, and persist
+  its normalized capabilities before routing later work. Do not synthesize or
+  import completed history for a new project.
 - Repair or resume: load the existing workflow first. When verifiable delivery
   and approval records are supplied for missing history, call
   `importVerifiedHistory` once, persist its event batch, recompute readiness,
@@ -25,6 +27,10 @@ configuration, framework wiring, and visual presentation.
   slice is separate; canonical completed gates and release evidence stay intact.
 - Chat statements identify evidence to inspect; the workflow advances from the
   verified records returned to the import Interface.
+- A legacy `mixed` record without cart or explicit lifecycle flags remains
+  booking/payment-only. `EXPLICIT_PRODUCT_CAPABILITY_MIGRATION_REQUIRED` means
+  return to customer intake and persist catalog/inventory/coupon flags before
+  adding product work; never infer them from `mixed` alone.
 
 Default presentation is `team`. Use `developer` only when the user requests
 commands, resource identifiers, internal status codes, or detailed technical
@@ -32,9 +38,13 @@ evidence. Read [interaction modes](references/interaction-modes.md).
 
 ## Execution Recipe
 
-1. Resolve the project installation, then the user installation. Load
-   `repository-manifest.json`, `buyna-workflow-state-core`, and the saved state.
-2. For repair/resume, import supplied verifiable missing history through
+1. Resolve the project installation, then the user installation. In the source
+   repository load root `repository-manifest.json`; in an installation load
+   `.agents/buyna/repository-manifest.json` or `.codex/buyna/repository-manifest.json`.
+   Then load `buyna-workflow-state-core` and the saved state.
+2. For a new build, run customer intake and persist its normalized capability
+   record. For repair/resume, recover the saved state and import only supplied
+   verifiable missing history through
    `importVerifiedHistory`; if a required record is unavailable, request one
    grouped evidence input.
 3. Run `scripts/route-builder.mjs` with the capabilities persisted in the loaded

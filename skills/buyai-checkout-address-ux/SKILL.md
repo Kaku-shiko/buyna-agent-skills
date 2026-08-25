@@ -7,6 +7,11 @@ description: "Use when buyer or customer checkout forms need address fields, Jap
 
 Use for buyer/customer forms, shipping UX, Japan postal auto-fill, mobile input, and form persistence after validation/payment errors. Do not use for catalog, capacity, GlobePay, or seller dashboard.
 
+When invoked by `buyna-website-builder`, inherit its persisted capabilities,
+payment architecture, interaction mode, and bounded work package. Its returned
+Skills and fixed modules are authoritative; do not independently invoke
+sibling product, booking, or payment Skills.
+
 ## First Move
 
 Confirm buyer language, admin language, seller country, shipping/service country, flow type, and required fields. Inspect form state, validation, checkout/payment actions, order schema, order detail, and CSV.

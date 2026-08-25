@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -10,6 +10,13 @@ const read = (path) => readFileSync(new URL(path, root), "utf8");
 const { planWebsiteRoute, resolveRouteDependencyClosure } = await import(
   new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root)
 );
+const {
+  approveGate,
+  createWorkflow,
+  recordDelivery,
+  requestApproval,
+  startGate,
+} = await import(new URL("packages/buyna-workflow-state-core/src/index.mjs", root));
 
 const gates = [
   "customer_intake",
@@ -123,13 +130,36 @@ function assertManifestEvidence(route) {
   });
 }
 
+function approveCurrentGate(state, gate, delivery) {
+  state = startGate({ state, gate }).state;
+  state = recordDelivery({ state, gate, delivery }).state;
+  state = requestApproval({ state, gate }).state;
+  return approveGate({ state, gate, approvedBy: "route-test" }).state;
+}
+
+function workflowAtGate(targetGate, capabilities) {
+  const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
+  let state = createWorkflow({ projectId: "route-test" });
+  state = approveCurrentGate(state, "customer_intake", deliveryFor("customer_intake", capabilities, paymentArchitecture));
+  if (targetGate === "design_and_structure") return state;
+  state = approveCurrentGate(state, "design_and_structure", deliveryFor("design_and_structure", capabilities, paymentArchitecture));
+  if (targetGate === "frontend_code") return state;
+  state = approveCurrentGate(state, "frontend_code", deliveryFor("frontend_code", capabilities, paymentArchitecture));
+  if (targetGate === "dashboard_integration") return state;
+  state = approveCurrentGate(state, "dashboard_integration", deliveryFor("dashboard_integration", capabilities, paymentArchitecture));
+  return state;
+}
+
 test("stock and SKU Dashboard selects catalog, inventory, and operation state exactly once", () => {
   const capabilities = productCapabilities();
+  const workflowState = workflowAtGate("dashboard_integration", capabilities);
   const route = planWebsiteRoute({
     capabilities,
-    workflowState: stateAt("dashboard_integration", capabilities, ["dashboard_integration"]),
+    workflowState,
     requestedSlice: "dashboard_integration",
   });
+
+  assert.deepEqual(workflowState.configuration.capabilities, capabilities);
 
   assert.deepEqual(route.skills, [
     "buyai-product-merchant-backend",
@@ -143,12 +173,12 @@ test("stock and SKU Dashboard selects catalog, inventory, and operation state ex
   ]);
   assert.equal(new Set(route.skills).size, route.skills.length);
   assert.equal(new Set(route.fixedModules).size, route.fixedModules.length);
-  assert.equal(route.continueWithoutConfirmation, true);
+  assert.equal(route.continueWithoutConfirmation, false);
   assert.deepEqual(route.externalActions, { git: false, aws: false });
   assertManifestEvidence(route);
 });
 
-test("catalog management selects the product backend even when the mixed site has no cart", () => {
+test("explicit mixed-site catalog capability selects product modules without a cart", () => {
   const capabilities = {
     ...productCapabilities(),
     siteType: "mixed",
@@ -159,7 +189,7 @@ test("catalog management selects the product backend even when the mixed site ha
   };
   const route = planWebsiteRoute({
     capabilities,
-    workflowState: stateAt("dashboard_integration", capabilities),
+    workflowState: workflowAtGate("dashboard_integration", capabilities),
     requestedSlice: "dashboard_integration",
   });
 
@@ -168,11 +198,57 @@ test("catalog management selects the product backend even when the mixed site ha
   assert.ok(route.fixedModules.includes("buyna-merchant-catalog-core"));
 });
 
+test("legacy mixed booking and payment evidence without cart does not infer product modules", () => {
+  const legacy = {
+    siteType: "mixed",
+    requiresDashboard: true,
+    requiresCart: false,
+    requiresCheckout: true,
+    requiresPayment: true,
+    requiresBooking: true,
+  };
+  const workflowState = workflowAtGate("dashboard_integration", legacy);
+  const route = planWebsiteRoute({
+    capabilities: workflowState.configuration.capabilities,
+    workflowState,
+    requestedSlice: "dashboard_integration",
+  });
+
+  assert.equal(workflowState.configuration.capabilities.requiresCatalog, false);
+  assert.equal(workflowState.configuration.capabilities.requiresInventory, false);
+  assert.ok(route.skills.includes("buyai-booking-service-backend"));
+  assert.ok(!route.skills.includes("buyai-product-merchant-backend"));
+  assert.ok(!route.fixedModules.includes("buyna-merchant-catalog-core"));
+  assert.ok(!route.fixedModules.includes("buyna-inventory-core"));
+});
+
+test("persisted ambiguous legacy mixed state reports an explicit product migration path", () => {
+  const legacy = {
+    siteType: "mixed",
+    requiresDashboard: true,
+    requiresCart: false,
+    requiresCheckout: true,
+    requiresPayment: true,
+    requiresBooking: true,
+  };
+  const route = planWebsiteRoute({
+    capabilities: legacy,
+    workflowState: stateAt("dashboard_integration", legacy),
+    requestedSlice: "dashboard_integration",
+  });
+
+  assert.deepEqual(route.capabilityMigration, {
+    code: "EXPLICIT_PRODUCT_CAPABILITY_MIGRATION_REQUIRED",
+    action: "return_to_customer_intake_before_product_work",
+  });
+  assert.ok(!route.skills.includes("buyai-product-merchant-backend"));
+});
+
 test("coupon capability selects the one coupon Skill and fixed coupon module", () => {
   const capabilities = productCapabilities({ requiresCoupons: true });
   const route = planWebsiteRoute({
     capabilities,
-    workflowState: stateAt("checkout_payment", capabilities),
+    workflowState: workflowAtGate("checkout_payment", capabilities),
     requestedSlice: "checkout_payment",
   });
 
@@ -188,12 +264,12 @@ test("absence of coupons skips only coupon while checkout remains executable", (
   const capabilities = productCapabilities({ requiresCoupons: false });
   const route = planWebsiteRoute({
     capabilities,
-    workflowState: stateAt("checkout_payment", capabilities, ["checkout_payment"]),
+    workflowState: workflowAtGate("checkout_payment", capabilities),
     requestedSlice: "checkout_payment",
   });
 
   assert.equal(route.action, "execute");
-  assert.equal(route.continueWithoutConfirmation, true);
+  assert.equal(route.continueWithoutConfirmation, false);
   assert.ok(route.fixedModules.includes("buyna-checkout-flow-core"));
   assert.ok(route.fixedModules.includes("buyna-merchant-catalog-core"));
   assert.ok(route.fixedModules.includes("buyna-inventory-core"));
@@ -258,6 +334,47 @@ test("dependency closure preserves exactly one selected lifecycle dependency", (
   assert.equal(closure.fixedModules.filter((name) => name === "buyna-inventory-core").length, 1);
   assert.equal(closure.fixedModules.filter((name) => name === "buyna-merchant-catalog-core").length, 1);
   assert.equal(closure.fixedModules.filter((name) => name === "buyna-merchant-dashboard-core").length, 1);
+  assert.deepEqual(closure.skills, route.skills);
+  assert.deepEqual(closure.fixedModules, route.fixedModules);
+  assert.ok(!closure.skills.includes("buyai-checkout-address-ux"));
+  assert.ok(!closure.fixedModules.includes("buyna-cart-core"));
+  assert.ok(!closure.fixedModules.includes("buyna-order-core"));
+});
+
+test("checkout dependency closure does not reinvoke already selected children", () => {
+  const capabilities = productCapabilities({ requiresCoupons: true });
+  const route = planWebsiteRoute({
+    capabilities,
+    workflowState: workflowAtGate("checkout_payment", capabilities),
+    requestedSlice: "checkout_payment",
+  });
+  const closure = resolveRouteDependencyClosure(route);
+
+  assert.deepEqual(closure.skills, route.skills);
+  assert.deepEqual(closure.fixedModules, route.fixedModules);
+  assert.equal(new Set(closure.skills).size, closure.skills.length);
+  assert.equal(new Set(closure.fixedModules).size, closure.fixedModules.length);
+});
+
+test("coupon checkout guidance references only the exported fixed-core contract", async () => {
+  const couponExports = await import(new URL("packages/buyna-coupon-core/src/index.mjs", root));
+  const couponModule = couponExports.createCouponModule({
+    projectId: "route-test",
+    sellerId: "seller-route-test",
+    store: { transaction: async () => undefined },
+  });
+  const guidance = read("skills/buyai-globepay-checkout/SKILL.md");
+
+  assert.equal(typeof couponExports.createCouponModule, "function");
+  assert.equal(typeof couponModule.quote, "function");
+  assert.equal(typeof couponModule.reserve, "function");
+  assert.equal("resolveCouponPaymentAmount" in couponExports, false);
+  assert.doesNotMatch(guidance, /resolveCouponPaymentAmount/);
+  assert.match(guidance, /createCouponModule/);
+  assert.match(guidance, /quote/);
+  assert.match(guidance, /reserve/);
+  assert.match(guidance, /payableAmount/);
+  assert.match(guidance, /immutable|locked/i);
 });
 
 test("canonical coupon Skill and generated-UI boundary are repository-visible", () => {
@@ -266,6 +383,10 @@ test("canonical coupon Skill and generated-UI boundary are repository-visible", 
   assert.ok(manifest.profiles["website-builder"].skills.includes("buyai-coupon-commerce"));
   assert.match(read("skills/buyai-coupon-commerce/SKILL.md"), /^description:\s*["']?Use when\b/im);
   assert.match(read("skills/buyai-coupon-commerce/SKILL.md"), /references\/coupon-adapter-contract\.md/);
+  const builder = read("skills/buyna-website-builder/SKILL.md");
+  assert.match(builder, /New build:[\s\S]*buyna-customer-intake/);
+  assert.match(builder, /Repair or resume:[\s\S]*importVerifiedHistory/);
+  assert.match(builder, /EXPLICIT_PRODUCT_CAPABILITY_MIGRATION_REQUIRED/);
   for (const path of [
     "skills/buyna-frontend-builder/SKILL.md",
     "skills/buyna-frontend-builder/references/merchant-dashboard-functional-core.md",
@@ -275,11 +396,23 @@ test("canonical coupon Skill and generated-UI boundary are repository-visible", 
     assert.match(content, /buyna-merchant-dashboard-core/);
     assert.match(content, /project-owned|project-specific/i);
   }
+  for (const path of [
+    "skills/buyai-product-merchant-backend/SKILL.md",
+    "skills/buyai-dashboard-data-interaction/SKILL.md",
+    "skills/buyai-coupon-commerce/SKILL.md",
+    "skills/buyna-frontend-builder/SKILL.md",
+    "skills/buyai-checkout-address-ux/SKILL.md",
+  ]) {
+    assert.match(read(path), /returned[\s\S]{0,180}(authoritative|do not|never)|do not[\s\S]{0,180}reinvoke/i);
+  }
 });
 
 test("project installation carries the authoritative manifest used by the installed router", () => {
   const target = mkdtempSync(join(tmpdir(), "buyna-route-install-"));
   try {
+    const rootManifest = join(target, "repository-manifest.json");
+    const sentinel = "project-owned-manifest";
+    writeFileSync(rootManifest, sentinel);
     const installer = new URL("scripts/install.ps1", root);
     const install = spawnSync("powershell", [
       "-ExecutionPolicy", "Bypass",
@@ -288,7 +421,28 @@ test("project installation carries the authoritative manifest used by the instal
       "-ProjectPath", target,
     ], { encoding: "utf8" });
     assert.equal(install.status, 0, install.stderr || install.stdout);
-    assert.doesNotThrow(() => JSON.parse(readFileSync(join(target, "repository-manifest.json"), "utf8")));
+    assert.equal(readFileSync(rootManifest, "utf8"), sentinel);
+    const installedManifest = join(target, ".agents", "buyna", "repository-manifest.json");
+    assert.doesNotThrow(() => JSON.parse(readFileSync(installedManifest, "utf8")));
+
+    const collision = spawnSync("powershell", [
+      "-ExecutionPolicy", "Bypass",
+      "-File", installer.pathname.slice(1),
+      "-Scope", "Project",
+      "-ProjectPath", target,
+    ], { encoding: "utf8" });
+    assert.notEqual(collision.status, 0);
+    assert.match(`${collision.stderr}${collision.stdout}`, /namespaced manifest already exists/i);
+
+    const forced = spawnSync("powershell", [
+      "-ExecutionPolicy", "Bypass",
+      "-File", installer.pathname.slice(1),
+      "-Scope", "Project",
+      "-ProjectPath", target,
+      "-Force",
+    ], { encoding: "utf8" });
+    assert.equal(forced.status, 0, forced.stderr || forced.stdout);
+    assert.equal(readFileSync(rootManifest, "utf8"), sentinel);
 
     const installedRouter = join(target, ".agents", "skills", "buyna-website-builder", "scripts", "route-builder.mjs");
     const capabilities = staticCapabilities;

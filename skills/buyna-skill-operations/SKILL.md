@@ -36,8 +36,10 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
   repository-level `packages/`.
 - Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
-- Read `repository-manifest.json` after installation and verify every package in
-  the selected profile at the installed module root.
+- After installation read `.agents/buyna/repository-manifest.json` for project
+  scope or `.codex/buyna/repository-manifest.json` for user scope, and verify
+  every package in the selected profile at the installed module root. Never
+  overwrite a project's own root `repository-manifest.json`.
 - Verify `buyna-website-builder/scripts/route-builder.mjs` is present in both
   complete and project-scoped Builder installations.
 - Require `buyna-merchant-dashboard-core`, `buyna-merchant-dashboard-headless`,

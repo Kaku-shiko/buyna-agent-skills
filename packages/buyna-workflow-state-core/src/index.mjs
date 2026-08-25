@@ -24,20 +24,36 @@ function normalizeInteractionMode(value){
 }
 
 const siteTypes=Object.freeze(['content','commerce','service','mixed']);
-function normalizeCapabilities(value){
+const requiredCapabilityKeys=Object.freeze(['requiresDashboard','requiresCart','requiresCheckout','requiresPayment','requiresBooking']);
+const lifecycleCapabilityKeys=Object.freeze(['requiresCatalog','requiresInventory','requiresCoupons']);
+
+export function normalizeWebsiteCapabilities(value){
   if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('SITE_CAPABILITIES_REQUIRED');
   const siteType=requiredText(value.siteType,'SITE_TYPE_REQUIRED').toLowerCase();
   if(!siteTypes.includes(siteType))throw new Error('SITE_TYPE_INVALID');
-  const keys=['requiresDashboard','requiresCart','requiresCheckout','requiresPayment','requiresBooking'];
   const result={siteType};
-  for(const key of keys){if(typeof value[key]!=='boolean')throw new Error('SITE_CAPABILITIES_REQUIRED');result[key]=value[key]}
+  for(const key of requiredCapabilityKeys){if(typeof value[key]!=='boolean')throw new Error('SITE_CAPABILITIES_REQUIRED');result[key]=value[key]}
+  for(const key of lifecycleCapabilityKeys){if(value[key]!==undefined&&typeof value[key]!=='boolean')throw new Error('SITE_CAPABILITIES_REQUIRED')}
+
+  // Legacy commerce or cart evidence is unambiguously product commerce.
+  // A mixed booking/payment site without cart evidence remains non-product
+  // until intake explicitly migrates its lifecycle flags.
+  const legacyProductEvidence=siteType==='commerce'||result.requiresCart;
+  result.requiresCatalog=value.requiresCatalog??(legacyProductEvidence||value.requiresInventory===true);
+  result.requiresInventory=value.requiresInventory??(legacyProductEvidence&&value.requiresCatalog!==false);
+  result.requiresCoupons=value.requiresCoupons??false;
+
   if(result.requiresPayment&&!result.requiresCheckout)throw new Error('PAYMENT_REQUIRES_CHECKOUT');
   if(result.requiresCart&&!result.requiresCheckout)throw new Error('CART_REQUIRES_CHECKOUT');
+  if(result.requiresCart&&!result.requiresCatalog)throw new Error('CART_REQUIRES_CATALOG');
+  if(result.requiresInventory&&!result.requiresCatalog)throw new Error('INVENTORY_REQUIRES_CATALOG');
+  if(result.requiresCoupons&&!result.requiresCheckout)throw new Error('COUPON_REQUIRES_CHECKOUT');
   return Object.freeze(result);
 }
 
-function capabilitiesEqual(left,right){
-  return left.siteType===right.siteType&&['requiresDashboard','requiresCart','requiresCheckout','requiresPayment','requiresBooking'].every(key=>left[key]===right[key]);
+export function websiteCapabilitiesEqual(left,right){
+  const keys=[...requiredCapabilityKeys,...lifecycleCapabilityKeys];
+  return left.siteType===right.siteType&&keys.every(key=>left[key]===right[key]);
 }
 
 function selectPaymentArchitecture(state,capabilities,value){
@@ -108,9 +124,9 @@ function allChecksPassed(value){
 export function validateDeliveryEvidence(state,gate,delivery){
   if(gate==='customer_intake'){
     requiredText(delivery.record,'CUSTOMER_RECORD_REQUIRED');
-    const deliveredCapabilities=normalizeCapabilities(delivery.capabilities);
-    const persistedCapabilities=normalizeCapabilities(state.configuration?.capabilities);
-    if(!capabilitiesEqual(deliveredCapabilities,persistedCapabilities))throw new Error('SITE_CAPABILITIES_MISMATCH');
+    const deliveredCapabilities=normalizeWebsiteCapabilities(delivery.capabilities);
+    const persistedCapabilities=normalizeWebsiteCapabilities(state.configuration?.capabilities);
+    if(!websiteCapabilitiesEqual(deliveredCapabilities,persistedCapabilities))throw new Error('SITE_CAPABILITIES_MISMATCH');
     if(deliveredCapabilities.requiresPayment){
       const architecture=requiredText(state.configuration?.paymentArchitecture,'PAYMENT_ARCHITECTURE_REQUIRED');
       if(!paymentArchitectures.includes(architecture))throw new Error('PAYMENT_ARCHITECTURE_UNSUPPORTED');
@@ -167,7 +183,7 @@ export function recordDelivery({state,gate,delivery,now=new Date().toISOString()
   if(!delivery||typeof delivery!=='object'||Array.isArray(delivery))throw new Error('DELIVERY_REQUIRED');
   current.delivery=structuredClone(delivery);
   if(gate==='customer_intake'){
-    next.configuration.capabilities=normalizeCapabilities(delivery.capabilities);
+    next.configuration.capabilities=normalizeWebsiteCapabilities(delivery.capabilities);
     selectPaymentArchitecture(next,next.configuration.capabilities,delivery.paymentArchitecture);
   }
   current.deliveryRecordedAt=now;next.updatedAt=now;
@@ -365,7 +381,7 @@ export function importVerifiedHistory({state,requestedGate,imports,importedBy,no
     }
     if(!item.delivery||typeof item.delivery!=='object'||Array.isArray(item.delivery))throw new Error('VERIFIED_DELIVERY_EVIDENCE_REQUIRED');
     if(expectedGate==='customer_intake'){
-      next.configuration.capabilities=normalizeCapabilities(item.delivery.capabilities);
+      next.configuration.capabilities=normalizeWebsiteCapabilities(item.delivery.capabilities);
       selectPaymentArchitecture(next,next.configuration.capabilities,item.delivery.paymentArchitecture);
     }
     validateDeliveryEvidence(next,expectedGate,item.delivery);
