@@ -21,8 +21,11 @@ function normalizeNames(values){
 }
 
 function normalizeCurrencies(values){
-  const currencies=normalizeNames(values).map(value=>value.toUpperCase());
-  return currencies.length?currencies:['JPY'];
+  if(values===undefined)return['JPY'];
+  if(!Array.isArray(values)||!values.length)fail('CHECKOUT_CURRENCY_POLICY_INVALID');
+  const currencies=[...new Set(values.map(value=>String(value??'').trim()))];
+  if(currencies.some(value=>!/^[A-Z]{3}$/.test(value)))fail('CHECKOUT_CURRENCY_POLICY_INVALID');
+  return currencies;
 }
 
 function normalizeFields(values){
@@ -60,12 +63,11 @@ function createProviderRequest({orderId,paymentMethod,money}){
   return{orderId,paymentMethod,amount:money.amount,currency:money.currency};
 }
 
-export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,policy={}}={}){
+export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,reviewState,policy={}}={}){
   const scope=Object.freeze({projectId:required(projectId,'MISSING_PROJECT_ID'),sellerId:required(sellerId,'MISSING_SELLER_ID')});
   const minimumFields=normalizeNames(policy.minimumFields);
   const paymentMethods=normalizeNames(policy.paymentMethods);
   const supportedCurrencies=normalizeCurrencies(policy.supportedCurrencies);
-  const reviews=new Map();
 
   function validateDraft(input={}){
     const fields=normalizeFields(input.fields);
@@ -76,14 +78,17 @@ export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,p
     return{state:CHECKOUT_STATES.MINIMUM_VALID,...scope,fields,paymentMethod};
   }
 
-  function createReview(input={}){
-    const review={...validateDraft(input),state:CHECKOUT_STATES.REVIEW,reviewToken:randomUUID()};
-    reviews.set(review.reviewToken,review);
-    return structuredClone(review);
+  async function createReview(input={}){
+    method(reviewState,'create');
+    const review={...validateDraft(input),state:CHECKOUT_STATES.REVIEW,reviewToken:randomUUID(),submissionId:randomUUID()};
+    await reviewState.create({scope:{...scope},review});
+    const {submissionId,...safeReview}=review;
+    return structuredClone(safeReview);
   }
 
-  function getReviewState({reviewToken}={}){
-    const review=reviews.get(required(reviewToken,'CHECKOUT_REVIEW_REQUIRED'));
+  async function getReviewState({reviewToken}={}){
+    method(reviewState,'get');
+    const review=await reviewState.get({scope:{...scope},reviewToken:required(reviewToken,'CHECKOUT_REVIEW_REQUIRED')});
     if(!review)fail('CHECKOUT_REVIEW_REQUIRED');
     return{state:review.state,reviewToken:review.reviewToken};
   }
@@ -93,6 +98,12 @@ export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,p
     createReview,
     getReviewState,
     /**
+     * reviewState.create/get/update are durable server-side operations scoped
+     * by projectId, sellerId, and reviewToken. create must persist the server
+     * generated submissionId atomically; update must atomically persist state
+     * and safe pending results. The core rejects card/CVV/token fields before
+     * create, so such raw values never enter this Adapter.
+     *
      * submissions.acquire returns either {status:'acquired',attemptToken},
      * {status:'completed',result}, or {status:'in_progress'}. The adapter
      * atomically leases one project/seller/idempotency key; complete stores
@@ -100,28 +111,30 @@ export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,p
      * must enforce the supplied idempotencyKey as a persistent unique key.
      */
     async submit(input={}){
+      method(reviewState,'get');
+      method(reviewState,'update');
       const reviewToken=required(input.reviewToken,'CHECKOUT_REVIEW_REQUIRED');
-      const review=reviews.get(reviewToken);
+      const review=await reviewState.get({scope:{...scope},reviewToken});
       if(!review||![CHECKOUT_STATES.REVIEW,CHECKOUT_STATES.SUBMITTING,CHECKOUT_STATES.ORDER_LOCKED].includes(review.state))fail('CHECKOUT_REVIEW_REQUIRED');
-      const idempotencyKey=required(input.idempotencyKey,'MISSING_IDEMPOTENCY_KEY');
+      const idempotencyKey=required(review.submissionId,'MISSING_REVIEW_SUBMISSION_ID');
       method(cart,'createCheckoutSnapshot');
       method(orders,'createPendingOrder');
       method(submissions,'acquire');
       method(submissions,'complete');
       method(submissions,'release');
-      review.state=CHECKOUT_STATES.SUBMITTING;
+      await reviewState.update({scope:{...scope},reviewToken,patch:{state:CHECKOUT_STATES.SUBMITTING}});
       let attemptToken;
       try{
         const claim=await submissions.acquire({...scope,idempotencyKey,reviewToken});
         if(claim?.status==='completed'){
-          review.state=CHECKOUT_STATES.ORDER_LOCKED;
+          await reviewState.update({scope:{...scope},reviewToken,patch:{state:CHECKOUT_STATES.ORDER_LOCKED}});
           return claim.result??fail('CHECKOUT_SUBMISSION_RESULT_MISSING');
         }
         if(claim?.status==='in_progress')fail('CHECKOUT_SUBMISSION_IN_PROGRESS');
         attemptToken=required(claim?.attemptToken,'CHECKOUT_SUBMISSION_CLAIM_CONFLICT');
         if(review.pendingResult){
           await submissions.complete({...scope,idempotencyKey,attemptToken,result:review.pendingResult});
-          review.state=CHECKOUT_STATES.ORDER_LOCKED;
+          await reviewState.update({scope:{...scope},reviewToken,patch:{state:CHECKOUT_STATES.ORDER_LOCKED}});
           return review.pendingResult;
         }
         const checkoutSnapshot=freezeSnapshot(await cart.createCheckoutSnapshot({...scope}));
@@ -134,13 +147,14 @@ export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,p
           order:{id:orderId,status:'pending_payment'},
           providerRequest:createProviderRequest({orderId,paymentMethod:review.paymentMethod,money}),
         };
-        review.pendingResult=result;
+        await reviewState.update({scope:{...scope},reviewToken,patch:{pendingResult:result}});
         await submissions.complete({...scope,idempotencyKey,attemptToken,result});
-        review.state=CHECKOUT_STATES.ORDER_LOCKED;
+        await reviewState.update({scope:{...scope},reviewToken,patch:{state:CHECKOUT_STATES.ORDER_LOCKED}});
         return result;
       }catch(error){
         if(attemptToken)await submissions.release({...scope,idempotencyKey,attemptToken,errorCode:error?.code??'CHECKOUT_SUBMISSION_FAILED'}).catch(()=>{});
-        review.state=CHECKOUT_STATES.REVIEW;
+        await reviewState.update({scope:{...scope},reviewToken,patch:{state:CHECKOUT_STATES.FAILED}}).catch(()=>{});
+        await reviewState.update({scope:{...scope},reviewToken,patch:{state:CHECKOUT_STATES.REVIEW}}).catch(()=>{});
         error.checkoutState=CHECKOUT_STATES.FAILED;
         throw error;
       }

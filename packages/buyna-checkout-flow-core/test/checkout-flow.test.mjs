@@ -2,6 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCheckoutFlow} from '../src/index.mjs';
 
+function createReviewStateAdapter(records=new Map()){
+  const key=({projectId,sellerId,reviewToken})=>`${projectId}:${sellerId}:${reviewToken}`;
+  return{
+    records,
+    async create({scope,review}){records.set(key({...scope,reviewToken:review.reviewToken}),structuredClone(review));return structuredClone(review)},
+    async get({scope,reviewToken}){const review=records.get(key({...scope,reviewToken}));return review&&structuredClone(review)},
+    async update({scope,reviewToken,patch}){
+      const record=records.get(key({...scope,reviewToken}));
+      if(!record)return null;
+      Object.assign(record,structuredClone(patch));
+      return structuredClone(record);
+    },
+  };
+}
+
 function createFlow(){
   return createCheckoutFlow({
     projectId:'project-1',
@@ -46,9 +61,32 @@ test('draft validation requires configured minimum fields and one approved payme
   );
 });
 
+test('a durable review binds server-owned submission identity across core instances',async()=>{
+  const reviews=createReviewStateAdapter();
+  const orderCalls=[];
+  const options={
+    projectId:'project-1',sellerId:'seller-1',reviewState:reviews,
+    cart:{async createCheckoutSnapshot(){return{total:1200,currency:'JPY'}}},
+    orders:{async createPendingOrder(input){orderCalls.push(input);return{id:'order-1',status:'pending_payment'}}},
+    submissions:{async acquire(){return{status:'acquired',attemptToken:'attempt-1'}},async complete(){},async release(){}},
+    policy:{minimumFields:['buyer_name'],paymentMethods:['wechat'],supportedCurrencies:['JPY']},
+  };
+  const first=createCheckoutFlow(options);
+  const second=createCheckoutFlow(options);
+  const review=await first.createReview({fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:'caller-controlled'});
+  const result=await second.submit({reviewToken:review.reviewToken,idempotencyKey:'attacker-controlled'});
+  const stored=[...reviews.records.values()][0];
+
+  assert.equal(result.order.id,'order-1');
+  assert.equal(review.idempotencyKey,undefined);
+  assert.notEqual(stored.submissionId,'caller-controlled');
+  assert.equal(orderCalls[0].idempotencyKey,stored.submissionId);
+});
+
 test('submit requires a current review token and preserves it after a failed attempt',async()=>{
   const flow=createCheckoutFlow({
     projectId:'project-1',sellerId:'seller-1',
+    reviewState:createReviewStateAdapter(),
     cart:{async createCheckoutSnapshot(){throw Object.assign(new Error('temporary'),{code:'TEMPORARY_CART_FAILURE'})}},
     orders:{async createPendingOrder(){}},
     submissions:{
@@ -61,12 +99,12 @@ test('submit requires a current review token and preserves it after a failed att
   const input={fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:'checkout-1'};
 
   await assert.rejects(()=>flow.submit(input),error=>error.code==='CHECKOUT_REVIEW_REQUIRED');
-  const review=flow.createReview(input);
+  const review=await flow.createReview(input);
   await assert.rejects(
     ()=>flow.submit({...input,reviewToken:review.reviewToken}),
     error=>error.code==='TEMPORARY_CART_FAILURE'&&error.checkoutState==='failed',
   );
-  assert.equal(flow.getReviewState({reviewToken:review.reviewToken}).state,'review');
+  assert.equal((await flow.getReviewState({reviewToken:review.reviewToken})).state,'review');
 });
 
 test('submit rejects invalid server-derived provider money before creating an order',async()=>{
@@ -81,6 +119,7 @@ test('submit rejects invalid server-derived provider money before creating an or
     let orderCalls=0;
     const flow=createCheckoutFlow({
       projectId:'project-1',sellerId:'seller-1',
+      reviewState:createReviewStateAdapter(),
       cart:{async createCheckoutSnapshot(){return checkout}},
       orders:{async createPendingOrder(){orderCalls++}},
       submissions:{
@@ -91,9 +130,30 @@ test('submit rejects invalid server-derived provider money before creating an or
       policy:{minimumFields:['buyer_name'],paymentMethods:['wechat'],supportedCurrencies:['JPY']},
     });
     const input={fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:`invalid-${code}-${String(checkout.total)}`};
-    const review=flow.createReview(input);
+    const review=await flow.createReview(input);
     await assert.rejects(()=>flow.submit({...input,reviewToken:review.reviewToken}),error=>error.code===code);
     assert.equal(orderCalls,0);
+  }
+});
+
+test('currency policy and server snapshot accept only explicit ISO-like supported currencies',async()=>{
+  const base={projectId:'project-1',sellerId:'seller-1',cart:{},orders:{},submissions:{},reviewState:createReviewStateAdapter(),policy:{minimumFields:[],paymentMethods:['wechat']}};
+  for(const supportedCurrencies of [['?'],['123'],['USDD']]){
+    assert.throws(
+      ()=>createCheckoutFlow({...base,policy:{...base.policy,supportedCurrencies}}),
+      error=>error.code==='CHECKOUT_CURRENCY_POLICY_INVALID',
+    );
+  }
+  for(const currency of ['?','123','USDD']){
+    const flow=createCheckoutFlow({
+      ...base,
+      cart:{async createCheckoutSnapshot(){return{total:1200,currency}}},
+      orders:{async createPendingOrder(){throw new Error('order must not be created')}},
+      submissions:{async acquire(){return{status:'acquired',attemptToken:'attempt-1'}},async complete(){},async release(){}},
+      policy:{...base.policy,supportedCurrencies:['JPY']},
+    });
+    const review=await flow.createReview({fields:{},paymentMethod:'wechat'});
+    await assert.rejects(()=>flow.submit({reviewToken:review.reviewToken}),error=>error.code==='CHECKOUT_PROVIDER_CURRENCY_INVALID');
   }
 });
 
@@ -104,6 +164,7 @@ test('retry after completion failure releases its lease and completes the origin
   const released=[];
   const flow=createCheckoutFlow({
     projectId:'project-1',sellerId:'seller-1',
+    reviewState:createReviewStateAdapter(),
     cart:{async createCheckoutSnapshot(){snapshotCalls++;return{total:1200,currency:'JPY'}}},
     orders:{async createPendingOrder(){orderCalls++;return{id:`order-${orderCalls}`,status:'pending_payment'}}},
     submissions:{
@@ -117,7 +178,7 @@ test('retry after completion failure releases its lease and completes the origin
     policy:{minimumFields:['buyer_name'],paymentMethods:['wechat'],supportedCurrencies:['JPY']},
   });
   const input={fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:'retry-complete'};
-  const review=flow.createReview(input);
+  const review=await flow.createReview(input);
 
   await assert.rejects(()=>flow.submit({...input,reviewToken:review.reviewToken}),error=>error.code==='TRANSIENT_COMPLETE_FAILURE'&&error.checkoutState==='failed');
   const result=await flow.submit({...input,reviewToken:review.reviewToken});
@@ -129,7 +190,7 @@ test('retry after completion failure releases its lease and completes the origin
   assert.deepEqual(released.map(input=>input.attemptToken),['attempt-1']);
 });
 
-test('concurrent review submissions receive an idempotency conflict without a second order',async()=>{
+test('concurrent cross-instance submits of one review ignore caller keys and create one order',async()=>{
   let resolveSnapshot;
   let snapshotStarted;
   const snapshotGate=new Promise(resolve=>{resolveSnapshot=resolve});
@@ -147,6 +208,7 @@ test('concurrent review submissions receive an idempotency conflict without a se
   };
   const options={
     projectId:'project-1',sellerId:'seller-1',
+    reviewState:createReviewStateAdapter(),
     cart:{async createCheckoutSnapshot(){snapshotStarted();await snapshotGate;return{total:1200,currency:'JPY'}}},
     orders:{async createPendingOrder(){orderCalls++;return{id:'order-1',status:'pending_payment'}}},
     submissions,
@@ -154,14 +216,13 @@ test('concurrent review submissions receive an idempotency conflict without a se
   };
   const firstFlow=createCheckoutFlow(options);
   const secondFlow=createCheckoutFlow(options);
-  const input={fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:'same-key'};
-  const firstReview=firstFlow.createReview(input);
-  const secondReview=secondFlow.createReview(input);
+  const input={fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:'create-review-only'};
+  const firstReview=await firstFlow.createReview(input);
 
-  const first=firstFlow.submit({...input,reviewToken:firstReview.reviewToken});
+  const first=firstFlow.submit({reviewToken:firstReview.reviewToken,idempotencyKey:'caller-one'});
   await started;
   await assert.rejects(
-    ()=>secondFlow.submit({...input,reviewToken:secondReview.reviewToken}),
+    ()=>secondFlow.submit({reviewToken:firstReview.reviewToken,idempotencyKey:'caller-two'}),
     error=>error.code==='CHECKOUT_SUBMISSION_IN_PROGRESS',
   );
   resolveSnapshot();
@@ -184,6 +245,7 @@ test('submit locks one pending order and returns one idempotent provider request
   const flow=createCheckoutFlow({
     projectId:'project-1',
     sellerId:'seller-1',
+    reviewState:createReviewStateAdapter(),
     cart:{
       async createCheckoutSnapshot({projectId,sellerId}){
         calls.push(['snapshot',projectId,sellerId]);
@@ -212,7 +274,7 @@ test('submit locks one pending order and returns one idempotent provider request
     policy:{minimumFields:['buyer_name'],paymentMethods:['wechat']},
   });
   const input={fields:{buyer_name:'Ada'},paymentMethod:'wechat',idempotencyKey:'checkout-1'};
-  const review=flow.createReview(input);
+  const review=await flow.createReview(input);
 
   const first=await flow.submit({...input,reviewToken:review.reviewToken});
   const second=await flow.submit({...input,reviewToken:review.reviewToken});
