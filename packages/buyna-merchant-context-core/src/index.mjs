@@ -5,6 +5,8 @@ const CALLER_SCOPE_KEYS = Object.freeze([
   'subjectId',
   'role',
 ]);
+const CALLER_SCOPE_KEY_SET = new Set(CALLER_SCOPE_KEYS);
+const MAX_CALLER_PROTOTYPE_DEPTH = 64;
 
 const IDENTITY_KEYS = Object.freeze([
   'subjectId',
@@ -107,10 +109,41 @@ function authenticatedSubject(identity) {
 
 function assertNoCallerScope(input) {
   if (
-    input !== null
-    && (typeof input === 'object' || typeof input === 'function')
-    && CALLER_SCOPE_KEYS.some((key) => key in input)
-  ) {
+    input === null
+    || (typeof input !== 'object' && typeof input !== 'function')
+  ) return;
+
+  const visited = new Set();
+  let current = input;
+  let depth = 0;
+  while (current !== null && depth < MAX_CALLER_PROTOTYPE_DEPTH) {
+    if (visited.has(current)) {
+      fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
+    }
+    visited.add(current);
+
+    let keys;
+    try {
+      keys = Reflect.ownKeys(current);
+    } catch {
+      fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
+    }
+    if (keys.some((key) => {
+      if (typeof key === 'string') return CALLER_SCOPE_KEY_SET.has(key);
+      const symbolName = Symbol.keyFor(key) ?? key.description;
+      return CALLER_SCOPE_KEY_SET.has(symbolName);
+    })) {
+      fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
+    }
+
+    try {
+      current = Reflect.getPrototypeOf(current);
+    } catch {
+      fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
+    }
+    depth += 1;
+  }
+  if (current !== null) {
     fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
   }
 }

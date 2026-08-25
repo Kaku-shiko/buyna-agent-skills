@@ -169,6 +169,95 @@ test('rejects every caller-provided ownership key before observing request state
   }
 });
 
+test('rejects own Symbol.for and description-matching ownership keys without reading values', async (t) => {
+  for (const scopeKey of ['host', 'projectId', 'sellerId', 'subjectId', 'role']) {
+    for (const symbolKey of [Symbol.for(scopeKey), Symbol(scopeKey)]) {
+      await t.test(`${scopeKey}:${Symbol.keyFor(symbolKey) ? 'global' : 'described'}`, async () => {
+        const calls = [];
+        let getterCalls = 0;
+        const input = {};
+        Object.defineProperty(input, symbolKey, {
+          configurable: true,
+          get() {
+            getterCalls += 1;
+            throw new Error('ownership getter must not run');
+          },
+        });
+        const resolver = createMerchantContextResolver({
+          requestAdapter: { async getObservedHost() { calls.push('host'); return 'shop.example.com'; } },
+          sessionAdapter: { async getAuthenticatedIdentity() { calls.push('identity'); return identity; } },
+          directory: activeDirectory({ calls }),
+        });
+
+        await rejectsWith(
+          resolver.resolve(input),
+          'MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN',
+          400,
+        );
+        assert.equal(getterCalls, 0);
+        assert.deepEqual(calls, []);
+      });
+    }
+  }
+});
+
+test('rejects inherited symbol and non-enumerable accessor scope keys without invoking getters', async () => {
+  const calls = [];
+  let getterCalls = 0;
+  const inheritedScope = Object.create(null);
+  Object.defineProperty(inheritedScope, Symbol('sellerId'), {
+    get() {
+      getterCalls += 1;
+      throw new Error('inherited symbol getter must not run');
+    },
+  });
+  const symbolInput = Object.create(inheritedScope);
+  const stringInput = {};
+  Object.defineProperty(stringInput, 'projectId', {
+    enumerable: false,
+    get() {
+      getterCalls += 1;
+      throw new Error('non-enumerable string getter must not run');
+    },
+  });
+  const resolver = createMerchantContextResolver({
+    requestAdapter: { async getObservedHost() { calls.push('host'); return 'shop.example.com'; } },
+    sessionAdapter: { async getAuthenticatedIdentity() { calls.push('identity'); return identity; } },
+    directory: activeDirectory({ calls }),
+  });
+
+  await rejectsWith(
+    resolver.resolve(symbolInput),
+    'MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN',
+    400,
+  );
+  await rejectsWith(
+    resolver.resolve(stringInput),
+    'MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN',
+    400,
+  );
+  assert.equal(getterCalls, 0);
+  assert.deepEqual(calls, []);
+});
+
+test('fails closed on an excessively deep caller prototype chain before Adapter calls', async () => {
+  const calls = [];
+  let input = Object.create(null);
+  for (let index = 0; index < 70; index += 1) input = Object.create(input);
+  const resolver = createMerchantContextResolver({
+    requestAdapter: { async getObservedHost() { calls.push('host'); return 'shop.example.com'; } },
+    sessionAdapter: { async getAuthenticatedIdentity() { calls.push('identity'); return identity; } },
+    directory: activeDirectory({ calls }),
+  });
+
+  await rejectsWith(
+    resolver.resolve(input),
+    'MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN',
+    400,
+  );
+  assert.deepEqual(calls, []);
+});
+
 test('returns 401 without directory lookup when no fresh authenticated identity exists', async () => {
   const calls = [];
   const resolver = createMerchantContextResolver({
