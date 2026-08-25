@@ -5,7 +5,6 @@ import {
   CATALOG_TRANSITIONS,
   createMerchantCatalogService,
 } from '../src/catalog-core.mjs';
-import {createMerchantDataCore} from '../../buyna-postgres-merchant-core/src/merchant-core.mjs';
 
 function fakeCore(seed={}){
   const calls=[];
@@ -14,6 +13,19 @@ function fakeCore(seed={}){
     entity,
     new Map(items.map(item=>[item.id,{...item}])),
   ]));
+  let generatedId=0;
+  let lockTail=Promise.resolve();
+  async function atomic(work){
+    const snapshot=new Map([...records].map(([entity,items])=>[
+      entity,
+      new Map([...items].map(([id,item])=>[id,{...item}])),
+    ]));
+    try{return await work()}catch(error){
+      records.clear();
+      for(const [entity,items] of snapshot)records.set(entity,items);
+      throw error;
+    }
+  }
   const core={
     repository(policy){
       calls.push(['repository',policy]);
@@ -25,7 +37,13 @@ function fakeCore(seed={}){
           const pageSize=input?.pageSize??Math.max(items.length,1);
           return{items:items.slice((page-1)*pageSize,page*pageSize),page,pageSize,total:items.length,totalPages:Math.ceil(items.length/pageSize)};
         },
-        async create(data){calls.push(['create',policy.entity,data]);return{id:'new',...data}},
+        async create(data){
+          calls.push(['create',policy.entity,data]);
+          const id=generatedId++===0?'new':`new-${generatedId}`;
+          if(!records.has(policy.entity))records.set(policy.entity,new Map());
+          records.get(policy.entity).set(id,{id,...data});
+          return{id,...data};
+        },
         async getById(id){calls.push(['get',policy.entity,id]);return records.get(policy.entity)?.get(id)??null},
         async updateById(id,data){
           calls.push(['update',policy.entity,id,data]);
@@ -38,15 +56,27 @@ function fakeCore(seed={}){
     },
     async transaction(work){
       calls.push(['transaction']);
-      const snapshot=new Map([...records].map(([entity,items])=>[
-        entity,
-        new Map([...items].map(([id,item])=>[id,{...item}])),
-      ]));
-      try{return await work(core)}catch(error){
-        records.clear();
-        for(const [entity,items] of snapshot)records.set(entity,items);
-        throw error;
-      }
+      return atomic(()=>work(core));
+    },
+    async lockingTransaction(work){
+      calls.push(['lockingTransaction','serializable']);
+      const run=()=>atomic(()=>work({
+        lockingRepository(policy){
+          calls.push(['lockingRepository',policy]);
+          const repository=core.repository(policy);
+          return{
+            ...repository,
+            async getByIdForUpdate(id){calls.push(['getForUpdate',policy.entity,id]);return records.get(policy.entity)?.get(id)??null},
+            async listAllForUpdate(input={}){
+              calls.push(['listAllForUpdate',policy.entity,input]);
+              return[...(records.get(policy.entity)?.values()??[])].filter(item=>Object.entries(input.filters??{}).every(([key,value])=>item[key]===value));
+            },
+          };
+        },
+      }));
+      const result=lockTail.then(run,run);
+      lockTail=result.catch(()=>{});
+      return result;
     },
   };
   return{core,calls,records};
@@ -81,7 +111,7 @@ test('reordering is atomic and rejects duplicate product ids',async()=>{
   const {core,calls}=fakeCore({products:[{id:'p1'},{id:'p2'}]});
   const service=createMerchantCatalogService({dataCore:core});
   await service.reorderProducts({items:[{productId:'p2',sortOrder:1},{productId:'p1',sortOrder:2}]});
-  assert.equal(calls.filter(call=>call[0]==='transaction').length,1);
+  assert.equal(calls.filter(call=>call[0]==='lockingTransaction').length,1);
   assert.deepEqual(calls.filter(call=>call[0]==='update'),[
     ['update','products','p2',{sort_order:1}],
     ['update','products','p1',{sort_order:2}],
@@ -105,7 +135,10 @@ test('category management shares fixed list, visibility, and archive behavior',a
 });
 
 test('SKU writes use the fixed variant policy and reject negative price or stock',async()=>{
-  const {core,calls}=fakeCore();
+  const {core,calls}=fakeCore({
+    products:[{id:'p1',status:'active'}],
+    product_variants:[{id:'v1',status:'active',product_id:'p1',sku_code:'SKU-OLD',price:100,currency:'JPY'}],
+  });
   const service=createMerchantCatalogService({dataCore:core});
   await service.createVariant({productId:'p1',skuCode:'SKU-1',options:{size:'M'},price:1500,stock:4,currency:'jpy'});
   await service.updateVariant({variantId:'v1',price:1600,stock:2});
@@ -117,12 +150,12 @@ test('SKU writes use the fixed variant policy and reject negative price or stock
 });
 
 test('product and category edits map only approved normalized fields',async()=>{
-  const {core,calls}=fakeCore();
+  const {core,calls}=fakeCore({products:[{id:'p1',status:'draft',price:100,currency:'JPY'}]});
   const service=createMerchantCatalogService({dataCore:core});
-  await service.updateProduct({productId:'p1',name:' New ',price:2000,stock:8,currency:'jpy',featured:true});
+  await service.updateProduct({productId:'p1',name:' New ',price:2000,stock:8,currency:'jpy'});
   await service.updateCategory({categoryId:'c1',name:' Care ',slug:'care'});
   assert.deepEqual(calls.filter(call=>call[0]==='update').slice(-2),[
-    ['update','products','p1',{name:'New',price:2000,stock:8,currency:'JPY',featured:true}],
+    ['update','products','p1',{name:'New',price:2000,stock:8,currency:'JPY'}],
     ['update','categories','c1',{name:'Care',slug:'care'}],
   ]);
 });
@@ -231,6 +264,64 @@ test('direct status and deletion timestamp writes are rejected instead of silent
   await assert.rejects(()=>service.updateVariant({variantId:'v1',status:'archived'}),error=>error.code==='CATALOG_STATUS_WRITE_FORBIDDEN');
 });
 
+test('direct featured writes cannot bypass the guarded featured-set operation',async()=>{
+  const {core}=fakeCore({products:[{id:'p1',status:'active',price:100,currency:'JPY'}]});
+  const service=createMerchantCatalogService({dataCore:core});
+  await assert.rejects(()=>service.createProduct({name:'Tea',price:100,featured:true}),error=>error.code==='CATALOG_FEATURED_WRITE_FORBIDDEN');
+  await assert.rejects(()=>service.updateProduct({productId:'p1',featured:true}),error=>error.code==='CATALOG_FEATURED_WRITE_FORBIDDEN');
+});
+
+test('active product creation applies sellable money, closed currency, and active category guards',async()=>{
+  const {core,calls}=fakeCore({categories:[
+    {id:'c1',status:'active'},
+    {id:'c2',status:'draft'},
+  ]});
+  const service=createMerchantCatalogService({dataCore:core,allowedCurrencies:['JPY']});
+
+  await assert.rejects(()=>service.createProduct({name:'Bad',price:12.5,currency:'JPY',status:'active'}),error=>error.code==='CATALOG_PRODUCT_NOT_SELLABLE');
+  await assert.rejects(()=>service.createProduct({name:'Bad',price:100,currency:'USD',status:'active'}),error=>error.code==='CATALOG_CURRENCY_NOT_ALLOWED');
+  await assert.rejects(()=>service.createProduct({name:'Bad',price:100,currency:'JPY',categoryId:'missing',status:'active'}),error=>error.code==='CATALOG_CATEGORY_NOT_FOUND');
+  await assert.rejects(()=>service.createProduct({name:'Bad',price:100,currency:'JPY',categoryId:'c2',status:'active'}),error=>error.code==='CATALOG_CATEGORY_NOT_ACTIVE');
+  await service.createProduct({name:'Good',price:100,currency:'JPY',categoryId:'c1',status:'active'});
+  assert.ok(calls.some(call=>call[0]==='lockingTransaction'));
+  assert.ok(calls.some(call=>call[0]==='create'&&call[1]==='products'&&call[2].category_id==='c1'));
+});
+
+test('editing an active product revalidates merged price, currency, and category state',async()=>{
+  const {core}=fakeCore({
+    products:[{id:'p1',status:'active',price:100,currency:'JPY',category_id:'c1'}],
+    categories:[{id:'c1',status:'active'},{id:'c2',status:'draft'}],
+  });
+  const service=createMerchantCatalogService({dataCore:core,allowedCurrencies:['JPY']});
+
+  await assert.rejects(()=>service.updateProduct({productId:'p1',price:10.5}),error=>error.code==='CATALOG_PRODUCT_NOT_SELLABLE');
+  await assert.rejects(()=>service.updateProduct({productId:'p1',currency:'USD'}),error=>error.code==='CATALOG_CURRENCY_NOT_ALLOWED');
+  await assert.rejects(()=>service.updateProduct({productId:'p1',categoryId:'c2'}),error=>error.code==='CATALOG_CATEGORY_NOT_ACTIVE');
+  await service.updateProduct({productId:'p1',price:200,currency:'JPY',categoryId:'c1'});
+});
+
+test('default-active variant creation and active edits enforce parent, SKU, money, and identity guards',async()=>{
+  const {core}=fakeCore({
+    products:[{id:'p1',status:'active'},{id:'p2',status:'draft'}],
+    product_variants:[
+      {id:'v1',status:'active',product_id:'p1',sku_code:'TAKEN',price:100,currency:'JPY'},
+      {id:'v2',status:'active',product_id:'p1',sku_code:'EDIT',price:100,currency:'JPY'},
+    ],
+  });
+  const service=createMerchantCatalogService({dataCore:core,allowedCurrencies:['JPY']});
+
+  await assert.rejects(()=>service.createVariant({productId:'p2',skuCode:'NEW',price:100,currency:'JPY'}),error=>error.code==='CATALOG_PRODUCT_NOT_ACTIVE');
+  await assert.rejects(()=>service.createVariant({productId:'p1',skuCode:'TAKEN',price:100,currency:'JPY'}),error=>error.code==='CATALOG_SKU_DUPLICATE');
+  await assert.rejects(()=>service.createVariant({productId:'p1',skuCode:'NEW',price:10.5,currency:'JPY'}),error=>error.code==='CATALOG_VARIANT_NOT_SELLABLE');
+  await assert.rejects(()=>service.createVariant({productId:'p1',skuCode:'NEW',price:100,currency:'USD'}),error=>error.code==='CATALOG_CURRENCY_NOT_ALLOWED');
+  await assert.rejects(()=>service.updateVariant({variantId:'v2',price:10.5}),error=>error.code==='CATALOG_VARIANT_NOT_SELLABLE');
+  await assert.rejects(()=>service.updateVariant({variantId:'v2',currency:'USD'}),error=>error.code==='CATALOG_CURRENCY_NOT_ALLOWED');
+  await assert.rejects(()=>service.updateVariant({variantId:'v2',skuCode:'OTHER'}),error=>error.code==='CATALOG_VARIANT_IDENTITY_IMMUTABLE');
+  await assert.rejects(()=>service.updateVariant({variantId:'v2',productId:'p2'}),error=>error.code==='CATALOG_VARIANT_IDENTITY_IMMUTABLE');
+  await service.createVariant({productId:'p1',skuCode:'NEW',price:100,currency:'JPY'});
+  await service.updateVariant({variantId:'v2',price:200,currency:'JPY'});
+});
+
 test('featured products enforce the configured limit, scope, active status, and atomic replacement',async()=>{
   const {core,calls}=fakeCore({products:[
     {id:'p1',status:'active',featured:true,price:100,currency:'JPY'},
@@ -241,7 +332,7 @@ test('featured products enforce the configured limit, scope, active status, and 
 
   const result=await service.setFeaturedProducts({productIds:['p2']});
   assert.deepEqual(result.map(item=>item.id),['p1','p2']);
-  assert.equal(calls.filter(call=>call[0]==='transaction').length,1);
+  assert.equal(calls.filter(call=>call[0]==='lockingTransaction').length,1);
   assert.deepEqual(calls.filter(call=>call[0]==='update').slice(-2),[
     ['update','products','p1',{featured:false}],
     ['update','products','p2',{featured:true}],
@@ -261,14 +352,24 @@ test('product and category ordering validate all scoped records before transacti
 
   await service.reorderProducts({items:[{productId:'p2',sortOrder:1},{productId:'p1',sortOrder:2}]});
   await service.reorderCategories({items:[{categoryId:'c2',sortOrder:1},{categoryId:'c1',sortOrder:2}]});
-  assert.deepEqual(calls.filter(call=>call[0]==='get').slice(-4),[
-    ['get','products','p2'],
-    ['get','products','p1'],
-    ['get','categories','c2'],
-    ['get','categories','c1'],
-  ]);
-  await assert.rejects(()=>service.reorderProducts({items:[{productId:'outside',sortOrder:1}]}),error=>error.code==='CATALOG_PRODUCT_NOT_FOUND');
+  assert.equal(calls.filter(call=>call[0]==='listAllForUpdate').length,2);
+  await assert.rejects(()=>service.reorderProducts({items:[{productId:'outside',sortOrder:1}]}),error=>error.code==='CATALOG_PRODUCT_ORDER_SCOPE_MISMATCH');
   await assert.rejects(()=>service.reorderCategories({items:[{categoryId:'c1',sortOrder:1},{categoryId:'c1',sortOrder:2}]}),error=>error.code==='DUPLICATE_CATEGORY_ID');
+});
+
+test('ordering requires the complete scoped set and canonical unique positions',async()=>{
+  const {core}=fakeCore({
+    products:[{id:'p1'},{id:'p2'},{id:'p3'}],
+    categories:[{id:'c1'},{id:'c2'}],
+  });
+  const service=createMerchantCatalogService({dataCore:core});
+
+  await assert.rejects(()=>service.reorderProducts({items:[{productId:'p1',sortOrder:1},{productId:'p2',sortOrder:2}]}),error=>error.code==='CATALOG_PRODUCT_ORDER_SCOPE_MISMATCH');
+  await assert.rejects(()=>service.reorderProducts({items:[{productId:'p1',sortOrder:1},{productId:'p2',sortOrder:2},{productId:'outside',sortOrder:3}]}),error=>error.code==='CATALOG_PRODUCT_ORDER_SCOPE_MISMATCH');
+  await assert.rejects(()=>service.reorderProducts({items:[{productId:'p1',sortOrder:1},{productId:'p2',sortOrder:1},{productId:'p3',sortOrder:3}]}),error=>error.code==='CATALOG_ORDER_POSITION_DUPLICATE');
+  await assert.rejects(()=>service.reorderProducts({items:[{productId:'p1',sortOrder:1},{productId:'p2',sortOrder:2},{productId:'p3',sortOrder:4}]}),error=>error.code==='CATALOG_ORDER_POSITION_INVALID');
+  await assert.rejects(()=>service.reorderCategories({items:[{categoryId:'c1',sortOrder:1}]}),error=>error.code==='CATALOG_CATEGORY_ORDER_SCOPE_MISMATCH');
+  await service.reorderProducts({items:[{productId:'p2',sortOrder:1},{productId:'p3',sortOrder:2},{productId:'p1',sortOrder:3}]});
 });
 
 test('a failed atomic catalog update rejects without reporting partial success',async()=>{
@@ -276,13 +377,16 @@ test('a failed atomic catalog update rejects without reporting partial success',
     {id:'p1',status:'active',featured:true},
     {id:'p2',status:'active',featured:false},
   ]});
-  const originalTransaction=core.transaction;
-  core.transaction=async work=>originalTransaction.call(core,async tx=>{
-    const repository=tx.repository({entity:'products'});
-    const originalUpdate=repository.updateById;
-    repository.updateById=async(id,data)=>{
-      if(id==='p2')throw Object.assign(new Error('ADAPTER_WRITE_FAILED'),{code:'ADAPTER_WRITE_FAILED'});
-      return originalUpdate.call(repository,id,data);
+  const originalTransaction=core.lockingTransaction;
+  core.lockingTransaction=async work=>originalTransaction.call(core,async tx=>{
+    const originalLockingRepository=tx.lockingRepository;
+    tx.lockingRepository=policy=>{
+      const repository=originalLockingRepository(policy);
+      const originalUpdate=repository.updateById;
+      return{...repository,async updateById(id,data){
+        if(id==='p2')throw Object.assign(new Error('ADAPTER_WRITE_FAILED'),{code:'ADAPTER_WRITE_FAILED'});
+        return originalUpdate.call(repository,id,data);
+      }};
     };
     return work(tx);
   });
@@ -309,23 +413,39 @@ test('featured replacement clears every prior page before selecting the new set'
   assert.equal(records.get('products').get('new').featured,true);
 });
 
-test('lifecycle reads and writes remain inside the server-owned scoped dataCore transaction',async()=>{
-  const calls=[];
-  const rows={
-    'products:p1':{id:'p1',status:'draft',price:100,currency:'JPY',category_id:'c1'},
-    'categories:c1':{id:'c1',status:'active'},
-  };
-  const adapter={
-    async transaction(work){calls.push(['transaction']);return work(adapter)},
-    async getById(input){calls.push(['get',input]);return rows[`${input.entity}:${input.id}`]??null},
-    async updateById(input){calls.push(['update',input]);return{...rows[`${input.entity}:${input.id}`],...input.data}},
-  };
-  const dataCore=createMerchantDataCore({adapter,projectId:'project-a',sellerId:'seller-a'});
-  const service=createMerchantCatalogService({dataCore});
-  await service.transitionProduct({productId:'p1',toStatus:'active'});
+test('catalog refuses a dataCore that cannot promise locked serializable reads',()=>{
+  assert.throws(
+    ()=>createMerchantCatalogService({dataCore:{repository(){return{}}}}),
+    error=>error.code==='MISSING_CATALOG_LOCKING_TRANSACTION',
+  );
+});
 
-  assert.equal(calls[0][0],'transaction');
-  for(const [,input] of calls.filter(call=>call[0]==='get'||call[0]==='update')){
-    assert.deepEqual(input.scope,{projectId:'project-a',sellerId:'seller-a'});
-  }
+test('lifecycle, featured, and ordering paths use only explicit locked reads',async()=>{
+  const {core,calls}=fakeCore({
+    products:[{id:'p1',status:'draft',price:100,currency:'JPY',featured:false}],
+    categories:[{id:'c1',status:'draft'}],
+  });
+  const service=createMerchantCatalogService({dataCore:core});
+  await service.transitionProduct({productId:'p1',toStatus:'active'});
+  await service.setFeaturedProducts({productIds:['p1']});
+  await service.reorderProducts({items:[{productId:'p1',sortOrder:1}]});
+  assert.equal(calls.filter(call=>call[0]==='get').length,0);
+  assert.equal(calls.filter(call=>call[0]==='list').length,0);
+  assert.ok(calls.filter(call=>call[0]==='getForUpdate').length>=1);
+  assert.ok(calls.filter(call=>call[0]==='listAllForUpdate').length>=2);
+});
+
+test('concurrent featured replacements serialize and leave exactly one complete selection',async()=>{
+  const {core,records,calls}=fakeCore({products:[
+    {id:'p1',status:'active',featured:false,price:100,currency:'JPY'},
+    {id:'p2',status:'active',featured:false,price:100,currency:'JPY'},
+  ]});
+  const service=createMerchantCatalogService({dataCore:core,featuredLimit:1});
+  await Promise.all([
+    service.setFeaturedProducts({productIds:['p1']}),
+    service.setFeaturedProducts({productIds:['p2']}),
+  ]);
+  assert.equal(records.get('products').get('p1').featured,false);
+  assert.equal(records.get('products').get('p2').featured,true);
+  assert.equal(calls.filter(call=>call[0]==='lockingTransaction').length,2);
 });

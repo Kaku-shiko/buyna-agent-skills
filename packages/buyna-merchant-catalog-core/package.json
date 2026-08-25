@@ -1,6 +1,6 @@
 {
   "name": "@buyna/merchant-catalog-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "exports": "./src/catalog-core.mjs",
   "scripts": { "test": "node --test test/catalog-core.test.mjs" }
