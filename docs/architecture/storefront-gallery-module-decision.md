@@ -49,6 +49,10 @@ are not implemented by this decision record.
     {
       "path": "tests/supporting-interaction-state-routing.test.mjs",
       "reason": "deferred_module_route_assertion"
+    },
+    {
+      "path": "tests/supporting-interaction-state-integration.test.mjs",
+      "reason": "deferred_module_integration_guard"
     }
   ],
   "forbiddenImportsChecked": true,

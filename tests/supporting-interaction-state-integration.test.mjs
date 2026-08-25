@@ -46,15 +46,15 @@ function dashboardRouteState() {
     currentGate: 'dashboard_integration',
     configuration: {
       capabilities,
-      dashboardSlices: ['media'],
+      dashboardSlices: ['products'],
       dashboardSliceApproval: {
-        slices: ['media'],
+        slices: ['products'],
         approvedBy: 'user',
         approvedAt: '2026-08-26T00:00:00.000Z',
         authorizationEvidence: {
           source: 'workflow_transition',
           event: 'dashboard_slices_approved',
-          slices: ['media'],
+          slices: ['products'],
           approvedBy: 'user',
           approvedAt: '2026-08-26T00:00:00.000Z',
         },
@@ -78,6 +78,44 @@ function dashboardRouteState() {
       aws_release: { status: 'locked' },
     },
   };
+}
+
+function assertProductsRouteContract(route) {
+  const expectedModules = [
+    'buyna-workflow-state-core',
+    'buyna-merchant-catalog-core',
+    'buyna-inventory-core',
+    'buyna-merchant-dashboard-core',
+    'buyna-auth-session-core',
+    'buyna-merchant-context-core',
+    'buyna-merchant-file-core',
+  ];
+  assert.equal(route.action, 'execute');
+  assert.equal(route.targetGate, 'dashboard_integration');
+  assert.equal(route.requestedSlice, 'dashboard_integration');
+  assert.equal(route.dashboardSlice, 'products');
+  assert.deepEqual(route.dashboardSlices, ['products']);
+  assert.deepEqual(route.skills, [
+    'buyai-product-merchant-backend',
+    'buyai-dashboard-data-interaction',
+  ]);
+  assert.deepEqual(route.fixedModules, expectedModules);
+  for (const moduleName of expectedModules) {
+    assert.equal(route.fixedModules.filter((value) => value === moduleName).length, 1);
+  }
+  assert.deepEqual(route.manifestVerification, {
+    profile: 'website-builder',
+    verified: true,
+  });
+  for (const forbidden of [
+    'buyna-merchant-dashboard-headless',
+    'buyna-merchant-dashboard-ui',
+    'buyna-dashboard-ui-core',
+    'buyna-storefront-gallery-core',
+  ]) {
+    assert.equal(route.fixedModules.includes(forbidden), false);
+    assert.equal(route.skills.includes(forbidden), false);
+  }
 }
 
 function idSequence(values) {
@@ -132,15 +170,9 @@ test('Builder route, manifest, and Dashboard state select fixed behavior without
     capabilities,
     workflowState: dashboardRouteState(),
     requestedSlice: 'dashboard_integration',
-    dashboardSlice: 'media',
+    dashboardSlice: 'products',
   });
-  for (const moduleName of [
-    'buyna-auth-session-core',
-    'buyna-merchant-context-core',
-    'buyna-merchant-file-core',
-  ]) {
-    assert.equal(route.fixedModules.filter((value) => value === moduleName).length, 1);
-  }
+  assertProductsRouteContract(route);
   assert.deepEqual(route.externalActions, { git: false, aws: false });
 
   const operation = createDashboardOperation();
@@ -155,12 +187,36 @@ test('Builder route, manifest, and Dashboard state select fixed behavior without
   assert.equal(Object.isFrozen(ready), true);
 });
 
+test('Builder route contract assertions reject duplicate, presentation, scope, and manifest mutations', () => {
+  const valid = planWebsiteRoute({
+    capabilities,
+    workflowState: dashboardRouteState(),
+    requestedSlice: 'dashboard_integration',
+    dashboardSlice: 'products',
+  });
+  const mutations = [
+    { ...valid, action: 'blocked' },
+    { ...valid, targetGate: 'frontend_code' },
+    { ...valid, dashboardSlice: 'orders' },
+    { ...valid, dashboardSlices: ['orders'] },
+    { ...valid, manifestVerification: { profile: 'website-builder', verified: false } },
+    { ...valid, fixedModules: [...valid.fixedModules, 'buyna-auth-session-core'] },
+    { ...valid, fixedModules: [...valid.fixedModules, 'buyna-merchant-dashboard-headless'] },
+    { ...valid, fixedModules: [...valid.fixedModules, 'buyna-storefront-gallery-core'] },
+  ];
+  for (const mutation of mutations) {
+    assert.throws(() => assertProductsRouteContract(mutation));
+  }
+});
+
 test('authenticated merchant upload keeps fresh server scope, exact-once effects, and safe retries', async () => {
   const requestCalls = [];
   const scopedCalls = [];
   const externalCalls = new Map();
   const storedObjects = new Map();
   const confirmedFiles = [];
+  const storageCalls = [];
+  const metadataInputs = [];
   let observedHost = 'alpha.example.test';
 
   const merchants = new Map([
@@ -215,12 +271,13 @@ test('authenticated merchant upload keeps fresh server scope, exact-once effects
 
   const storage = {
     async headObject({ key }) {
-      scopedCalls.push({ adapter: 'storage.head', scope: [context.projectId, context.sellerId], key });
+      storageCalls.push({ key });
       return storedObjects.get(key) ?? null;
     },
   };
   const metadata = {
     async confirmUpload(input) {
+      metadataInputs.push(structuredClone(input));
       scopedCalls.push({ adapter: 'metadata.confirm', scope: [input.scope.projectId, input.scope.sellerId], key: input.objectKey });
       const record = { id: `confirmed_${confirmedFiles.length + 1}`, ...input };
       confirmedFiles.push(record);
@@ -333,6 +390,14 @@ test('authenticated merchant upload keeps fresh server scope, exact-once effects
   assert.deepEqual(ready.effects, []);
   assert.equal(ready.snapshot.items[0].state, 'ready');
   assert.equal(confirmedFiles.length, 1);
+  const expectedObjectPrefix = `projects/${projectId}/sellers/${sellerId}/`;
+  assert.equal(storageCalls.length, 1);
+  assert.ok(storageCalls[0].key.startsWith(expectedObjectPrefix));
+  assert.equal(metadataInputs.length, 1);
+  assert.deepEqual(metadataInputs[0].scope, { projectId, sellerId });
+  assert.ok(metadataInputs[0].objectKey.startsWith(expectedObjectPrefix));
+  assert.equal(metadataInputs[0].entityType, 'products');
+  assert.equal(metadataInputs[0].entityId, 'product_1');
 
   const snapshotBeforeStaleProgress = queue.snapshot();
   assert.throws(
