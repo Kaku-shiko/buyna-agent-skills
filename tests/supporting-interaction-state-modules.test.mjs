@@ -39,6 +39,7 @@ const filesUnder = (directory) => readdirSync(new URL(directory, root), { withFi
 
 function tokenizeJavaScript(source) {
   const tokens = [];
+  const literalOrCommentRegions = [];
   let index = 0;
   const push = (type, value) => tokens.push({ type, value });
   const regexPrefixIdentifiers = new Set([
@@ -68,6 +69,7 @@ function tokenizeJavaScript(source) {
       index += 1;
     }
     push("string", value);
+    literalOrCommentRegions.push(value);
   }
 
   function regexCanStart() {
@@ -116,14 +118,18 @@ function tokenizeJavaScript(source) {
       }
       if (character === "/" && next === "/") {
         index += 2;
+        const start = index;
         while (index < source.length && source[index] !== "\n") index += 1;
+        literalOrCommentRegions.push(source.slice(start, index));
         continue;
       }
       if (character === "/" && next === "*") {
         index += 2;
+        const start = index;
         while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
           index += 1;
         }
+        literalOrCommentRegions.push(source.slice(start, index));
         index = Math.min(index + 2, source.length);
         continue;
       }
@@ -142,12 +148,18 @@ function tokenizeJavaScript(source) {
             continue;
           }
           if (source[index] === "`") {
-            if (chunk) push("string", chunk);
+            if (chunk) {
+              push("string", chunk);
+              literalOrCommentRegions.push(chunk);
+            }
             index += 1;
             break;
           }
           if (source[index] === "$" && source[index + 1] === "{") {
-            if (chunk) push("string", chunk);
+            if (chunk) {
+              push("string", chunk);
+              literalOrCommentRegions.push(chunk);
+            }
             chunk = "";
             index += 2;
             scan(true);
@@ -193,6 +205,7 @@ function tokenizeJavaScript(source) {
   }
 
   scan();
+  tokens.literalOrCommentRegions = literalOrCommentRegions;
   return tokens;
 }
 
@@ -327,6 +340,10 @@ function assignedKey(tokens, operatorIndex) {
 function hasRawSecretLiteral(tokens, source, policy) {
   const signatures = policy.rawSecretSignatures.map((pattern) => new RegExp(pattern, "iu"));
   if (signatures.some((pattern) => pattern.test(source))) return true;
+  const literalOrCommentSignatures = policy.literalOrCommentSecretSignatures
+    .map((pattern) => new RegExp(pattern, "iu"));
+  if (tokens.literalOrCommentRegions.some((region) => literalOrCommentSignatures
+    .some((pattern) => pattern.test(region)))) return true;
 
   for (let index = 0; index < tokens.length - 1; index += 1) {
     if (!["=", ":"].includes(tokens[index].value)) continue;
@@ -523,7 +540,7 @@ test("supporting module source rejects executable infrastructure, UI, route, and
     .supportingInteractionSourceBoundary;
   assert.ok(policy, "supporting interaction source boundary is declared");
   for (const requiredPolicy of [
-    "productionIdentifierPatterns", "rawSecretSignatures",
+    "productionIdentifierPatterns", "rawSecretSignatures", "literalOrCommentSecretSignatures",
   ]) {
     assert.ok(Array.isArray(policy[requiredPolicy]), `${requiredPolicy} is declared`);
   }
@@ -543,7 +560,7 @@ test("supporting source boundary catches executable mutations but permits valida
     .supportingInteractionSourceBoundary;
   assert.ok(policy, "supporting interaction source boundary is declared");
   for (const requiredPolicy of [
-    "productionIdentifierPatterns", "rawSecretSignatures",
+    "productionIdentifierPatterns", "rawSecretSignatures", "literalOrCommentSecretSignatures",
   ]) {
     assert.ok(Array.isArray(policy[requiredPolicy]), `${requiredPolicy} is declared`);
   }
@@ -574,6 +591,7 @@ test("supporting source boundary catches executable mutations but permits valida
     ["commented-access-key.mjs", "// leaked AKIA1234567890ABCDEF", "rawSecretLiteral"],
     ["pem.mjs", "export const value = '-----BEGIN PRIVATE KEY-----';", "rawSecretLiteral"],
     ["jwt.mjs", "export const value = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEifQ.abcdefghijklmnop';", "rawSecretLiteral"],
+    ["commented-jwt.mjs", "// leaked eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyXzEifQ.abcdefghijklmnop", "rawSecretLiteral"],
     ["bearer.mjs", "export const header = 'Bearer literalcredential123';", "rawSecretLiteral"],
     ["embedded-bearer.mjs", "export const header = 'Authorization: Bearer literalcredential123';", "rawSecretLiteral"],
     ["assigned-token.mjs", "const token = 'literalcredential123'; export { token };", "rawSecretLiteral"],
@@ -598,9 +616,10 @@ test("supporting source boundary catches executable mutations but permits valida
         "const importExample = 'import pg from \\\"pg\\\"';",
         "const callExample = 'fetch(\\\"/provider\\\")';",
         "const regexExample = /fetch\\(.*\\)/;",
+        "const credentialMetadata = authenticationContext.authorizationProvider.credentialMetadata;",
         "// import React from 'react'; fetch('/ignored');",
         "/* const token = 'ignored'; client.query('SELECT * FROM ignored'); */",
-        "export { compared, chosen, password, authToken, credential, scoped, importExample, callExample, regexExample };",
+        "export { compared, chosen, password, authToken, credential, scoped, importExample, callExample, regexExample, credentialMetadata };",
       ].join("\n"),
       "utf8",
     );
