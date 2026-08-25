@@ -1,6 +1,6 @@
 ---
 name: buyai-checkout-address-ux
-description: "Improve Buyna.ai buyer and customer forms: address, Japan postal auto-fill, multilingual checkout UI, mobile input, form persistence, and backend synchronization."
+description: "Use when buyer or customer checkout forms need address fields, Japan postal fill, field validation or persistence, order review, or payment-method selection."
 ---
 
 # Buyai Checkout Address UX
@@ -11,10 +11,10 @@ Use for buyer/customer forms, shipping UX, Japan postal auto-fill, mobile input,
 
 Confirm buyer language, admin language, seller country, shipping/service country, flow type, and required fields. Inspect form state, validation, checkout/payment actions, order schema, order detail, and CSV.
 
-For product commerce, resolve `buyna-cart-core` and `buyna-order-core` from the
+For product commerce, resolve `buyna-cart-core`, `buyna-order-core`, and
+`buyna-checkout-flow-core` from the
 project `packages/` or `$env:USERPROFILE/.codex/packages/`. Stop with
-`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` instead of regenerating either
-core.
+`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when a selected core is missing.
 
 Read `references/checkout-address-rules.md` for labels, schemas, and postal-code behavior.
 
@@ -22,12 +22,14 @@ Read `references/checkout-address-rules.md` for labels, schemas, and postal-code
 
 Use `buyai-product-merchant-backend` for product checkout, `buyai-booking-service-backend` for booking forms, `buyai-globepay-payment` for payment, and `buyai-storefront-layout-ux` for mobile/readability.
 
-For product commerce, use `packages/buyna-cart-core` for cart state and the
-server-revalidated checkout snapshot, then `packages/buyna-order-core` for the
-local `pending_payment` order and immutable submission snapshot. Generate only
-the form schema/field mapping, persistence Adapter, routes, and approved
-shipping/discount/tax configuration. Do not regenerate cart totals or order
-snapshot logic.
+For product commerce, use `packages/buyna-cart-core` for cart state and
+`packages/buyna-checkout-flow-core` for the fixed progression: minimum fields
+valid → payment method selected → order review → submitting → `order_locked`.
+The checkout core creates the immutable submission snapshot and locks the local
+`pending_payment` order through the `buyna-order-core` Adapter before provider
+payment begins. Generate only project presentation, field/configuration
+mapping, persistence Adapter, routes, and approved shipping/discount/tax
+configuration.
 
 Preserve the fixed commerce sequence: right-side cart → buyer form → order review →
 provider payment → server-verified result. The review step must show all items,

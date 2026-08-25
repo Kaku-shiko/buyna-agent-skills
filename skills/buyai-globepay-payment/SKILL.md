@@ -1,6 +1,6 @@
 ---
 name: buyai-globepay-payment
-description: Route Buyai GlobePay Japan work to smaller payment skills. Use when the request involves GlobePay setup, card/QR checkout, payment return/notify, paid/refund sync, recurring subscription, or unclear payment bugs.
+description: "Use when a Buyna.ai request involves GlobePay configuration, one-time checkout, mobile or desktop payment selection, notify or query status, refunds, recurring billing, or an unclear payment failure."
 ---
 
 # Buyai GlobePay Payment
@@ -30,6 +30,14 @@ For one-time checkout and status persistence, read
 `syncPaymentStatus`. Generate only the project-specific store/provider
 adapters, routes, and migration. Do not regenerate the orchestration already in
 the service module.
+
+For one-time commerce checkout, require `packages/buyna-checkout-flow-core`
+before provider creation and `packages/buyna-commerce-settlement-core` for
+trusted provider results. The first core returns an `order_locked` local
+`pending_payment` snapshot; the second reconciles exact order, amount, currency,
+transition, and event idempotency. Generate only project Adapters,
+configuration, routes, and presentation around the fixed cores and GlobePay
+service.
 
 ## Gold
 

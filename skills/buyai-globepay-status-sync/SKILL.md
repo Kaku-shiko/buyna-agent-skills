@@ -1,6 +1,6 @@
 ---
 name: buyai-globepay-status-sync
-description: "Implement or repair GlobePay status sync: notify URL, return URL, server query, paid writer, refund sync, paid_at repair, seller records, and refresh buttons."
+description: "Use when an existing GlobePay order needs notify, return, or query reconciliation, paid or refund persistence, idempotent repair, seller visibility, or refresh behavior."
 ---
 
 # Buyai GlobePay Status Sync
@@ -32,8 +32,9 @@ must not duplicate status, transaction, or idempotency orchestration.
 Notify and return query call one idempotent writer. It finds local order by provider id, sets paid/refunded status, stores raw data, creates paid record once, updates stock/capacity once, and logs write failures.
 For product commerce, implement this writer through
 `packages/buyna-commerce-settlement-core`; provider and PostgreSQL code are
-Adapters. Do not re-orchestrate order, payment, inventory, paid-customer, refund,
-and GMV Outbox effects in each merchant project.
+project Adapters. The core owns order/amount/currency reconciliation, legal
+paid/refund transitions, idempotency, and transactional effects; project code
+owns only provider/database Adapters, configuration, routes, and presentation.
 
 `paid_at` uses provider/local payment time when available, not refresh time. Expiration must not override verified success.
 

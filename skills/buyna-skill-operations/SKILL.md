@@ -1,6 +1,6 @@
 ---
 name: buyna-skill-operations
-description: "Guide Buyna.ai team members through GitHub-based Skill installation, invocation, updates, contribution, validation, review, and release. Use when a teammate cannot call a Skill, needs to install or update this repository, wants to create or change a Skill, or needs help following the repository Issue and Pull Request workflow."
+description: "Use when a teammate needs to install, discover, update, validate, review, contribute, or release Buyna Skills or fixed modules."
 ---
 
 # Buyna Skill Operations
@@ -36,9 +36,13 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
   repository-level `packages/`.
 - Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
+- Read `repository-manifest.json` after installation and verify every package in
+  the selected profile at the installed module root.
 - Require `buyna-merchant-dashboard-core`, `buyna-merchant-dashboard-headless`, `buyna-merchant-catalog-core`,
   `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`, and
-  `buyna-merchant-file-core` under the installed module root.
+  `buyna-merchant-file-core` under the installed module root. A
+  payment-capable website profile also requires `buyna-checkout-flow-core` and
+  `buyna-commerce-settlement-core`.
 - Require a new Codex task after installation or update so discovery refreshes.
 - The current repository is public and requires no invitation for installation. Require authenticated Git credentials only for write operations.
 

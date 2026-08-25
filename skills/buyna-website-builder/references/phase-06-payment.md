@@ -1,6 +1,14 @@
 # Phase 6: Checkout And Payment
 
-Use `NOT_APPLICABLE` for non-commerce sites. Otherwise require approved buyer/customer fields, a local pending order/booking before provider payment, server-side payment creation, and paid/refund state written only after trusted notify/query verification. Deliver frontend form, server payment, persistence, mobile route/return behavior, and applicable tests.
+Use `NOT_APPLICABLE` for non-commerce sites. For payment-capable commerce,
+resolve `packages/buyna-checkout-flow-core` and
+`packages/buyna-commerce-settlement-core` from `repository-manifest.json` and
+the installed package root. The checkout core owns minimum-field validation,
+payment-method selection, review/submission, snapshot creation, and local
+`pending_payment` order locking. The settlement core owns trusted notify/query
+reconciliation, legal paid/refund transitions, idempotency, and transactional
+effects. Project code supplies form presentation, configuration, provider and
+database Adapters, routes, and framework wiring.
 
 ### Default fast check (minimum delivery path)
 

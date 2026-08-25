@@ -1,6 +1,6 @@
 ---
 name: buyna-website-builder
-description: "Guide a Buyna.ai team member through a fast, safe website workflow: capability-driven phases, grouped outputs, and fewer turns."
+description: "Use when starting, continuing, or repairing a Buyna.ai static, product, booking, Dashboard, checkout, payment, testing, or release website project."
 ---
 
 # Buyna.ai Website Builder
@@ -29,13 +29,24 @@ evidence. Persist an explicit later switch through `setInteractionMode`. Read
 
 ## Method
 
-1. Resolve `buyna-workflow-state-core` from the project installation, then the user installation. Stop with `BLOCKED: WORKFLOW_STATE_CORE_NOT_INSTALLED` when absent.
-2. Load `workflow/workflow-state.json`. Once `project_id` is known, initialize it in `team` mode when absent. For an existing project, initialize only from verified records; never infer approval from chat.
-3. Call `getInteractionPolicy({state})` after every load or mode change. Use it to render the response and pass `interactionMode` to every child Skill. Child Skills return structured evidence; they do not choose what the user sees.
-4. Treat `currentGate` as authoritative. Never edit state JSON directly; call module transitions and persist every event.
-5. Read only `references/phase-0N-*.md` for the current phase and [the state contract](references/workflow-state-contract.md).
-6. Deliver the smallest valid result and record its evidence.
-7. If the gate is covered by `configuration.workPackage`, call `completeAuthorizedGate` and continue to the next ready gate in that package. Otherwise request approval and stop.
+1. Load the approved brief and workflow state, then determine capabilities and dependency readiness from their recorded values.
+2. Read [routing-map.md](references/routing-map.md) and only the references selected by those capabilities.
+3. Resolve `buyna-workflow-state-core` from the project installation, then the user installation. Check `repository-manifest.json` and the installed package root for every fixed module selected by the route. A missing required module returns `BLOCKED: FIXED_MODULE_NOT_INSTALLED` with its name.
+4. Call `getInteractionPolicy({state})` after every load or mode change. Treat `currentGate` as authoritative and persist transitions through the module API.
+5. Generate only project Adapters, configuration, and presentation around the installed fixed behavior. Record real changed paths and delivery evidence.
+6. Run the minimum applicable tests for the selected fixed modules and project slice.
+7. For an approved work package, call `completeAuthorizedGate` and continue to each ready included gate without another confirmation. At a decision point outside that package, request approval once and stop.
+
+When chat asserts that earlier work is complete but the workflow record is
+missing, use the concise evidence recovery path in `routing-map.md`: inspect
+existing delivery files and checks, import only verifiable sanitized evidence
+through the workflow-state API, recompute readiness, and resume at the first
+dependency-ready node. If evidence is incomplete, request one grouped evidence
+input for the missing dependency.
+
+Local preview runs in the current checkout or project. GitHub is used only when
+repository publication or contribution is requested. AWS is used only when a
+release, deployment, or infrastructure operation is in the approved scope.
 
 ## Creator & Invoker Guidance
 
@@ -49,6 +60,8 @@ evidence. Persist an explicit later switch through `setInteractionMode`. Read
 - `buyna-workflow-state-core`（状态/步骤路由）
 - `buyna-postgres-merchant-core` + `buyna-s3-storage`（商户数据与文件隔离）
 - `buyna-cart-core`、`buyna-order-core`（购物车/订单）
+- `buyna-checkout-flow-core`（最低字段、支付方式、确认、提交与本地订单锁定）
+- `buyna-commerce-settlement-core`（可信支付/退款核对与幂等副作用）
 - `buyai-globepay-payment` + `buyna-gmv-commerce`（支付与GMV）
 
 执行原则：

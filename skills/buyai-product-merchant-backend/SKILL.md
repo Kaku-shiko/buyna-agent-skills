@@ -1,6 +1,6 @@
 ---
 name: buyai-product-merchant-backend
-description: "Build or repair a single-merchant Buyna.ai product ecommerce backend: merchant login, products, SKU, images, stock, sorting, checkout, orders, paid customers, and CSV."
+description: "Use when a single-merchant Buyna.ai store needs product, SKU, inventory, cart, order, paid-customer, CSV, or seller Dashboard backend behavior."
 ---
 
 # Buyai Product Merchant Backend
@@ -37,6 +37,15 @@ order CSV, read `references/cart-order-fixed-cores.md`. Call
 `packages/buyna-cart-core` and `packages/buyna-order-core`; generate only the
 project Store/Database Adapters, routes, pricing configuration, custom-field
 mapping, and notification templates.
+
+When checkout is an approved capability, also call
+`packages/buyna-checkout-flow-core`; it owns minimum-field, payment-method,
+review, submission, snapshot, and local order-lock states. When payment is an
+approved capability, call `packages/buyna-commerce-settlement-core`; it owns
+trusted paid/refund transitions and idempotent transactional effects. A
+no-payment product route uses cart/order modules and marks the payment node
+`NOT_APPLICABLE`. Project code supplies only the applicable Adapters,
+configuration, API wiring, and presentation.
 
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 
