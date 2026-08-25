@@ -113,6 +113,41 @@ function immutable(value) {
   return deepFreeze(structuredClone(value));
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+function fingerprint(value) {
+  return createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
+}
+
+function snakeCase(value) {
+  return value.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+}
+
+function requireMethods(owner, names) {
+  for (const name of names) {
+    if (typeof owner?.[name] !== 'function') {
+      throw failure(
+        `COUPON_ADAPTER_${snakeCase(name)}_REQUIRED`,
+        `transaction ${name} is required`,
+      );
+    }
+  }
+}
+
+function adapterInvalid(message) {
+  throw failure('COUPON_ADAPTER_INVALID', message);
+}
+
 function assertScope(record, projectId, sellerId) {
   if (record.projectId !== projectId || record.sellerId !== sellerId) {
     throw failure('COUPON_SCOPE_MISMATCH', 'coupon does not belong to the server scope');
@@ -172,6 +207,11 @@ function quoteCoupon(coupon, input, now) {
 
   const customerId = requiredText(input.customerId, 'customerId');
   const order = input.order ?? {};
+  const orderId = requiredText(order.orderId, 'order.orderId');
+  const checkoutSnapshotId = requiredText(
+    order.checkoutSnapshotId,
+    'order.checkoutSnapshotId',
+  );
   const itemQuantity = positiveInteger(order.itemQuantity, 'order.itemQuantity');
   const originalAmount = safeMoney(order.originalAmount, 'order.originalAmount');
   const currency = requiredText(order.currency, 'order.currency').toUpperCase();
@@ -218,6 +258,8 @@ function quoteCoupon(coupon, input, now) {
     couponCode: coupon.code,
     policyVersion: coupon.policyVersion,
     customerId,
+    orderId,
+    checkoutSnapshotId,
     currency,
     itemQuantity,
     originalAmount,
@@ -233,18 +275,33 @@ function validateStore(store) {
 }
 
 async function claim(tx, context) {
-  if (typeof tx.claimCouponEvent !== 'function') {
-    throw failure('COUPON_ADAPTER_INVALID', 'transaction claimCouponEvent is required');
-  }
   const result = await tx.claimCouponEvent(context);
   if (!result || typeof result.claimed !== 'boolean') {
     throw failure('COUPON_ADAPTER_INVALID', 'claimCouponEvent returned an invalid result');
   }
   if (!result.claimed) {
-    if (result.result === undefined) {
+    const event = result.event;
+    if (
+      !event
+      || event.projectId !== context.projectId
+      || event.sellerId !== context.sellerId
+      || event.operation !== context.operation
+      || event.aggregateType !== context.aggregateType
+      || event.aggregateId !== context.aggregateId
+      || event.inputFingerprint !== context.inputFingerprint
+    ) {
+      throw failure('COUPON_EVENT_CONFLICT', 'coupon event envelope does not match input');
+    }
+    if (event.result === null || event.result === undefined) {
       throw failure('COUPON_EVENT_IN_PROGRESS', 'coupon event was claimed without a result');
     }
-    return { duplicate: true, result: immutable(result.result) };
+    if (
+      typeof event.resultFingerprint !== 'string'
+      || event.resultFingerprint !== fingerprint(event.result)
+    ) {
+      throw failure('COUPON_EVENT_CONFLICT', 'coupon event result fingerprint is invalid');
+    }
+    return { duplicate: true, result: immutable(event.result) };
   }
   if (typeof result.complete !== 'function') {
     throw failure(
@@ -256,7 +313,7 @@ async function claim(tx, context) {
 }
 
 async function completeClaim(claimResult, result) {
-  await claimResult.complete(result);
+  await claimResult.complete(result, { resultFingerprint: fingerprint(result) });
 }
 
 const SNAPSHOT_FIELDS = Object.freeze([
@@ -266,6 +323,8 @@ const SNAPSHOT_FIELDS = Object.freeze([
   'couponCode',
   'policyVersion',
   'customerId',
+  'orderId',
+  'checkoutSnapshotId',
   'currency',
   'itemQuantity',
   'originalAmount',
@@ -291,6 +350,73 @@ function assertSameSnapshot(actual, expected) {
     throw failure(
       'COUPON_SNAPSHOT_MISMATCH',
       'coupon snapshot differs from the authoritative locked quote',
+    );
+  }
+}
+
+function eventContext(scope, eventId, operation, aggregateType, aggregateId, input) {
+  return {
+    ...scope,
+    eventId,
+    operation,
+    aggregateType,
+    aggregateId,
+    inputFingerprint: fingerprint(input),
+  };
+}
+
+function valuesMatch(actual, expected, fields = Object.keys(expected)) {
+  if (!actual || typeof actual !== 'object') return false;
+  return fields.every(
+    (field) => JSON.stringify(canonicalize(actual[field])) === JSON.stringify(canonicalize(expected[field])),
+  );
+}
+
+function assertAdapterWrite(actual, expected, label) {
+  if (!valuesMatch(actual, expected)) {
+    adapterInvalid(`${label} returned a record that differs from the requested write`);
+  }
+}
+
+function assertReplay(actual, expected, fields, label) {
+  if (!valuesMatch(actual, expected, fields)) {
+    throw failure('COUPON_EVENT_CONFLICT', `${label} replay result does not match the event`);
+  }
+}
+
+function reservationUsageEffect(state, customerId) {
+  if (state === STATES.RESERVED) {
+    return immutable({ reservedDelta: 1, redeemedDelta: 0, customerId });
+  }
+  if (state === STATES.REDEEMED) {
+    return immutable({ reservedDelta: -1, redeemedDelta: 1, customerId });
+  }
+  return immutable({ reservedDelta: -1, redeemedDelta: 0, customerId });
+}
+
+const RESERVATION_REPLAY_FIELDS = Object.freeze([
+  'projectId',
+  'sellerId',
+  'couponId',
+  'reservationId',
+  'customerId',
+  'state',
+  'discountSnapshot',
+  'usageEffect',
+]);
+
+function assertReplayReservationAgainstLocked(result, locked) {
+  if (
+    result?.projectId !== locked?.projectId
+    || result?.sellerId !== locked?.sellerId
+    || result?.couponId !== locked?.couponId
+    || result?.reservationId !== locked?.reservationId
+    || result?.customerId !== locked?.customerId
+    || !sameSnapshot(result?.discountSnapshot, locked?.discountSnapshot)
+  ) {
+    throw failure(
+      'COUPON_EVENT_CONFLICT',
+      'coupon replay result does not match the locked reservation snapshot',
     );
   }
 }
@@ -321,7 +447,7 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     if (validFrom && validUntil && validUntil <= validFrom) {
       throw failure('COUPON_INVALID_INPUT', 'validUntil must be later than validFrom');
     }
-    const record = {
+    const policy = {
       ...scope,
       couponId,
       code: normalizeCode(input.code),
@@ -355,17 +481,27 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
       reservedCount: 0,
       perCustomerRedemptions: {},
       perCustomerReservations: {},
-      createdAt: nowIso(clock),
-      updatedAt: nowIso(clock),
+    };
+    const at = nowIso(clock);
+    const record = {
+      ...policy,
+      createdAt: at,
+      updatedAt: at,
     };
 
     return store.transaction(async (tx) => {
-      const claimed = await claim(tx, { ...scope, eventId, operation: 'create_draft' });
-      if (claimed.duplicate) return claimed.result;
-      if (typeof tx.createCoupon !== 'function') {
-        throw failure('COUPON_ADAPTER_INVALID', 'transaction createCoupon is required');
+      requireMethods(tx, ['claimCouponEvent', 'createCoupon']);
+      const claimed = await claim(
+        tx,
+        eventContext(scope, eventId, 'create_draft', 'coupon', couponId, policy),
+      );
+      if (claimed.duplicate) {
+        assertReplay(claimed.result, policy, Object.keys(policy), 'create draft');
+        return claimed.result;
       }
-      const saved = immutable(await tx.createCoupon(record));
+      const adapterResult = await tx.createCoupon(record);
+      assertAdapterWrite(adapterResult, record, 'createCoupon');
+      const saved = immutable(adapterResult);
       assertScope(saved, scope.projectId, scope.sellerId);
       await completeClaim(claimed, saved);
       return saved;
@@ -376,11 +512,27 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     const eventId = requiredText(input.eventId, 'eventId');
     const couponId = requiredText(input.couponId, 'couponId');
     return store.transaction(async (tx) => {
-      const claimed = await claim(tx, { ...scope, eventId, operation });
-      if (claimed.duplicate) return claimed.result;
+      requireMethods(tx, ['claimCouponEvent', 'getCouponForUpdate', 'createCoupon']);
+      const claimed = await claim(
+        tx,
+        eventContext(scope, eventId, operation, 'coupon', couponId, {
+          couponId,
+          targetState,
+        }),
+      );
+      if (claimed.duplicate) {
+        assertReplay(
+          claimed.result,
+          { ...scope, couponId, state: targetState },
+          ['projectId', 'sellerId', 'couponId', 'state'],
+          operation,
+        );
+        return claimed.result;
+      }
       const current = await tx.getCouponForUpdate({ ...scope, couponId });
       if (!current) throw failure('COUPON_NOT_FOUND', 'coupon was not found');
       assertScope(current, scope.projectId, scope.sellerId);
+      if (current.couponId !== couponId) adapterInvalid('locked coupon identity is invalid');
       assertTransition(current.state, targetState);
       if (targetState === STATES.ACTIVE) validateWindow(current, nowIso(clock));
       const next = {
@@ -389,7 +541,9 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
         state: targetState,
         updatedAt: nowIso(clock),
       };
-      const saved = immutable(await tx.createCoupon(next));
+      const adapterResult = await tx.createCoupon(next);
+      assertAdapterWrite(adapterResult, next, 'createCoupon');
+      const saved = immutable(adapterResult);
       assertScope(saved, scope.projectId, scope.sellerId);
       await completeClaim(claimed, saved);
       return saved;
@@ -398,12 +552,17 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
 
   async function quote(input = {}) {
     return store.transaction(async (tx) => {
-      if (typeof tx.getCouponForUpdate !== 'function') {
-        throw failure('COUPON_ADAPTER_INVALID', 'transaction getCouponForUpdate is required');
-      }
-      const current = await tx.getCouponForUpdate({ ...scope, ...couponLookup(input) });
+      requireMethods(tx, ['getCouponForUpdate']);
+      const lookup = couponLookup(input);
+      const current = await tx.getCouponForUpdate({ ...scope, ...lookup });
       if (!current) throw failure('COUPON_NOT_FOUND', 'coupon was not found');
       assertScope(current, scope.projectId, scope.sellerId);
+      if (
+        (lookup.couponId && current.couponId !== lookup.couponId)
+        || (lookup.code && current.code !== lookup.code)
+      ) {
+        adapterInvalid('locked coupon does not match the requested identity');
+      }
       return quoteCoupon(current, input, nowIso(clock));
     });
   }
@@ -415,10 +574,33 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     assertSnapshotScope(snapshot, scope);
 
     return store.transaction(async (tx) => {
-      const claimed = await claim(tx, { ...scope, eventId, operation: 'reserve' });
-      if (claimed.duplicate) return claimed.result;
-      if (typeof tx.getCouponForUpdate !== 'function') {
-        throw failure('COUPON_ADAPTER_INVALID', 'transaction getCouponForUpdate is required');
+      requireMethods(tx, ['claimCouponEvent', 'getCouponForUpdate', 'createReservation']);
+      const claimed = await claim(
+        tx,
+        eventContext(scope, eventId, 'reserve', 'coupon_reservation', reservationId, {
+          reservationId,
+          snapshot,
+        }),
+      );
+      const replayExpected = {
+        ...scope,
+        couponId: snapshot.couponId,
+        reservationId,
+        customerId: snapshot.customerId,
+        state: STATES.RESERVED,
+        discountSnapshot: snapshot,
+        usageEffect: reservationUsageEffect(STATES.RESERVED, snapshot.customerId),
+      };
+      if (claimed.duplicate) {
+        assertReplay(
+          claimed.result,
+          replayExpected,
+          RESERVATION_REPLAY_FIELDS,
+          'coupon reservation',
+        );
+        const { reservation } = await loadLockedReservation(tx, reservationId);
+        assertReplayReservationAgainstLocked(claimed.result, reservation);
+        return claimed.result;
       }
       const current = await tx.getCouponForUpdate({
         ...scope,
@@ -436,6 +618,15 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
             `cannot reserve a coupon reservation in ${current.reservation.state}`,
           );
         }
+        assertAdapterWrite(
+          Object.fromEntries(
+            RESERVATION_REPLAY_FIELDS.map((field) => [field, current.reservation[field]]),
+          ),
+          Object.fromEntries(
+            RESERVATION_REPLAY_FIELDS.map((field) => [field, replayExpected[field]]),
+          ),
+          'existing coupon reservation',
+        );
         await completeClaim(claimed, current.reservation);
         return immutable(current.reservation);
       }
@@ -444,6 +635,8 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
         {
           customerId: snapshot.customerId,
           order: {
+            orderId: snapshot.orderId,
+            checkoutSnapshotId: snapshot.checkoutSnapshotId,
             itemQuantity: snapshot.itemQuantity,
             originalAmount: snapshot.originalAmount,
             currency: snapshot.currency,
@@ -452,9 +645,6 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
         nowIso(clock),
       );
       assertSameSnapshot(snapshot, authoritative);
-      if (typeof tx.createReservation !== 'function') {
-        throw failure('COUPON_ADAPTER_INVALID', 'transaction createReservation is required');
-      }
       const createdAt = nowIso(clock);
       const record = {
         ...scope,
@@ -463,15 +653,13 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
         customerId: authoritative.customerId,
         state: STATES.RESERVED,
         discountSnapshot: authoritative,
-        usageEffect: immutable({
-          reservedDelta: 1,
-          redeemedDelta: 0,
-          customerId: authoritative.customerId,
-        }),
+        usageEffect: reservationUsageEffect(STATES.RESERVED, authoritative.customerId),
         createdAt,
         updatedAt: createdAt,
       };
-      const saved = immutable(await tx.createReservation(record));
+      const adapterRecord = await tx.createReservation(record);
+      assertAdapterWrite(adapterRecord, record, 'createReservation');
+      const saved = immutable(adapterRecord);
       assertReservation(saved, scope, reservationId);
       if (saved.state !== STATES.RESERVED) {
         throw failure('COUPON_ADAPTER_INVALID', 'created reservation has an invalid state');
@@ -483,13 +671,14 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
   }
 
   async function loadLockedReservation(tx, reservationId) {
-    if (typeof tx.getCouponForUpdate !== 'function') {
-      throw failure('COUPON_ADAPTER_INVALID', 'transaction getCouponForUpdate is required');
-    }
+    requireMethods(tx, ['getCouponForUpdate']);
     const coupon = await tx.getCouponForUpdate({ ...scope, reservationId });
     if (!coupon) throw failure('COUPON_NOT_FOUND', 'coupon was not found');
     assertScope(coupon, scope.projectId, scope.sellerId);
     assertReservation(coupon.reservation, scope, reservationId);
+    if (coupon.couponId !== coupon.reservation.couponId) {
+      adapterInvalid('locked coupon and reservation identities do not match');
+    }
     return { coupon, reservation: coupon.reservation };
   }
 
@@ -500,30 +689,57 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     assertSnapshotScope(orderSnapshot, scope);
 
     return store.transaction(async (tx) => {
-      const claimed = await claim(tx, { ...scope, eventId, operation: 'redeem' });
-      if (claimed.duplicate) return claimed.result;
+      requireMethods(tx, ['claimCouponEvent', 'getCouponForUpdate', 'redeemReservation']);
+      const claimed = await claim(
+        tx,
+        eventContext(scope, eventId, 'redeem', 'coupon_reservation', reservationId, {
+          reservationId,
+          orderSnapshot,
+        }),
+      );
+      const replayExpected = {
+        ...scope,
+        couponId: orderSnapshot.couponId,
+        reservationId,
+        customerId: orderSnapshot.customerId,
+        state: STATES.REDEEMED,
+        discountSnapshot: orderSnapshot,
+        usageEffect: reservationUsageEffect(STATES.REDEEMED, orderSnapshot.customerId),
+      };
+      if (claimed.duplicate) {
+        assertReplay(
+          claimed.result,
+          replayExpected,
+          RESERVATION_REPLAY_FIELDS,
+          'coupon redemption',
+        );
+        const { reservation } = await loadLockedReservation(tx, reservationId);
+        assertReplayReservationAgainstLocked(claimed.result, reservation);
+        return claimed.result;
+      }
       const { reservation } = await loadLockedReservation(tx, reservationId);
       assertSameSnapshot(orderSnapshot, reservation.discountSnapshot);
       if (reservation.state === STATES.REDEEMED) {
+        assertReplay(
+          reservation,
+          replayExpected,
+          RESERVATION_REPLAY_FIELDS,
+          'coupon redemption',
+        );
         await completeClaim(claimed, reservation);
         return immutable(reservation);
       }
       assertTransition(reservation.state, STATES.REDEEMED);
-      if (typeof tx.redeemReservation !== 'function') {
-        throw failure('COUPON_ADAPTER_INVALID', 'transaction redeemReservation is required');
-      }
       const next = {
         ...reservation,
         state: STATES.REDEEMED,
-        usageEffect: immutable({
-          reservedDelta: -1,
-          redeemedDelta: 1,
-          customerId: reservation.customerId,
-        }),
+        usageEffect: reservationUsageEffect(STATES.REDEEMED, reservation.customerId),
         redeemedAt: nowIso(clock),
         updatedAt: nowIso(clock),
       };
-      const saved = immutable(await tx.redeemReservation(next));
+      const adapterRecord = await tx.redeemReservation(next);
+      assertAdapterWrite(adapterRecord, next, 'redeemReservation');
+      const saved = immutable(adapterRecord);
       assertReservation(saved, scope, reservationId);
       if (saved.state !== STATES.REDEEMED) {
         throw failure('COUPON_ADAPTER_INVALID', 'redeemed reservation has an invalid state');
@@ -545,36 +761,75 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     }
 
     return store.transaction(async (tx) => {
-      const claimed = await claim(tx, { ...scope, eventId, operation: 'release' });
-      if (claimed.duplicate) return claimed.result;
+      requireMethods(tx, ['claimCouponEvent', 'getCouponForUpdate', 'releaseReservation']);
+      const claimed = await claim(
+        tx,
+        eventContext(scope, eventId, 'release', 'coupon_reservation', reservationId, {
+          reservationId,
+          reason,
+        }),
+      );
+      if (claimed.duplicate) {
+        assertReplay(
+          claimed.result,
+          {
+            ...scope,
+            reservationId,
+            state: STATES.RELEASED,
+            releaseReason: reason,
+            usageEffect: reservationUsageEffect(
+              STATES.RELEASED,
+              claimed.result?.customerId,
+            ),
+          },
+          [
+            'projectId',
+            'sellerId',
+            'reservationId',
+            'state',
+            'releaseReason',
+            'usageEffect',
+          ],
+          'coupon release',
+        );
+        const { reservation } = await loadLockedReservation(tx, reservationId);
+        assertReplayReservationAgainstLocked(claimed.result, reservation);
+        return claimed.result;
+      }
       const { reservation } = await loadLockedReservation(tx, reservationId);
       if (reservation.state === STATES.RELEASED) {
         if (reservation.releaseReason !== reason) {
           throw failure('COUPON_EVENT_CONFLICT', 'release reason differs from saved result');
         }
+        if (
+          !valuesMatch(
+            reservation.usageEffect,
+            reservationUsageEffect(STATES.RELEASED, reservation.customerId),
+          )
+        ) {
+          adapterInvalid('released reservation usage effect is invalid');
+        }
         await completeClaim(claimed, reservation);
         return immutable(reservation);
       }
       assertTransition(reservation.state, STATES.RELEASED);
-      if (typeof tx.releaseReservation !== 'function') {
-        throw failure('COUPON_ADAPTER_INVALID', 'transaction releaseReservation is required');
-      }
       const next = {
         ...reservation,
         state: STATES.RELEASED,
         releaseReason: reason,
-        usageEffect: immutable({
-          reservedDelta: -1,
-          redeemedDelta: 0,
-          customerId: reservation.customerId,
-        }),
+        usageEffect: reservationUsageEffect(STATES.RELEASED, reservation.customerId),
         releasedAt: nowIso(clock),
         updatedAt: nowIso(clock),
       };
-      const saved = immutable(await tx.releaseReservation(next));
+      const adapterRecord = await tx.releaseReservation(next);
+      assertAdapterWrite(adapterRecord, next, 'releaseReservation');
+      const saved = immutable(adapterRecord);
       assertReservation(saved, scope, reservationId);
       if (saved.state !== STATES.RELEASED) {
         throw failure('COUPON_ADAPTER_INVALID', 'released reservation has an invalid state');
+      }
+      if (saved.releaseReason !== reason) {
+        adapterInvalid('released reservation reason is invalid');
       }
       await completeClaim(claimed, saved);
       return saved;
@@ -592,3 +847,4 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     release,
   });
 }
+import { createHash } from 'node:crypto';

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
@@ -15,16 +16,61 @@ function clone(value) {
   return value === undefined ? value : structuredClone(value);
 }
 
-function createStore({ asyncEventCompletion = false } = {}) {
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+function testFingerprint(value) {
+  return createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
+}
+
+function createStore({
+  asyncEventCompletion = false,
+  omittedMethods = [],
+  failOnce = {},
+  corruptReturns = {},
+} = {}) {
   const coupons = new Map();
   const reservations = new Map();
   const events = new Map();
   let queue = Promise.resolve();
   const calls = {
+    claimCouponEvent: 0,
+    createCoupon: 0,
     createReservation: 0,
     redeemReservation: 0,
     releaseReservation: 0,
   };
+  const failures = { ...failOnce };
+  const corrupt = { ...corruptReturns };
+
+  function mapSnapshot(map) {
+    return [...map.entries()].map(([key, value]) => [key, clone(value)]);
+  }
+
+  function restoreMap(map, snapshot) {
+    map.clear();
+    for (const [key, value] of snapshot) map.set(key, clone(value));
+  }
+
+  function maybeFail(method) {
+    if ((failures[method] ?? 0) > 0) {
+      failures[method] -= 1;
+      const error = new Error(`forced ${method} failure`);
+      error.code = 'FORCED_ADAPTER_FAILURE';
+      throw error;
+    }
+  }
+
+  function adapterResult(method, record) {
+    return clone(typeof corrupt[method] === 'function' ? corrupt[method](clone(record)) : record);
+  }
 
   function updateUsage(record, kind) {
     const coupon = coupons.get(record.couponId);
@@ -52,6 +98,11 @@ function createStore({ asyncEventCompletion = false } = {}) {
 
   const transaction = (work) => {
     const run = queue.then(async () => {
+      const before = {
+        coupons: mapSnapshot(coupons),
+        reservations: mapSnapshot(reservations),
+        events: mapSnapshot(events),
+      };
       const tx = {
         async getCouponForUpdate(query) {
           const matchedReservation = query.reservationId
@@ -68,45 +119,61 @@ function createStore({ asyncEventCompletion = false } = {}) {
             : null;
           return clone({ ...coupon, reservation });
         },
-        async claimCouponEvent({ eventId }) {
+        async claimCouponEvent(context) {
+          calls.claimCouponEvent += 1;
+          const { eventId } = context;
           if (events.has(eventId)) {
-            return { claimed: false, result: clone(events.get(eventId)) };
+            return { claimed: false, event: clone(events.get(eventId)) };
           }
-          events.set(eventId, undefined);
+          events.set(eventId, { ...clone(context), result: null });
           return {
             claimed: true,
-            async complete(result) {
+            async complete(result, metadata = {}) {
               if (asyncEventCompletion) {
                 await new Promise((resolve) => setImmediate(resolve));
               }
-              events.set(eventId, clone(result));
+              events.get(eventId).result = clone(result);
+              events.get(eventId).resultFingerprint = metadata.resultFingerprint;
             },
           };
         },
         async createCoupon(record) {
+          calls.createCoupon += 1;
+          maybeFail('createCoupon');
           coupons.set(record.couponId, clone(record));
-          return clone(record);
+          return adapterResult('createCoupon', record);
         },
         async createReservation(record) {
           calls.createReservation += 1;
+          maybeFail('createReservation');
           reservations.set(record.reservationId, clone(record));
           updateUsage(record, 'reserve');
-          return clone(record);
+          return adapterResult('createReservation', record);
         },
         async redeemReservation(record) {
           calls.redeemReservation += 1;
+          maybeFail('redeemReservation');
           reservations.set(record.reservationId, clone(record));
           updateUsage(record, 'redeem');
-          return clone(record);
+          return adapterResult('redeemReservation', record);
         },
         async releaseReservation(record) {
           calls.releaseReservation += 1;
+          maybeFail('releaseReservation');
           reservations.set(record.reservationId, clone(record));
           updateUsage(record, 'release');
-          return clone(record);
+          return adapterResult('releaseReservation', record);
         },
       };
-      return work(tx);
+      for (const name of omittedMethods) delete tx[name];
+      try {
+        return await work(tx);
+      } catch (error) {
+        restoreMap(coupons, before.coupons);
+        restoreMap(reservations, before.reservations);
+        restoreMap(events, before.events);
+        throw error;
+      }
     });
     queue = run.catch(() => {});
     return run;
@@ -124,6 +191,20 @@ function createStore({ asyncEventCompletion = false } = {}) {
       const next = mutate(clone(coupons.get(id)));
       coupons.set(id, clone(next));
     },
+    mutateReservation(id, mutate) {
+      const next = mutate(clone(reservations.get(id)));
+      reservations.set(id, clone(next));
+    },
+    setCorruptReturn(method, transform) {
+      corrupt[method] = transform;
+    },
+    inspectEvent(id) {
+      return clone(events.get(id));
+    },
+    mutateEvent(id, mutate) {
+      const next = mutate(clone(events.get(id)));
+      events.set(id, clone(next));
+    },
     calls,
   };
 }
@@ -137,6 +218,17 @@ function moduleWith(store = createStore(), clock = () => new Date(NOW)) {
       store,
       clock,
     }),
+  };
+}
+
+function orderInput(overrides = {}) {
+  return {
+    orderId: 'order-1',
+    checkoutSnapshotId: 'checkout-snapshot-1',
+    itemQuantity: 2,
+    originalAmount: 2_000,
+    currency: 'JPY',
+    ...overrides,
   };
 }
 
@@ -202,7 +294,7 @@ test('quotes percentage discounts with JPY-safe integer math and a maximum', asy
   const snapshot = await coupons.quote({
     couponCode: ' summer-10 ',
     customerId: 'customer-1',
-    order: { itemQuantity: 3, originalAmount: 5_001, currency: 'jpy' },
+    order: orderInput({ itemQuantity: 3, originalAmount: 5_001, currency: 'jpy' }),
   });
 
   assert.deepEqual(snapshot, {
@@ -212,6 +304,8 @@ test('quotes percentage discounts with JPY-safe integer math and a maximum', asy
     couponCode: 'SUMMER-10',
     policyVersion: 3,
     customerId: 'customer-1',
+    orderId: 'order-1',
+    checkoutSnapshotId: 'checkout-snapshot-1',
     currency: 'JPY',
     itemQuantity: 3,
     originalAmount: 5_001,
@@ -233,7 +327,7 @@ test('quotes fixed discounts without allowing a negative payable amount', async 
   const snapshot = await coupons.quote({
     couponId: 'coupon-1',
     customerId: 'customer-1',
-    order: { itemQuantity: 1, originalAmount: 1_200, currency: 'JPY' },
+    order: orderInput({ itemQuantity: 1, originalAmount: 1_200 }),
   });
   assert.equal(snapshot.discountAmount, 1_200);
   assert.equal(snapshot.payableAmount, 0);
@@ -247,7 +341,7 @@ test('enforces minimum quantity and amount eligibility', async () => {
     coupons.quote({
       couponId: 'coupon-1',
       customerId: 'customer-1',
-      order: { itemQuantity: 1, originalAmount: 2_000, currency: 'JPY' },
+      order: orderInput({ itemQuantity: 1 }),
     }),
     { code: 'COUPON_NOT_ELIGIBLE' },
   );
@@ -255,7 +349,7 @@ test('enforces minimum quantity and amount eligibility', async () => {
     coupons.quote({
       couponId: 'coupon-1',
       customerId: 'customer-1',
-      order: { itemQuantity: 2, originalAmount: 999, currency: 'JPY' },
+      order: orderInput({ originalAmount: 999 }),
     }),
     { code: 'COUPON_NOT_ELIGIBLE' },
   );
@@ -269,7 +363,7 @@ test('enforces validity windows and usage limits', async () => {
     first.coupons.quote({
       couponId: 'coupon-1',
       customerId: 'customer-1',
-      order: { itemQuantity: 2, originalAmount: 1_000, currency: 'JPY' },
+      order: orderInput({ originalAmount: 1_000 }),
     }),
     { code: 'COUPON_USAGE_LIMIT' },
   );
@@ -284,7 +378,7 @@ test('enforces validity windows and usage limits', async () => {
     second.coupons.quote({
       couponId: 'coupon-1',
       customerId: 'customer-1',
-      order: { itemQuantity: 2, originalAmount: 1_000, currency: 'JPY' },
+      order: orderInput({ originalAmount: 1_000 }),
     }),
     { code: 'COUPON_USAGE_LIMIT' },
   );
@@ -299,7 +393,7 @@ test('enforces validity windows and usage limits', async () => {
     expired.coupons.quote({
       couponId: 'coupon-1',
       customerId: 'customer-1',
-      order: { itemQuantity: 2, originalAmount: 1_000, currency: 'JPY' },
+      order: orderInput({ originalAmount: 1_000 }),
     }),
     { code: 'COUPON_EXPIRED' },
   );
@@ -313,7 +407,7 @@ test('rejects unsafe or fractional JPY money before calculating', async () => {
       coupons.quote({
         couponId: 'coupon-1',
         customerId: 'customer-1',
-        order: { itemQuantity: 2, originalAmount, currency: 'JPY' },
+        order: orderInput({ originalAmount }),
       }),
       { code: 'COUPON_INVALID_MONEY' },
     );
@@ -324,7 +418,7 @@ async function quoteDefault(coupons, overrides = {}) {
   return coupons.quote({
     couponId: 'coupon-1',
     customerId: 'customer-1',
-    order: { itemQuantity: 2, originalAmount: 2_000, currency: 'JPY' },
+    order: orderInput(),
     ...overrides,
   });
 }
@@ -515,4 +609,294 @@ test('releases a reservation once after failed or expired checkout', async () =>
     assert.deepEqual(newEventRetry, released);
     assert.equal(store.calls.releaseReservation, 1);
   }
+});
+
+test('binds every event to scope, operation, aggregate, and immutable input', async () => {
+  const sharedStore = createStore();
+  const { coupons } = moduleWith(sharedStore);
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  await coupons.reserve({
+    eventId: 'event-bound',
+    reservationId: 'reservation-1',
+    snapshot,
+  });
+
+  await assert.rejects(
+    coupons.reserve({
+      eventId: 'event-bound',
+      reservationId: 'reservation-2',
+      snapshot,
+    }),
+    { code: 'COUPON_EVENT_CONFLICT' },
+  );
+  await assert.rejects(
+    coupons.release({
+      eventId: 'event-bound',
+      reservationId: 'reservation-1',
+      reason: 'checkout_failed',
+    }),
+    { code: 'COUPON_EVENT_CONFLICT' },
+  );
+  await assert.rejects(
+    coupons.reserve({
+      eventId: 'event-bound',
+      reservationId: 'reservation-1',
+      snapshot: { ...snapshot, originalAmount: snapshot.originalAmount + 1 },
+    }),
+    { code: 'COUPON_EVENT_CONFLICT' },
+  );
+
+  const otherScope = createCouponModule({
+    projectId: PROJECT_ID,
+    sellerId: 'seller-other',
+    store: sharedStore,
+    clock: () => new Date(NOW),
+  });
+  await assert.rejects(
+    otherScope.createDraft({
+      eventId: 'event-bound',
+      couponId: 'coupon-other',
+      code: 'OTHER',
+      discount: { type: 'fixed', amount: 100 },
+    }),
+    { code: 'COUPON_EVENT_CONFLICT' },
+  );
+});
+
+test('rejects a corrupted replay result instead of trusting event storage', async () => {
+  const { coupons, store } = moduleWith();
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  await coupons.reserve({
+    eventId: 'event-reserve-corrupt',
+    reservationId: 'reservation-corrupt',
+    snapshot,
+  });
+  store.mutateEvent('event-reserve-corrupt', (event) => ({
+    ...event,
+    result: { ...event.result, state: 'redeemed' },
+    resultFingerprint: testFingerprint({ ...event.result, state: 'redeemed' }),
+  }));
+  await assert.rejects(
+    coupons.reserve({
+      eventId: 'event-reserve-corrupt',
+      reservationId: 'reservation-corrupt',
+      snapshot,
+    }),
+    { code: 'COUPON_EVENT_CONFLICT' },
+  );
+
+  const releaseInput = {
+    eventId: 'event-release-signed-corrupt',
+    reservationId: 'reservation-corrupt',
+    reason: 'checkout_failed',
+  };
+  await coupons.release(releaseInput);
+  store.mutateEvent(releaseInput.eventId, (event) => {
+    const result = {
+      ...event.result,
+      discountSnapshot: { ...event.result.discountSnapshot, orderId: 'order-other' },
+    };
+    return { ...event, result, resultFingerprint: testFingerprint(result) };
+  });
+  await assert.rejects(coupons.release(releaseInput), {
+    code: 'COUPON_EVENT_CONFLICT',
+  });
+});
+
+test('binds the immutable discount snapshot to order and checkout identity', async () => {
+  const { coupons, store } = moduleWith();
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  assert.equal(snapshot.orderId, 'order-1');
+  assert.equal(snapshot.checkoutSnapshotId, 'checkout-snapshot-1');
+  await coupons.reserve({
+    eventId: 'event-order-bound',
+    reservationId: 'reservation-order-bound',
+    snapshot,
+  });
+
+  await assert.rejects(
+    coupons.redeem({
+      eventId: 'event-order-swap',
+      reservationId: 'reservation-order-bound',
+      orderSnapshot: {
+        ...snapshot,
+        orderId: 'order-2',
+        checkoutSnapshotId: 'checkout-snapshot-2',
+      },
+    }),
+    { code: 'COUPON_SNAPSHOT_MISMATCH' },
+  );
+  assert.equal(store.calls.redeemReservation, 0);
+
+  for (const missingField of ['orderId', 'checkoutSnapshotId']) {
+    const order = orderInput();
+    delete order[missingField];
+    await assert.rejects(
+      coupons.quote({ couponId: 'coupon-1', customerId: 'customer-2', order }),
+      { code: 'COUPON_INVALID_INPUT' },
+    );
+  }
+});
+
+test('rejects malformed Adapter returns for policy and reservation writes', async () => {
+  const draftStore = createStore({
+    corruptReturns: {
+      createCoupon: (record) => ({ ...record, couponId: 'coupon-wrong', state: 'active' }),
+    },
+  });
+  const draftModule = moduleWith(draftStore).coupons;
+  await assert.rejects(
+    draftModule.createDraft({
+      eventId: 'event-bad-draft',
+      couponId: 'coupon-1',
+      code: 'BAD',
+      discount: { type: 'fixed', amount: 100 },
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(draftStore.inspectCoupon('coupon-1'), undefined);
+
+  const { coupons, store } = moduleWith();
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  store.setCorruptReturn('createReservation', (record) => ({
+    ...record,
+    usageEffect: { ...record.usageEffect, reservedDelta: 2 },
+  }));
+  await assert.rejects(
+    coupons.reserve({
+      eventId: 'event-bad-reservation',
+      reservationId: 'reservation-bad',
+      snapshot,
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(store.inspectReservation('reservation-bad'), undefined);
+  assert.equal(store.inspectCoupon('coupon-1').reservedCount, 0);
+});
+
+test('validates transition, redemption, and release Adapter results before commit', async () => {
+  const transition = moduleWith();
+  const draft = await transition.coupons.createDraft({
+    eventId: 'event-transition-draft',
+    couponId: 'coupon-transition',
+    code: 'TRANSITION',
+    discount: { type: 'fixed', amount: 100 },
+  });
+  transition.store.setCorruptReturn('createCoupon', (record) => ({
+    ...record,
+    state: 'paused',
+  }));
+  await assert.rejects(
+    transition.coupons.activate({
+      eventId: 'event-transition-corrupt',
+      couponId: draft.couponId,
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(transition.store.inspectCoupon(draft.couponId).state, 'draft');
+
+  const redemption = moduleWith();
+  await activeCoupon(redemption.coupons);
+  const redeemSnapshot = await quoteDefault(redemption.coupons);
+  await redemption.coupons.reserve({
+    eventId: 'event-redeem-reserve',
+    reservationId: 'reservation-redeem-corrupt',
+    snapshot: redeemSnapshot,
+  });
+  redemption.store.setCorruptReturn('redeemReservation', (record) => ({
+    ...record,
+    usageEffect: { ...record.usageEffect, redeemedDelta: 2 },
+  }));
+  await assert.rejects(
+    redemption.coupons.redeem({
+      eventId: 'event-redeem-corrupt',
+      reservationId: 'reservation-redeem-corrupt',
+      orderSnapshot: redeemSnapshot,
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(redemption.store.inspectReservation('reservation-redeem-corrupt').state, 'reserved');
+  assert.equal(redemption.store.inspectCoupon('coupon-1').redeemedCount, 0);
+
+  const release = moduleWith();
+  await activeCoupon(release.coupons);
+  const releaseSnapshot = await quoteDefault(release.coupons);
+  await release.coupons.reserve({
+    eventId: 'event-release-reserve',
+    reservationId: 'reservation-release-corrupt',
+    snapshot: releaseSnapshot,
+  });
+  release.store.setCorruptReturn('releaseReservation', (record) => ({
+    ...record,
+    releaseReason: 'checkout_cancelled',
+  }));
+  await assert.rejects(
+    release.coupons.release({
+      eventId: 'event-release-corrupt',
+      reservationId: 'reservation-release-corrupt',
+      reason: 'checkout_failed',
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+  assert.equal(release.store.inspectReservation('reservation-release-corrupt').state, 'reserved');
+  assert.equal(release.store.inspectCoupon('coupon-1').reservedCount, 1);
+});
+
+test('rejects a locked coupon returned under the wrong aggregate identity', async () => {
+  const { coupons, store } = moduleWith();
+  await activeCoupon(coupons);
+  store.mutateCoupon('coupon-1', (coupon) => ({ ...coupon, couponId: 'coupon-other' }));
+  await assert.rejects(
+    coupons.quote({
+      couponId: 'coupon-1',
+      customerId: 'customer-1',
+      order: orderInput(),
+    }),
+    { code: 'COUPON_ADAPTER_INVALID' },
+  );
+});
+
+test('preflights operation Adapter methods before claiming an event', async () => {
+  const store = createStore({ omittedMethods: ['createReservation'] });
+  const { coupons } = moduleWith(store);
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  const claimsBefore = store.calls.claimCouponEvent;
+
+  await assert.rejects(
+    coupons.reserve({
+      eventId: 'event-preflight',
+      reservationId: 'reservation-preflight',
+      snapshot,
+    }),
+    { code: 'COUPON_ADAPTER_CREATE_RESERVATION_REQUIRED' },
+  );
+  assert.equal(store.calls.claimCouponEvent, claimsBefore);
+  assert.equal(store.inspectEvent('event-preflight'), undefined);
+});
+
+test('rolls back failed reservations so the same event can retry safely', async () => {
+  const store = createStore({ failOnce: { createReservation: 1 } });
+  const { coupons } = moduleWith(store);
+  await activeCoupon(coupons);
+  const snapshot = await quoteDefault(coupons);
+  const input = {
+    eventId: 'event-rollback',
+    reservationId: 'reservation-rollback',
+    snapshot,
+  };
+
+  await assert.rejects(coupons.reserve(input), { code: 'FORCED_ADAPTER_FAILURE' });
+  assert.equal(store.inspectReservation('reservation-rollback'), undefined);
+  assert.equal(store.inspectCoupon('coupon-1').reservedCount, 0);
+  assert.equal(store.inspectEvent('event-rollback'), undefined);
+
+  const retried = await coupons.reserve(input);
+  assert.equal(retried.state, 'reserved');
+  assert.equal(store.inspectCoupon('coupon-1').reservedCount, 1);
+  assert.equal(store.inspectEvent('event-rollback').result.state, 'reserved');
 });
