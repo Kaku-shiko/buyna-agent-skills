@@ -51,6 +51,22 @@ test('rejects stale authentication success and failure attempts before changing 
   assert.equal(auth.snapshot().attemptId, 'attempt_current');
 });
 
+test('canonicalizes attempt identity once for begin, success, and stale comparison', () => {
+  const auth = createFixture();
+  const started = auth.beginAuthentication({ attemptId: '  attempt_1  ' });
+  assert.equal(started.attemptId, 'attempt_1');
+
+  assert.throws(
+    () => auth.rejectAuthentication({ attemptId: '  attempt_other  ' }),
+    (error) => error.code === 'AUTH_STALE_ATTEMPT',
+  );
+  const accepted = auth.acceptAuthentication({
+    attemptId: '  attempt_1  ',
+    identity: identity(),
+  });
+  assert.equal(accepted.state, 'authenticated');
+});
+
 test('returns a rejected authentication attempt to anonymous with a stable error', () => {
   const auth = createFixture();
   auth.beginAuthentication({ attemptId: 'attempt_1' });
@@ -157,6 +173,28 @@ test('rejects a newly accepted identity that is already expired at the request c
   );
   assert.equal(auth.snapshot().state, 'authenticating');
   assert.equal(auth.snapshot().identity, null);
+});
+
+test('samples one acceptance time so an advancing clock cannot authenticate an expired snapshot', () => {
+  const clockValues = [
+    '2026-08-26T00:00:00.000Z',
+    '2026-08-26T00:00:00.500Z',
+    '2026-08-26T00:00:01.500Z',
+    '2026-08-26T00:00:02.000Z',
+  ];
+  let clockReads = 0;
+  const auth = createAuthSession({
+    clock: () => new Date(clockValues[clockReads++]),
+  });
+  auth.beginAuthentication({ attemptId: 'attempt_1' });
+  const accepted = auth.acceptAuthentication({
+    attemptId: 'attempt_1',
+    identity: identity({ expiresAt: '2026-08-26T00:00:02.000Z' }),
+  });
+
+  assert.equal(clockReads, 3);
+  assert.equal(accepted.updatedAt, '2026-08-26T00:00:01.500Z');
+  assert.ok(new Date(accepted.identity.expiresAt) > new Date(accepted.updatedAt));
 });
 
 test('exports immutable state and transition contracts used by consumers', () => {

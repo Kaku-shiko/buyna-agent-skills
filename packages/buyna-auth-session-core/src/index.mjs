@@ -130,7 +130,7 @@ export function createAuthSession({ clock, initialIdentity } = {}) {
     return deepFreeze(structuredClone(current));
   }
 
-  function transition(nextState, changes = {}) {
+  function transition(nextState, changes = {}, transitionAt = timestamp()) {
     if (!AUTH_SESSION_TRANSITIONS[current.state]?.includes(nextState)) {
       fail('AUTH_INVALID_TRANSITION');
     }
@@ -138,13 +138,15 @@ export function createAuthSession({ clock, initialIdentity } = {}) {
       ...current,
       ...changes,
       state: nextState,
-      updatedAt: timestamp(),
+      updatedAt: transitionAt,
     };
     return snapshot();
   }
 
   function assertCurrentAttempt(attemptId) {
-    if (attemptId !== current.attemptId) fail('AUTH_STALE_ATTEMPT');
+    const normalizedAttemptId = requiredText(attemptId, 'AUTH_ATTEMPT_ID_REQUIRED');
+    if (normalizedAttemptId !== current.attemptId) fail('AUTH_STALE_ATTEMPT');
+    return normalizedAttemptId;
   }
 
   function beginAuthentication({ attemptId } = {}) {
@@ -159,14 +161,15 @@ export function createAuthSession({ clock, initialIdentity } = {}) {
   function acceptAuthentication({ attemptId, identity } = {}) {
     assertCurrentAttempt(attemptId);
     const normalized = normalizeIdentity(identity);
-    if (new Date(normalized.expiresAt).valueOf() <= new Date(timestamp()).valueOf()) {
+    const acceptedAt = timestamp();
+    if (new Date(normalized.expiresAt).valueOf() <= new Date(acceptedAt).valueOf()) {
       fail('AUTH_IDENTITY_EXPIRED');
     }
     return transition(AUTH_SESSION_STATES.AUTHENTICATED, {
       attemptId: null,
       identity: normalized,
       errorCode: null,
-    });
+    }, acceptedAt);
   }
 
   function rejectAuthentication({ attemptId, code } = {}) {
@@ -230,13 +233,13 @@ export function createAuthSession({ clock, initialIdentity } = {}) {
 
   function requireAuthorization({ permissions } = {}) {
     const required = requiredPermissions(permissions);
-    if (
-      current.state === AUTH_SESSION_STATES.AUTHENTICATED
-      && new Date(current.identity.expiresAt).valueOf() <= new Date(timestamp()).valueOf()
-    ) {
-      transition(AUTH_SESSION_STATES.EXPIRED, {
-        errorCode: 'AUTH_SESSION_EXPIRED',
-      });
+    if (current.state === AUTH_SESSION_STATES.AUTHENTICATED) {
+      const authorizationAt = timestamp();
+      if (new Date(current.identity.expiresAt).valueOf() <= new Date(authorizationAt).valueOf()) {
+        transition(AUTH_SESSION_STATES.EXPIRED, {
+          errorCode: 'AUTH_SESSION_EXPIRED',
+        }, authorizationAt);
+      }
     }
 
     if (current.state === AUTH_SESSION_STATES.EXPIRED) {
