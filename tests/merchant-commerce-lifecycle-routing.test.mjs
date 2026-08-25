@@ -105,48 +105,16 @@ const deliveryFor = (gate, capabilities, paymentArchitecture) => ({
 }[gate]);
 
 function stateAt(currentGate, capabilities, workPackageGates = []) {
+  const state=workflowAtGate(currentGate, capabilities);
   if (workPackageGates.length) {
     return authorizeWorkPackage({
-      state: workflowAtGate(currentGate, capabilities),
+      state,
       gates: workPackageGates,
       scope: "approved lifecycle route test",
       authorizedBy: "user",
       now: "2026-08-26T00:00:00.000Z",
     }).state;
   }
-  const currentIndex = gates.indexOf(currentGate);
-  const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
-  const dashboardSlices = capabilities.requiresDashboard ? ["orders"] : [];
-  const configuration = { capabilities, dashboardSlices };
-  if (dashboardSlices.length) configuration.dashboardSliceApproval = {
-    slices: [...dashboardSlices], approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
-    authorizationEvidence: {
-      source: "workflow_transition", event: "dashboard_slices_approved", slices: [...dashboardSlices],
-      approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
-    },
-  };
-  if (paymentArchitecture) configuration.paymentArchitecture = paymentArchitecture;
-  if (workPackageGates.length) {
-    configuration.workPackage = {
-      gates: workPackageGates, scope: "approved lifecycle route test", authorizedBy: "user",
-      authorizedAt: "2026-08-26T00:00:00.000Z", completedGates: [],
-      authorizationEvidence: {
-        source: "workflow_transition", event: "work_package_authorized", gates: [...workPackageGates],
-        scope: "approved lifecycle route test", authorizedBy: "user", authorizedAt: "2026-08-26T00:00:00.000Z",
-      },
-    };
-  }
-  const state = {
-    projectId: "route-test",
-    currentGate,
-    configuration,
-    gates: Object.fromEntries(gates.map((gate, index) => [
-      gate,
-      index < currentIndex
-        ? approved(deliveryFor(gate, capabilities, paymentArchitecture))
-        : { status: index === currentIndex ? "ready" : "locked" },
-    ])),
-  };
   return state;
 }
 
@@ -254,7 +222,7 @@ test("legacy mixed booking and payment evidence without cart does not infer prod
   assert.ok(!route.fixedModules.includes("buyna-inventory-core"));
 });
 
-test("persisted ambiguous legacy mixed state reports an explicit product migration path", () => {
+test("core-created mixed state persists explicit product flags without a migration detour", () => {
   const legacy = {
     siteType: "mixed",
     requiresDashboard: true,
@@ -269,10 +237,9 @@ test("persisted ambiguous legacy mixed state reports an explicit product migrati
     requestedSlice: "dashboard_integration",
   });
 
-  assert.deepEqual(route.capabilityMigration, {
-    code: "EXPLICIT_PRODUCT_CAPABILITY_MIGRATION_REQUIRED",
-    action: "return_to_customer_intake_before_product_work",
-  });
+  assert.equal(route.capabilityMigration, undefined);
+  assert.equal(route.action, "execute");
+  assert.equal(stateAt("dashboard_integration", legacy).configuration.capabilities.requiresCatalog, false);
   assert.ok(!route.skills.includes("buyai-product-merchant-backend"));
 });
 

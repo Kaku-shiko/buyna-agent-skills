@@ -317,7 +317,9 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
   const authorizationBearing = Boolean(
     rawState?.configuration?.workPackage
-    || rawState?.activeRepair,
+    || rawState?.activeRepair
+    || rawState?.configuration?.dashboardSliceApproval
+    || (Array.isArray(rawState?.configuration?.dashboardSlices)&&rawState.configuration.dashboardSlices.length>0),
   );
   if (authorizationBearing && !isTrustedWorkflowState(rawState)) {
     let capabilities;

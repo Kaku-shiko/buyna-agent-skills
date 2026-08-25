@@ -12,6 +12,9 @@ import {
   createUploadQueue,
 } from '../packages/buyna-merchant-file-core/src/file-core.mjs';
 import { planWebsiteRoute } from '../skills/buyna-website-builder/scripts/route-builder.mjs';
+import {
+  approveGate,createWorkflow,recordDelivery,requestApproval,setApprovedDashboardSlices,startGate,
+} from '../packages/buyna-workflow-state-core/src/index.mjs';
 
 const projectId = 'project_alpha';
 const sellerId = 'seller_alpha';
@@ -35,49 +38,17 @@ const capabilities = Object.freeze({
 });
 
 function dashboardRouteState() {
-  const approved = (delivery) => ({
-    status: 'approved',
-    delivery,
-    approvedBy: 'user',
-    approvedAt: '2026-08-26T00:00:00.000Z',
-  });
-  return {
-    projectId: 'supporting-integration',
-    currentGate: 'dashboard_integration',
-    configuration: {
-      capabilities,
-      dashboardSlices: ['products'],
-      dashboardSliceApproval: {
-        slices: ['products'],
-        approvedBy: 'user',
-        approvedAt: '2026-08-26T00:00:00.000Z',
-        authorizationEvidence: {
-          source: 'workflow_transition',
-          event: 'dashboard_slices_approved',
-          slices: ['products'],
-          approvedBy: 'user',
-          approvedAt: '2026-08-26T00:00:00.000Z',
-        },
-      },
-    },
-    gates: {
-      customer_intake: approved({ record: 'intake.json', capabilities }),
-      design_and_structure: approved({
-        designRecord: 'design.json',
-        pageStructure: 'pages.json',
-        boardStatus: 'delivered',
-      }),
-      frontend_code: approved({
-        deliveredFiles: ['app.tsx'],
-        verification: ['PASS'],
-        interfaceContract: 'contract.json',
-      }),
-      dashboard_integration: { status: 'ready' },
-      checkout_payment: { status: 'locked' },
-      testing_upload_gate: { status: 'locked' },
-      aws_release: { status: 'locked' },
-    },
+  const approve = (state,gate,delivery) => {
+    state=startGate({state,gate}).state;
+    state=recordDelivery({state,gate,delivery}).state;
+    state=requestApproval({state,gate}).state;
+    return approveGate({state,gate,approvedBy:'user'}).state;
   };
+  let state=createWorkflow({projectId:'supporting-integration'});
+  state=approve(state,'customer_intake',{record:'intake.json',capabilities});
+  state=approve(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  state=setApprovedDashboardSlices({state,slices:['products'],approvedBy:'user'}).state;
+  return approve(state,'frontend_code',{deliveredFiles:['app.tsx'],verification:['PASS'],interfaceContract:'contract.json'});
 }
 
 function assertProductsRouteContract(route) {

@@ -14,7 +14,7 @@ const dashboardSliceValues=Object.freeze([
   'dashboard','merchant_identity','products','categories','services','media','page_editor',
   'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings',
 ]);
-import {isTrustedWorkflowState,trustWorkflowState} from './workflow-provenance.mjs';
+import {isTrustedWorkflowState,issueWorkflowTransition,trustWorkflowState} from './workflow-provenance.mjs';
 export {isTrustedWorkflowState} from './workflow-provenance.mjs';
 function requireTrustedWorkflowState(state){
   if(!isTrustedWorkflowState(state))throw new Error('WORKFLOW_STATE_PROVENANCE_UNTRUSTED');
@@ -121,13 +121,16 @@ function gateState(state,gate){
   if(state.currentGate!==gate)throw new Error('GATE_NOT_CURRENT');
   return state.gates[gate];
 }
-function result(state,event){return{state:trustWorkflowState(state),event}}
+function result(parentState,state,event,events){
+  trustWorkflowState(state);
+  return issueWorkflowTransition({parentState,state,event,events});
+}
 export function setInteractionMode({state,mode,selectedBy='user',now=new Date().toISOString()}={}){
   const next=copyState(state),selected=normalizeInteractionMode(mode),actor=requiredText(selectedBy,'MODE_SELECTOR_REQUIRED');
   next.configuration??={};
   const previous=next.configuration.interactionMode??'team';
   next.configuration.interactionMode=selected;next.configuration.interactionModeSelectedBy=actor;next.configuration.interactionModeSelectedAt=now;next.updatedAt=now;
-  return result(next,{event:'interaction_mode_selected',mode:selected,previousMode:previous,selectedBy:actor,at:now});
+  return result(state,next,{event:'interaction_mode_selected',mode:selected,previousMode:previous,selectedBy:actor,at:now});
 }
 function unlockFollowing(state,gate){
   const following=gateOrder[gateOrder.indexOf(gate)+1];
@@ -193,7 +196,7 @@ export function startGate({state,gate,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate);
   if(current.status!=='ready')throw new Error('GATE_NOT_READY');
   current.status='in_progress';current.startedAt=now;next.updatedAt=now;
-  return result(next,{event:'gate_started',gate,at:now});
+  return result(state,next,{event:'gate_started',gate,at:now});
 }
 
 export function recordDelivery({state,gate,delivery,now=new Date().toISOString()}={}){
@@ -206,7 +209,7 @@ export function recordDelivery({state,gate,delivery,now=new Date().toISOString()
     selectPaymentArchitecture(next,next.configuration.capabilities,delivery.paymentArchitecture);
   }
   current.deliveryRecordedAt=now;next.updatedAt=now;
-  return result(next,{event:'delivery_recorded',gate,at:now});
+  return result(state,next,{event:'delivery_recorded',gate,at:now});
 }
 
 export function requestApproval({state,gate,now=new Date().toISOString()}={}){
@@ -215,7 +218,7 @@ export function requestApproval({state,gate,now=new Date().toISOString()}={}){
   if(!current.delivery)throw new Error('DELIVERY_REQUIRED');
   validateDeliveryEvidence(next,gate,current.delivery);
   current.status='waiting_for_approval';current.approvalRequestedAt=now;next.updatedAt=now;
-  return result(next,{event:'approval_requested',gate,at:now});
+  return result(state,next,{event:'approval_requested',gate,at:now});
 }
 
 export function approveGate({state,gate,approvedBy,now=new Date().toISOString()}={}){
@@ -225,7 +228,7 @@ export function approveGate({state,gate,approvedBy,now=new Date().toISOString()}
   current.status='approved';current.approvedBy=actor;current.approvedAt=now;
   unlockFollowing(next,gate);
   next.updatedAt=now;
-  return result(next,{event:'gate_approved',gate,approvedBy:actor,at:now});
+  return result(state,next,{event:'gate_approved',gate,approvedBy:actor,at:now});
 }
 
 export function setApprovedDashboardSlices({state,slices,approvedBy,now=new Date().toISOString()}={}){
@@ -248,7 +251,7 @@ export function setApprovedDashboardSlices({state,slices,approvedBy,now=new Date
     },
   };
   next.updatedAt=now;
-  return result(next,{event:'dashboard_slices_approved',slices:[...selected],approvedBy:actor,at:now});
+  return result(state,next,{event:'dashboard_slices_approved',slices:[...selected],approvedBy:actor,at:now});
 }
 
 export function authorizeWorkPackage({state,gates,authorizedBy,scope,now=new Date().toISOString()}={}){
@@ -272,7 +275,7 @@ export function authorizeWorkPackage({state,gates,authorizedBy,scope,now=new Dat
     },
   };
   next.updatedAt=now;
-  return result(next,{event:'work_package_authorized',gates:selected,authorizedBy:actor,at:now});
+  return result(state,next,{event:'work_package_authorized',gates:selected,authorizedBy:actor,at:now});
 }
 
 export function completeAuthorizedGate({state,gate,now=new Date().toISOString()}={}){
@@ -289,7 +292,7 @@ export function completeAuthorizedGate({state,gate,now=new Date().toISOString()}
   workPackage.completedGates=[...new Set([...(workPackage.completedGates??[]),gate])];
   unlockFollowing(next,gate);
   next.updatedAt=now;
-  return result(next,{event:'gate_completed_from_work_package',gate,authorizedBy:workPackage.authorizedBy,at:now});
+  return result(state,next,{event:'gate_completed_from_work_package',gate,authorizedBy:workPackage.authorizedBy,at:now});
 }
 
 export function markNotApplicable({state,gate,reason,now=new Date().toISOString()}={}){
@@ -299,7 +302,7 @@ export function markNotApplicable({state,gate,reason,now=new Date().toISOString(
   current.status='not_applicable';current.reason=requiredText(reason,'NOT_APPLICABLE_REASON_REQUIRED');current.completedAt=now;
   current.notApplicableEvidence={source:'native_transition',event:'gate_not_applicable',recordedAt:now};
   unlockFollowing(next,gate);next.updatedAt=now;
-  return result(next,{event:'gate_not_applicable',gate,reason:current.reason,at:now});
+  return result(state,next,{event:'gate_not_applicable',gate,reason:current.reason,at:now});
 }
 
 function validateNotApplicableCapability(state,gate){
@@ -514,7 +517,8 @@ export function importVerifiedHistory({state,requestedGate,imports,importedBy,no
   next.updatedAt=now;
   const summary={event:'verified_history_imported',gates:imports.map(item=>item.gate),requestedGate,importedBy:actor,at:now};
   events.push(summary);
-  return{state:trustWorkflowState(next),event:summary,events};
+  trustWorkflowState(next);
+  return issueWorkflowTransition({parentState:state,state:next,event:summary,events});
 }
 
 export function openRepairSlice({state,gate,scope,authorizedBy,now=new Date().toISOString()}={}){
@@ -538,7 +542,7 @@ export function openRepairSlice({state,gate,scope,authorizedBy,now=new Date().to
     },
   };
   next.updatedAt=now;
-  return result(next,{event:'repair_slice_opened',gate,authorizedBy:actor,at:now});
+  return result(state,next,{event:'repair_slice_opened',gate,authorizedBy:actor,at:now});
 }
 
 export function completeRepairSlice({state,delivery,completedBy,now=new Date().toISOString()}={}){
@@ -550,26 +554,26 @@ export function completeRepairSlice({state,delivery,completedBy,now=new Date().t
   const actor=requiredText(completedBy,'REPAIR_COMPLETER_REQUIRED');
   repair.status='complete';repair.delivery=structuredClone(delivery);
   repair.completedBy=actor;repair.completedAt=now;next.updatedAt=now;
-  return result(next,{event:'repair_slice_completed',gate:repair.gate,completedBy:actor,at:now});
+  return result(state,next,{event:'repair_slice_completed',gate:repair.gate,completedBy:actor,at:now});
 }
 
 export function rejectGate({state,gate,feedback,rejectedBy,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate);
   if(current.status!=='waiting_for_approval')throw new Error('GATE_NOT_WAITING_FOR_APPROVAL');
   current.status='in_progress';current.rejection={feedback:requiredText(feedback,'REJECTION_FEEDBACK_REQUIRED'),rejectedBy:requiredText(rejectedBy,'REJECTOR_REQUIRED'),at:now};
-  next.updatedAt=now;return result(next,{event:'gate_rejected',gate,at:now});
+  next.updatedAt=now;return result(state,next,{event:'gate_rejected',gate,at:now});
 }
 
 export function blockGate({state,gate,code,message,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate);
   if(!['ready','in_progress','waiting_for_approval'].includes(current.status))throw new Error('GATE_CANNOT_BE_BLOCKED');
   current.previousStatus=current.status;current.status='blocked';current.blocker={code:requiredText(code,'BLOCKER_CODE_REQUIRED'),message:requiredText(message,'BLOCKER_MESSAGE_REQUIRED'),at:now};
-  next.updatedAt=now;return result(next,{event:'gate_blocked',gate,code:current.blocker.code,at:now});
+  next.updatedAt=now;return result(state,next,{event:'gate_blocked',gate,code:current.blocker.code,at:now});
 }
 
 export function resumeGate({state,gate,now=new Date().toISOString()}={}){
   const next=copyState(state),current=gateState(next,gate);
   if(current.status!=='blocked')throw new Error('GATE_NOT_BLOCKED');
   current.status=current.previousStatus||'in_progress';delete current.previousStatus;delete current.blocker;
-  next.updatedAt=now;return result(next,{event:'gate_resumed',gate,at:now});
+  next.updatedAt=now;return result(state,next,{event:'gate_resumed',gate,at:now});
 }

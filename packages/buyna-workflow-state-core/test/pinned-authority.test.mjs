@@ -21,9 +21,10 @@ function signature(payload){return sign(null,encode(payload),privateKey).toStrin
 function same(left,right){return JSON.stringify(canonical(left))===JSON.stringify(canonical(right))}
 
 function authoritativeTransport(){
-  let latestHead=null;
+  let latestHead=null,failAfterCommit=false;
   return{
     get latestHead(){return latestHead},
+    failAfterNextCommit(){failAfterCommit=true},
     async issueJournalReceipt({record}){
       const payload={type:'workflow_journal_receipt',keyId,recordDigest:hash(record)};
       return{keyId,recordDigest:payload.recordDigest,signature:signature(payload)};
@@ -35,6 +36,7 @@ function authoritativeTransport(){
     async commitLatestHead({projectId,previousHead,nextHead}){
       const accepted=same(previousHead,latestHead);
       if(accepted)latestHead=structuredClone(nextHead);
+      if(accepted&&failAfterCommit){failAfterCommit=false;throw new Error('simulated acknowledgement loss')}
       const committedAt='2026-08-26T12:00:00.000Z';
       const payload={type:'workflow_head_commit',keyId,projectId,previousHead,nextHead,accepted,committedAt};
       return{keyId,projectId,previousHead:structuredClone(previousHead),nextHead:structuredClone(nextHead),accepted,committedAt,signature:signature(payload)};
@@ -63,6 +65,25 @@ test('pinned authority loader ignores caller paths and reads server-owned config
   }finally{await rm(root,{recursive:true,force:true})}
 });
 
+test('authoritative head recovers an immutable candidate after CAS acknowledgement loss',async()=>{
+  const context=await setup();
+  try{
+    const store=createVerifiedWorkflowStore(context);
+    await store.initializeWorkflow({state:createWorkflow({projectId:'recovery-shop'})});
+    const loaded=await store.loadVerifiedWorkflow();
+    const transition=startGate({state:loaded,gate:'customer_intake'});
+    context.transport.failAfterNextCommit();
+    await assert.rejects(store.saveWorkflow({loadedState:loaded,transition}),/WORKFLOW_MONOTONIC_COMMIT_RESPONSE_INVALID/);
+
+    const recovered=await createVerifiedWorkflowStore(context).loadVerifiedWorkflow();
+    assert.equal(recovered.gates.customer_intake.status,'in_progress');
+    const pointer=JSON.parse(await readFile(path.join(context.projectRoot,'workflow','current.json'),'utf8'));
+    assert.equal(pointer.headDigest,context.transport.latestHead.headDigest);
+    const candidate=path.join(context.projectRoot,'workflow','revisions',pointer.candidateId,'workflow-state.json');
+    assert.equal(JSON.parse(await readFile(candidate,'utf8')).stateRevision,2);
+  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
+});
+
 test('store requires loader-branded pinned authority and rejects arbitrary callback trust',async()=>{
   assert.equal(loadPinnedWorkflowAuthority.length,0);
   const projectRoot=await mkdtemp(path.join(tmpdir(),'buyna-unpinned-authority-'));
@@ -83,23 +104,25 @@ test('store requires loader-branded pinned authority and rejects arbitrary callb
   }finally{await rm(projectRoot,{recursive:true,force:true})}
 });
 
-test('signed CAS head survives process boundaries and rejects full local rollback',async()=>{
+test('signed CAS head survives process boundaries and repairs a rolled-back local pointer',async()=>{
   const context=await setup();
   try{
     const store=createVerifiedWorkflowStore(context);
     await store.initializeWorkflow({state:createWorkflow({projectId:'pinned-shop'})});
-    const oldState=await readFile(path.join(context.projectRoot,'workflow','workflow-state.json'),'utf8');
-    const oldJournal=await readFile(path.join(context.projectRoot,'workflow','history','workflow-events.jsonl'),'utf8');
+    const pointerPath=path.join(context.projectRoot,'workflow','current.json');
+    const oldPointer=await readFile(pointerPath,'utf8');
 
     const processTwo=createVerifiedWorkflowStore(context);
     const loaded=await processTwo.loadVerifiedWorkflow();
     await processTwo.saveWorkflow({loadedState:loaded,transition:startGate({state:loaded,gate:'customer_intake'})});
     assert.equal(context.transport.latestHead.revision,2);
 
-    await writeFile(path.join(context.projectRoot,'workflow','workflow-state.json'),oldState);
-    await writeFile(path.join(context.projectRoot,'workflow','history','workflow-events.jsonl'),oldJournal);
+    await writeFile(pointerPath,oldPointer);
     const processThree=createVerifiedWorkflowStore(context);
-    await assert.rejects(processThree.loadVerifiedWorkflow(),/WORKFLOW_MONOTONIC_HEAD_MISMATCH/);
+    const recovered=await processThree.loadVerifiedWorkflow();
+    assert.equal(recovered.gates.customer_intake.status,'in_progress');
+    const repairedPointer=JSON.parse(await readFile(pointerPath,'utf8'));
+    assert.equal(repairedPointer.candidateId,context.transport.latestHead.candidateId);
   }finally{await rm(context.projectRoot,{recursive:true,force:true})}
 });
 

@@ -4,8 +4,9 @@
 
 ## Storage
 
-- Snapshot: `workflow/workflow-state.json`
-- Append-only events: `workflow/history/workflow-events.jsonl`
+- Atomic current pointer: `workflow/current.json`
+- Immutable candidates: `workflow/revisions/<revision>-<nonce>/workflow-state.json`
+  plus that candidate's `workflow-events.jsonl`
 - Delivery evidence: `workflow/records/`
 
 During trusted server initialization, call `loadPinnedWorkflowAuthority`; it
@@ -19,6 +20,10 @@ accepted from a route request, AI call, or individual load. Initialize only a
 fresh `createWorkflow` state. Every persisted resume calls
 `loadVerifiedWorkflow()`; every following persisted transition calls
 `saveWorkflow({loadedState, transition})` with that exact loaded state.
+The transition must be returned directly by a workflow-core API. Its opaque,
+single-use proof binds the exact verified parent fingerprint, resulting state
+digest, and canonical event batch. Never reconstruct `{state, event}` or edit a
+returned event before saving it.
 
 The snapshot records state revision, state digest, and journal head. Every JSONL
 journal record contains sequence, event ID, previous event ID/hash, event
@@ -29,6 +34,15 @@ and disagreement with the signed external monotonic head before it restores
 opaque runtime provenance. Save performs a conditional head commit (CAS) from
 the verified prior revision/head to the new revision/head digest and verifies
 the signed acknowledgement locally.
+
+Save consumes the loaded-state permit and transition proof before any I/O. It
+writes a unique revision-plus-nonce staging directory, promotes it as an
+immutable candidate, wins the signed external CAS, and only then atomically
+switches `current.json`. Concurrent writers cannot share a permit or candidate;
+only the CAS winner can move the pointer. On every resume the signed authority
+head selects the candidate. If the process stopped after CAS but before the
+pointer switch, verified load repairs the pointer to that exact candidate;
+stale and losing candidates are never served.
 
 The authority transport has three effects only: request a signed journal
 receipt, read the signed latest head using the supplied fresh nonce, and

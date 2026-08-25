@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import {createHash,generateKeyPairSync,sign} from 'node:crypto';
-import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
+import {mkdtemp,readFile,readdir,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import * as workflowCore from '../src/index.mjs';
-const {createWorkflow,isTrustedWorkflowState,recordDelivery,startGate}=workflowCore;
+const {createWorkflow,isTrustedWorkflowState,recordDelivery,setInteractionMode,startGate}=workflowCore;
 import {createVerifiedWorkflowStore,loadPinnedWorkflowAuthority} from '../src/file-store.mjs';
 
 const keyId='verified-file-store-key';
@@ -56,7 +56,13 @@ async function fixture(){
   const projectRoot=await mkdtemp(path.join(tmpdir(),'buyna-verified-workflow-'));
   const storeArgs=await storeContext(projectRoot),store=createVerifiedWorkflowStore(storeArgs);
   await store.initializeWorkflow({state:createWorkflow({projectId:'verified-store',now:timestamp}),now:timestamp});
-  return{...storeArgs,store,storeArgs,statePath:path.join(projectRoot,'workflow','workflow-state.json'),historyPath:path.join(projectRoot,'workflow','history','workflow-events.jsonl')};
+  return{...storeArgs,store,storeArgs};
+}
+
+async function currentFiles(context){
+  const pointer=JSON.parse(await readFile(path.join(context.projectRoot,'workflow','current.json'),'utf8'));
+  const root=path.join(context.projectRoot,'workflow','revisions',pointer.candidateId);
+  return{statePath:path.join(root,'workflow-state.json'),historyPath:path.join(root,'workflow-events.jsonl')};
 }
 
 async function journal(historyPath){
@@ -71,7 +77,8 @@ test('arbitrary per-load verifier callback is not a public provenance API',()=>{
 test('trusted store saves, crosses serialization, verifies, and resumes the next transition',async()=>{
   const context=await fixture();
   try{
-    const persisted=JSON.parse(await readFile(context.statePath,'utf8'));
+    let files=await currentFiles(context);
+    const persisted=JSON.parse(await readFile(files.statePath,'utf8'));
     assert.equal(isTrustedWorkflowState(persisted.state),false);
     assert.throws(()=>startGate({state:persisted.state,gate:'customer_intake'}),/WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
 
@@ -89,7 +96,8 @@ test('trusted store saves, crosses serialization, verifies, and resumes the next
       capabilities:{siteType:'content',requiresDashboard:false,requiresCart:false,requiresCheckout:false,requiresPayment:false,requiresBooking:false},
     }}));
 
-    const records=await journal(context.historyPath);
+    files=await currentFiles(context);
+    const records=await journal(files.historyPath);
     assert.equal(records.length,2);
     for(const [index,record] of records.entries()){
       assert.deepEqual(Object.keys(record).sort(),[
@@ -102,7 +110,7 @@ test('trusted store saves, crosses serialization, verifies, and resumes the next
       assert.equal(record.previousEventId,index===0?null:records[index-1].eventId);
       assert.equal(record.previousEventHash,index===0?null:records[index-1].eventHash);
     }
-    const snapshot=JSON.parse(await readFile(context.statePath,'utf8'));
+    const snapshot=JSON.parse(await readFile(files.statePath,'utf8'));
     assert.equal(snapshot.stateRevision,2);
     assert.equal(snapshot.stateDigest,records.at(-1).stateDigest);
     assert.equal(snapshot.journalHead.eventId,records.at(-1).eventId);
@@ -121,6 +129,74 @@ test('save requires the exact state returned by a verified load',async()=>{
   }finally{await rm(context.projectRoot,{recursive:true,force:true})}
 });
 
+test('save accepts only the opaque core transition proof bound to loaded parent, result, and event',async()=>{
+  const context=await fixture();
+  try{
+    const loaded=await context.store.loadVerifiedWorkflow();
+    const legitimate=startGate({state:loaded,gate:'customer_intake',now:'2026-08-26T10:01:00.000Z'});
+    assert.ok(legitimate.transitionProof);
+    await assert.rejects(context.store.saveWorkflow({
+      loadedState:loaded,
+      transition:{state:legitimate.state,event:legitimate.event,transitionProof:{}},
+    }),/WORKFLOW_TRANSITION_PROOF_INVALID/);
+
+    const reloaded=await context.store.loadVerifiedWorkflow();
+    const valid=startGate({state:reloaded,gate:'customer_intake',now:'2026-08-26T10:01:00.000Z'});
+    await assert.rejects(context.store.saveWorkflow({
+      loadedState:reloaded,
+      transition:{...valid,event:{...valid.event,event:'forged_event'}},
+    }),/WORKFLOW_TRANSITION_PROOF_INVALID/);
+
+    const finalLoad=await context.store.loadVerifiedWorkflow();
+    const finalTransition=startGate({state:finalLoad,gate:'customer_intake',now:'2026-08-26T10:01:00.000Z'});
+    await context.store.saveWorkflow({loadedState:finalLoad,transition:finalTransition});
+    await assert.rejects(
+      context.store.saveWorkflow({loadedState:finalLoad,transition:finalTransition}),
+      /WORKFLOW_PERSISTED_STATE_NOT_VERIFIED|WORKFLOW_TRANSITION_PROOF_INVALID/,
+    );
+  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
+});
+
+test('concurrent saves consume one loaded permit before I/O and only one can publish',async()=>{
+  const context=await fixture();
+  try{
+    const loaded=await context.store.loadVerifiedWorkflow();
+    const transition=startGate({state:loaded,gate:'customer_intake',now:'2026-08-26T10:01:00.000Z'});
+    const outcomes=await Promise.allSettled([
+      context.store.saveWorkflow({loadedState:loaded,transition}),
+      context.store.saveWorkflow({loadedState:loaded,transition}),
+    ]);
+    assert.equal(outcomes.filter(item=>item.status==='fulfilled').length,1);
+    assert.equal(outcomes.filter(item=>item.status==='rejected').length,1);
+    assert.match(String(outcomes.find(item=>item.status==='rejected').reason),/WORKFLOW_PERSISTED_STATE_NOT_VERIFIED|WORKFLOW_TRANSITION_PROOF_INVALID/);
+    const resumed=await createVerifiedWorkflowStore(context.storeArgs).loadVerifiedWorkflow();
+    assert.equal(resumed.gates.customer_intake.status,'in_progress');
+  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
+});
+
+test('independent concurrent writers stage unique candidates and signed CAS publishes exactly one',async()=>{
+  const context=await fixture();
+  try{
+    const first=createVerifiedWorkflowStore(context.storeArgs),second=createVerifiedWorkflowStore(context.storeArgs);
+    const [firstState,secondState]=await Promise.all([first.loadVerifiedWorkflow(),second.loadVerifiedWorkflow()]);
+    const outcomes=await Promise.allSettled([
+      first.saveWorkflow({loadedState:firstState,transition:startGate({state:firstState,gate:'customer_intake'})}),
+      second.saveWorkflow({loadedState:secondState,transition:setInteractionMode({state:secondState,mode:'developer',selectedBy:'user'})}),
+    ]);
+    assert.equal(outcomes.filter(item=>item.status==='fulfilled').length,1);
+    assert.equal(outcomes.filter(item=>item.status==='rejected').length,1);
+    assert.match(String(outcomes.find(item=>item.status==='rejected').reason),/WORKFLOW_MONOTONIC_COMMIT_CONFLICT/);
+    const pointer=JSON.parse(await readFile(path.join(context.projectRoot,'workflow','current.json'),'utf8'));
+    const candidates=await readdir(path.join(context.projectRoot,'workflow','revisions'));
+    const resumed=await createVerifiedWorkflowStore(context.storeArgs).loadVerifiedWorkflow();
+    assert.equal(pointer.revision,2);
+    assert.equal(new Set(candidates).size,candidates.length);
+    assert.equal(candidates.length,3);
+    assert.ok(candidates.includes(pointer.candidateId));
+    assert.ok(resumed.gates.customer_intake.status==='in_progress'||resumed.configuration.interactionMode==='developer');
+  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
+});
+
 test('initialization accepts only a fresh workflow state',async()=>{
   const projectRoot=await mkdtemp(path.join(tmpdir(),'buyna-invalid-initial-'));
   try{
@@ -134,28 +210,28 @@ test('initialization accepts only a fresh workflow state',async()=>{
 for(const scenario of [
   {
     name:'invalid state digest',code:/WORKFLOW_STATE_DIGEST_INVALID/,
-    mutate:async({statePath})=>{const data=JSON.parse(await readFile(statePath,'utf8'));data.state.projectId='altered';await writeFile(statePath,JSON.stringify(data));},
+    mutate:async context=>{const {statePath}=await currentFiles(context);const data=JSON.parse(await readFile(statePath,'utf8'));data.state.workflowVersion='altered';await writeFile(statePath,JSON.stringify(data));},
   },
   {
     name:'altered event contents',code:/WORKFLOW_JOURNAL_EVENT_HASH_INVALID/,
-    mutate:async({historyPath})=>{const rows=await journal(historyPath);rows[0].event.event='altered';await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
+    mutate:async context=>{const {historyPath}=await currentFiles(context);const rows=await journal(historyPath);rows[0].event.event='altered';await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
   },
   {
     name:'truncated journal',code:/WORKFLOW_JOURNAL_TRUNCATED/,
-    mutate:async({historyPath})=>{await writeFile(historyPath,'');},
+    mutate:async context=>{const {historyPath}=await currentFiles(context);await writeFile(historyPath,'');},
   },
   {
     name:'reordered journal',code:/WORKFLOW_JOURNAL_SEQUENCE_INVALID/,
     prepare:async context=>{const loaded=await context.store.loadVerifiedWorkflow();await context.store.saveWorkflow({loadedState:loaded,transition:startGate({state:loaded,gate:'customer_intake'}),now:'2026-08-26T10:01:00.000Z'});},
-    mutate:async({historyPath})=>{const rows=(await journal(historyPath)).reverse();await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
+    mutate:async context=>{const {historyPath}=await currentFiles(context);const rows=(await journal(historyPath)).reverse();await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
   },
   {
     name:'replayed event',code:/WORKFLOW_JOURNAL_REPLAY_DETECTED/,
-    mutate:async({historyPath})=>{const rows=await journal(historyPath);rows.push(rows[0]);await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
+    mutate:async context=>{const {historyPath}=await currentFiles(context);const rows=await journal(historyPath);rows.push(rows[0]);await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
   },
   {
     name:'invalid provider receipt',code:/WORKFLOW_JOURNAL_RECEIPT_INVALID/,
-    mutate:async({historyPath})=>{const rows=await journal(historyPath);rows[0].receipt.signature=createHash('sha256').update('invalid').digest('hex');await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
+    mutate:async context=>{const {historyPath}=await currentFiles(context);const rows=await journal(historyPath);rows[0].receipt.signature=createHash('sha256').update('invalid').digest('hex');await writeFile(historyPath,rows.map(JSON.stringify).join('\n')+'\n');},
   },
 ]){
   test(`verified load rejects ${scenario.name}`,async()=>{

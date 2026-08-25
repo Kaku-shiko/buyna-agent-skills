@@ -39,10 +39,6 @@ are not implemented by this decision record.
       "reason": "workflow_gate_index"
     },
     {
-      "path": "tests/merchant-commerce-lifecycle-routing.test.mjs",
-      "reason": "workflow_gate_index"
-    },
-    {
       "path": "tests/supporting-interaction-skill-contract.test.mjs",
       "reason": "generated_presentation_boundary_test"
     },

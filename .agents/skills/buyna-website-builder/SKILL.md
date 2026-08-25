@@ -52,12 +52,19 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    `createVerifiedWorkflowStore` with that pinned public verification key/key ID
    and its protected authority transport. For every persisted load or resume, call
    `loadVerifiedWorkflow()` before routing or transitioning. Save only through
-   `saveWorkflow({loadedState, transition})`. A route request, AI response, or
+   `saveWorkflow({loadedState, transition})`, passing the unchanged transition
+   and opaque single-use proof returned by the workflow core. Never reconstruct
+   `{state, event}`. The Store consumes the verified-load permit before I/O,
+   stages a unique immutable revision candidate, publishes only the signed CAS
+   winner, atomically switches its current pointer, and repairs an interrupted
+   pointer switch from the signed authority head on the next load. A route request, AI response, or
    per-load call must never supply authority configuration, a verifier, boolean,
    string, or JSON provenance marker. Transport responses cannot declare success:
    the store verifies every signed receipt, latest head, fresh nonce, and
    conditional commit acknowledgement locally. `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`
    requires an authoritative store load or a fresh in-memory core transition.
+   A resumed state with nonempty Dashboard slices or slice approval is subject
+   to the same verified-load requirement even when no work package or repair is present.
    After design/page-structure approval, persist the exact approved Dashboard
    slice list through `setApprovedDashboardSlices` only while `currentGate` is
    `frontend_code` and that gate is `ready`, before frontend start or delivery.

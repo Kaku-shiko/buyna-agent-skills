@@ -89,36 +89,31 @@ function deliveryFor(gate, capabilities) {
 }
 
 function stateAt(currentGate, capabilities, dashboardSlices = [], workPackageGates = []) {
-  const currentIndex = gates.indexOf(currentGate);
-  const configuration = { capabilities, dashboardSlices };
-  if (dashboardSlices.length) configuration.dashboardSliceApproval = {
-    slices: [...dashboardSlices], approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
-    authorizationEvidence: {
-      source: "workflow_transition", event: "dashboard_slices_approved", slices: [...dashboardSlices],
-      approvedBy: "user", approvedAt: "2026-08-26T00:00:00.000Z",
-    },
+  const approveGate = (state, gate, delivery) => {
+    state = workflowCore.startGate({ state, gate }).state;
+    state = workflowCore.recordDelivery({ state, gate, delivery }).state;
+    state = workflowCore.requestApproval({ state, gate }).state;
+    return workflowCore.approveGate({ state, gate, approvedBy: "user" }).state;
   };
-  if (capabilities.requiresPayment) configuration.paymentArchitecture = "fixed-cores";
-  if (workPackageGates.length) configuration.workPackage = {
-    gates: workPackageGates,
-    scope: "approved route test package",
-    authorizedBy: "user",
-    authorizedAt: "2026-08-26T00:00:00.000Z",
-    completedGates: [],
-    authorizationEvidence: {
-      source: "workflow_transition", event: "work_package_authorized", gates: [...workPackageGates],
-      scope: "approved route test package", authorizedBy: "user", authorizedAt: "2026-08-26T00:00:00.000Z",
-    },
-  };
-  return {
-    projectId: "supporting-route-test",
-    currentGate,
-    configuration,
-    gates: Object.fromEntries(gates.map((gate, index) => [
-      gate,
-      index < currentIndex ? approved(deliveryFor(gate, capabilities)) : { status: index === currentIndex ? "ready" : "locked" },
-    ])),
-  };
+  let state = workflowCore.createWorkflow({ projectId: "supporting-route-test" });
+  state = approveGate(state, "customer_intake", {
+    record: "intake.json", capabilities,
+    ...(capabilities.requiresPayment ? { paymentArchitecture: "fixed-cores" } : {}),
+  });
+  state = approveGate(state, "design_and_structure", deliveryFor("design_and_structure", capabilities));
+  if (dashboardSlices.length) state = workflowCore.setApprovedDashboardSlices({ state, slices: dashboardSlices, approvedBy: "user" }).state;
+  if (workPackageGates.length) state = workflowCore.authorizeWorkPackage({
+    state, gates: workPackageGates, scope: "approved route test package", authorizedBy: "user",
+  }).state;
+  if (currentGate === "frontend_code") return state;
+  state = approveGate(state, "frontend_code", deliveryFor("frontend_code", capabilities));
+  if (currentGate === "dashboard_integration") return state;
+  state = approveGate(state, "dashboard_integration", {
+    completedSlices: dashboardSlices, frontendFiles: ["dashboard.tsx"],
+    backendFiles: ["dashboard-api.mjs"], verification: ["PASS"],
+  });
+  if (currentGate === "checkout_payment") return state;
+  throw new Error("TEST_STATE_GATE_UNSUPPORTED");
 }
 
 function routeFor({ capabilities = product(), slice = "products", persisted = [slice], workPackage = [] } = {}) {
@@ -295,7 +290,7 @@ test("fabricated work-package and Dashboard slice configuration are blocked with
     capabilities, workflowState: rawSlices, requestedSlice: "dashboard_integration", dashboardSlice: "products",
   });
   assert.equal(sliceRoute.action, "blocked");
-  assert.equal(sliceRoute.reason, "DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID");
+  assert.equal(sliceRoute.reason, "WORKFLOW_STATE_PROVENANCE_UNTRUSTED");
   assertStableBoundary(sliceRoute, null, []);
 });
 
@@ -359,6 +354,31 @@ test("serialized or fully forged authorization is blocked until authoritative st
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
+});
+
+test("canonical serialized Dashboard slice approval is blocked even without work package or repair", () => {
+  const capabilities = product();
+  let state = workflowCore.createWorkflow({ projectId: "serialized-slices-only" });
+  state = workflowCore.importVerifiedHistory({
+    state,
+    requestedGate: "frontend_code",
+    imports: [
+      { gate: "customer_intake", delivery: { record: "intake.json", capabilities }, approval: { record: "intake-approval.json", approvedBy: "user", approvedAt: "2026-08-26T04:00:00.000Z", decision: "approved" } },
+      { gate: "design_and_structure", delivery: { designRecord: "design.json", pageStructure: "pages.json", boardStatus: "delivered" }, approval: { record: "design-approval.json", approvedBy: "user", approvedAt: "2026-08-26T04:01:00.000Z", decision: "approved" } },
+    ],
+    importedBy: "route-test",
+  }).state;
+  state = workflowCore.setApprovedDashboardSlices({ state, slices: ["products"], approvedBy: "user" }).state;
+  const raw = JSON.parse(JSON.stringify(state));
+  const route = planWebsiteRoute({
+    capabilities,
+    workflowState: raw,
+    requestedSlice: "dashboard_integration",
+    dashboardSlice: "products",
+  });
+  assert.equal(route.action, "blocked");
+  assert.equal(route.reason, "WORKFLOW_STATE_PROVENANCE_UNTRUSTED");
+  assertStableBoundary(route, null, []);
 });
 
 test("core-produced active repair passes while its serialized copy is blocked", () => {

@@ -45,6 +45,12 @@ locally verifies the signed latest head, and requires its revision, head, and
 state digest to equal the local append-only journal evidence. Each save uses a conditional monotonic
 commit (CAS) from the prior signed head and locally verifies the signed
 acknowledgement. Old locally valid files therefore cannot roll the workflow back.
+This provenance requirement also applies whenever `dashboardSlices` or
+`dashboardSliceApproval` is nonempty, even without a work package or repair.
+The Store accepts only the opaque, single-use proof returned with the exact
+workflow-core transition; reconstructed state/event JSON is not persistable.
+Immutable revision-plus-nonce candidates and an atomic current pointer let a
+verified load recover the signed CAS winner after an interrupted pointer switch.
 
 The transport Adapter may request signed journal receipts, latest heads, and CAS
 commits from a protected RDS/DynamoDB/KMS-backed authority service, but its return

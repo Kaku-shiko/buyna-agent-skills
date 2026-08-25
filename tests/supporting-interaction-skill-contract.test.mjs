@@ -8,6 +8,7 @@ const read = (path) => readFileSync(new URL(path, root), "utf8");
 const paths = {
   builder: "skills/buyna-website-builder/SKILL.md",
   routing: "skills/buyna-website-builder/references/routing-map.md",
+  workflow: "skills/buyna-website-builder/references/workflow-state-contract.md",
   s3: "skills/buyna-s3-storage/SKILL.md",
   fileContract: "skills/buyna-s3-storage/references/merchant-file-adapter-contract.md",
   dashboard: "skills/buyai-dashboard-data-interaction/SKILL.md",
@@ -30,6 +31,7 @@ function assertNoFixedVisualRequirements(content) {
 test("Builder is the single entrypoint and exposes bounded Dashboard selection without a new phase", () => {
   const builder = read(paths.builder);
   const routing = read(paths.routing);
+  const workflow = read(paths.workflow);
   assert.match(builder, /single team entrypoint/i);
   assert.match(builder, /dashboardSlice/);
   assert.match(routing, /dashboardSlice.*persisted.*configuration\.dashboardSlices/is);
@@ -47,6 +49,10 @@ test("Builder is the single entrypoint and exposes bounded Dashboard selection w
   assert.match(routing, /pinned\s+public key|public key.*pinned/is);
   assert.match(routing, /fresh nonce|nonce.*fresh/is);
   assert.match(routing, /conditional|CAS/);
+  assert.match(`${builder}\n${routing}\n${workflow}`, /opaque[^\n]*single-use proof|single-use[^\n]*opaque proof/i);
+  assert.match(`${builder}\n${workflow}`, /immutable[^\n]*(?:revision|candidate)/i);
+  assert.match(`${builder}\n${workflow}`, /atomic[^\n]*current pointer|current\.json/i);
+  assert.match(`${builder}\n${routing}`, /dashboardSlices[^\n]*dashboardSliceApproval|Dashboard slices[^\n]*slice approval/is);
   assert.match(builder, /trusted server initialization|server initialization.*trusted/is);
   assert.match(routing, /RDS|DynamoDB|KMS/);
   assert.doesNotMatch(`${builder}\n${routing}`, /private key|signing secret/i);
