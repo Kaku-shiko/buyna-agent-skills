@@ -96,3 +96,16 @@ verifies scope, operation, reservation ID, product ID, SKU ID, and quantity.
 
 Focused verification: `npm test --prefix packages/buyna-inventory-core` —
 23/23 passed.
+
+## Final Review Fix Wave
+
+The adversarial RED run had 23 passing and 2 failing tests: a new reserve event
+could return an existing committed or released record as if reservation had
+succeeded. The reserve path now accepts an already-existing reservation under
+a new event only when its full identity matches and its state remains
+`reserved`. Terminal records fail with `INVENTORY_INVALID_TRANSITION`, and the
+transaction rolls the rejected event claim back. Replaying the original reserve
+event remains exact-once and returns its original reserved snapshot.
+
+Final focused verification: `npm test --prefix packages/buyna-inventory-core`
+— 25/25 passed.

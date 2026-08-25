@@ -211,6 +211,9 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
           skuId,
           quantity: requestedQuantity,
         });
+        if (claim.reservation.state !== INVENTORY_STATES.RESERVED) {
+          fail('INVENTORY_INVALID_TRANSITION');
+        }
         method(claim, 'complete');
         await claim.complete(claim.reservation, claimInput.fingerprint);
         return serializable(claim.reservation);

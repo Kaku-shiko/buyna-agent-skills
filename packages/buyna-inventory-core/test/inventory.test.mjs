@@ -474,3 +474,29 @@ test('transition persists the explicit completed reservation fingerprint', async
     quantity: 2,
   });
 });
+
+test('new reserve event rejects a committed reservation while original event replay stays exact', async () => {
+  const { inventory, events, calls } = moduleFixture();
+  const original = await inventory.reserve(reserveInput());
+  await inventory.commit({ eventId: 'event_commit_1', reservationId: 'reservation_1' });
+  await assert.rejects(
+    inventory.reserve(reserveInput({ eventId: 'event_reserve_after_commit' })),
+    (error) => error.code === 'INVENTORY_INVALID_TRANSITION',
+  );
+  assert.equal(events.has('event_reserve_after_commit'), false);
+  assert.deepEqual(await inventory.reserve(reserveInput()), original);
+  assert.equal(calls.filter((call) => call === 'create:reservation_1').length, 1);
+});
+
+test('new reserve event rejects a released reservation while original event replay stays exact', async () => {
+  const { inventory, events, calls } = moduleFixture();
+  const original = await inventory.reserve(reserveInput());
+  await inventory.release({ eventId: 'event_release_1', reservationId: 'reservation_1' });
+  await assert.rejects(
+    inventory.reserve(reserveInput({ eventId: 'event_reserve_after_release' })),
+    (error) => error.code === 'INVENTORY_INVALID_TRANSITION',
+  );
+  assert.equal(events.has('event_reserve_after_release'), false);
+  assert.deepEqual(await inventory.reserve(reserveInput()), original);
+  assert.equal(calls.filter((call) => call === 'create:reservation_1').length, 1);
+});
