@@ -2,10 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approveGate,authorizeWorkPackage,blockGate,completeAuthorizedGate,createWorkflow,getInteractionPolicy,markNotApplicable,recordDelivery,rejectGate,requestApproval,resumeGate,setInteractionMode,startGate} from '../src/index.mjs';
 import * as workflowCore from '../src/index.mjs';
-import {initializeWorkflow,loadWorkflow,saveTransition} from '../src/file-store.mjs';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
-import path from 'node:path';
 
 test('a new website workflow starts only at customer intake',()=>{
   const state=createWorkflow({projectId:'shop-one',now:'2026-08-15T00:00:00.000Z'});
@@ -246,9 +242,9 @@ test('canonical work-package and repair transitions persist exact authorization 
   }
 });
 
-test('trusted workflow provenance survives core transitions but not serialization until verified hydration',()=>{
+test('trusted workflow provenance survives in-memory core transitions but not serialization',()=>{
   assert.equal(typeof workflowCore.isTrustedWorkflowState,'function');
-  assert.equal(typeof workflowCore.hydrateVerifiedWorkflowState,'function');
+  assert.equal(workflowCore.hydrateVerifiedWorkflowState,undefined);
   const created=createWorkflow({projectId:'trusted-provenance'});
   assert.equal(workflowCore.isTrustedWorkflowState(created),true);
   const authorized=authorizeWorkPackage({
@@ -260,33 +256,7 @@ test('trusted workflow provenance survives core transitions but not serializatio
   const serialized=JSON.stringify(authorized);
   const parsed=JSON.parse(serialized);
   assert.equal(workflowCore.isTrustedWorkflowState(parsed),false);
-  const history=[{sequence:1,eventId:'evt-1',previousEventId:null}];
-  const hydrated=workflowCore.hydrateVerifiedWorkflowState({
-    serializedState:serialized,
-    history,
-    verifyHistoryReceipt:({state,history:verifiedHistory})=>({
-      verifiedState:state,
-      receipt:{
-        headEventId:verifiedHistory.at(-1).eventId,
-        eventCount:verifiedHistory.length,
-        verifiedAt:'2026-08-26T04:01:00.000Z',
-      },
-    }),
-  });
-  assert.deepEqual(hydrated,parsed);
-  assert.equal(workflowCore.isTrustedWorkflowState(hydrated),true);
-
-  assert.throws(()=>workflowCore.hydrateVerifiedWorkflowState({
-    serializedState:serialized,history,verifyHistoryReceipt:()=>true,
-  }),/WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID/);
-  assert.throws(()=>workflowCore.hydrateVerifiedWorkflowState({
-    serializedState:serialized,
-    history:[
-      {sequence:1,eventId:'evt-1',previousEventId:null},
-      {sequence:3,eventId:'evt-2',previousEventId:'wrong'},
-    ],
-    verifyHistoryReceipt:()=>({}),
-  }),/WORKFLOW_APPEND_ONLY_HISTORY_INVALID/);
+  assert.throws(()=>startGate({state:parsed,gate:'customer_intake'}),/WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
 });
 
 test('Dashboard slice approval is limited to the ready frontend boundary',()=>{
@@ -425,21 +395,6 @@ test('release evidence follows architecture and requires all zero-create counter
   assert.throws(()=>requestApproval({state,gate:'aws_release'}),/RELEASE_DELIVERY_EVIDENCE_MISSING/);
 });
 
-test('state is atomic and transition history is append only',async()=>{
-  const root=await mkdtemp(path.join(tmpdir(),'buyna-workflow-'));
-  try{
-    const initial=createWorkflow({projectId:'shop',now:'2026-01-01T00:00:00.000Z'});
-    await initializeWorkflow({projectRoot:root,state:initial,now:'2026-01-01T00:00:00.000Z'});
-    const loaded=await loadWorkflow({projectRoot:root});
-    assert.equal(workflowCore.isTrustedWorkflowState(loaded),false);
-    const transition=startGate({state:hydrateForTest(loaded),gate:'customer_intake',now:'2026-01-01T00:01:00.000Z'});
-    await saveTransition({projectRoot:root,transition});
-    assert.equal((await loadWorkflow({projectRoot:root})).gates.customer_intake.status,'in_progress');
-    const history=await readFile(path.join(root,'workflow','history','workflow-events.jsonl'),'utf8');
-    assert.equal(history.trim().split('\n').length,2);
-  }finally{await rm(root,{recursive:true,force:true})}
-});
-
 const verifiedApproval=(gate)=>({
   record:`workflow/records/${gate}-approval.json`,
   approvedBy:'customer',
@@ -550,22 +505,6 @@ test('history import rejects chat assertions, missing approval evidence, and non
   assert.deepEqual(original,snapshot);
 });
 
-test('one file-store transition appends the complete verified import event batch',async()=>{
-  assert.equal(typeof workflowCore.importVerifiedHistory,'function');
-  const root=await mkdtemp(path.join(tmpdir(),'buyna-workflow-import-'));
-  try{
-    const initial=createWorkflow({projectId:'persisted-recovery',now:'2026-08-25T00:00:00.000Z'});
-    await initializeWorkflow({projectRoot:root,state:initial,now:'2026-08-25T00:00:00.000Z'});
-    const transition=workflowCore.importVerifiedHistory({state:initial,requestedGate:'checkout_payment',imports:importedHistory(),importedBy:'operator',now:'2026-08-25T02:00:00.000Z'});
-    await saveTransition({projectRoot:root,transition});
-    const persisted=await loadWorkflow({projectRoot:root});
-    const history=(await readFile(path.join(root,'workflow','history','workflow-events.jsonl'),'utf8')).trim().split('\n').map(line=>JSON.parse(line));
-    assert.equal(persisted.currentGate,'checkout_payment');
-    assert.equal(history.length,1+transition.events.length);
-    assert.deepEqual(history.slice(1).map(event=>event.event),transition.events.map(event=>event.event));
-  }finally{await rm(root,{recursive:true,force:true})}
-});
-
 test('no-provider product checkout requires checkout-flow evidence but no settlement evidence',()=>{
   assert.equal(typeof workflowCore.importVerifiedHistory,'function');
   const noPaymentCapabilities={...commerceCapabilities,requiresPayment:false};
@@ -665,18 +604,6 @@ function completedCommerceWorkflow(projectId){
   state=completeGate(state,'checkout_payment',checkoutDelivery(projectId));
   state=completeGate(state,'testing_upload_gate',{result:'PASS',verification:['PASS']});
   return completeGate(state,'aws_release',releaseDelivery);
-}
-
-function hydrateForTest(state){
-  const history=[{sequence:1,eventId:'evt-1',previousEventId:null}];
-  return workflowCore.hydrateVerifiedWorkflowState({
-    serializedState:JSON.stringify(state),
-    history,
-    verifyHistoryReceipt:({state:verifiedState})=>({
-      verifiedState,
-      receipt:{headEventId:'evt-1',eventCount:1,verifiedAt:'2026-08-26T00:00:00.000Z'},
-    }),
-  });
 }
 
 function workflowAtRelease(projectId){

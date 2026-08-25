@@ -14,19 +14,8 @@ const dashboardSliceValues=Object.freeze([
   'dashboard','merchant_identity','products','categories','services','media','page_editor',
   'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings',
 ]);
-const trustedWorkflowStates=new WeakMap();
-
-function canonicalValue(value){
-  if(Array.isArray(value))return value.map(canonicalValue);
-  if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalValue(value[key])]));
-  return value;
-}
-
-function workflowFingerprint(state){return JSON.stringify(canonicalValue(state))}
-function trustWorkflowState(state){trustedWorkflowStates.set(state,workflowFingerprint(state));return state}
-export function isTrustedWorkflowState(state){
-  return Boolean(state&&typeof state==='object'&&trustedWorkflowStates.get(state)===workflowFingerprint(state));
-}
+import {isTrustedWorkflowState,trustWorkflowState} from './workflow-provenance.mjs';
+export {isTrustedWorkflowState} from './workflow-provenance.mjs';
 function requireTrustedWorkflowState(state){
   if(!isTrustedWorkflowState(state))throw new Error('WORKFLOW_STATE_PROVENANCE_UNTRUSTED');
 }
@@ -323,37 +312,6 @@ function validateNotApplicableCapability(state,gate){
 
 function validTimestamp(value){
   return Boolean(String(value??'').trim())&&!Number.isNaN(Date.parse(value));
-}
-
-function validateAppendOnlyHistory(history){
-  if(!nonEmptyArray(history))throw new Error('WORKFLOW_APPEND_ONLY_HISTORY_INVALID');
-  let previous=null;
-  for(let index=0;index<history.length;index+=1){
-    const record=history[index];
-    exactObjectKeys(record,['sequence','eventId','previousEventId'],'WORKFLOW_APPEND_ONLY_HISTORY_INVALID');
-    if(record.sequence!==index+1||requiredText(record.eventId,'WORKFLOW_APPEND_ONLY_HISTORY_INVALID')!==record.eventId
-      ||record.previousEventId!==previous)throw new Error('WORKFLOW_APPEND_ONLY_HISTORY_INVALID');
-    previous=record.eventId;
-  }
-}
-
-export function hydrateVerifiedWorkflowState({serializedState,history,verifyHistoryReceipt}={}){
-  if(typeof serializedState!=='string'||!serializedState.trim())throw new Error('SERIALIZED_WORKFLOW_STATE_REQUIRED');
-  let state;
-  try{state=JSON.parse(serializedState)}catch{throw new Error('SERIALIZED_WORKFLOW_STATE_INVALID')}
-  if(!state||typeof state!=='object'||Array.isArray(state))throw new Error('SERIALIZED_WORKFLOW_STATE_INVALID');
-  validateAppendOnlyHistory(history);
-  if(typeof verifyHistoryReceipt!=='function')throw new Error('WORKFLOW_HISTORY_VERIFIER_REQUIRED');
-  const verification=verifyHistoryReceipt({state:structuredClone(state),history:structuredClone(history)});
-  exactObjectKeys(verification,['verifiedState','receipt'],'WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID');
-  const receipt=verification.receipt;
-  exactObjectKeys(receipt,['headEventId','eventCount','verifiedAt'],'WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID');
-  const head=history.at(-1);
-  if(workflowFingerprint(verification.verifiedState)!==workflowFingerprint(state)
-    ||receipt.headEventId!==head.eventId||receipt.eventCount!==history.length
-    ||!validTimestamp(receipt.verifiedAt))throw new Error('WORKFLOW_HISTORY_VERIFIER_RESULT_INVALID');
-  validateWorkflowReadinessEvidence(state);
-  return trustWorkflowState(state);
 }
 
 function validateDashboardSliceApproval(state){

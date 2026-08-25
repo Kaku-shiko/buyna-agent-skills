@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
@@ -6,6 +10,15 @@ const { planWebsiteRoute } = await import(
   new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root)
 );
 const workflowCore = await import(new URL("packages/buyna-workflow-state-core/src/index.mjs", root));
+const { createVerifiedWorkflowStore } = await import(new URL("packages/buyna-workflow-state-core/src/file-store.mjs", root));
+
+function receiptAuthority() {
+  const sign = (record) => createHmac("sha256", "route-test-authority").update(JSON.stringify(record)).digest("hex");
+  return {
+    async createReceipt({ record }) { return { provider: "route-test", signature: sign(record) }; },
+    async verifyReceipt({ record, receipt }) { return receipt?.provider === "route-test" && receipt.signature === sign(record); },
+  };
+}
 
 const gates = [
   "customer_intake",
@@ -273,7 +286,7 @@ test("real workflow transitions authorize Dashboard slices and bounded all routi
   assertStableBoundary(route, "all", ["products", "orders"]);
 });
 
-test("serialized or fully forged authorization is blocked until verified hydration restores provenance", () => {
+test("serialized or fully forged authorization is blocked until authoritative store load restores provenance", async () => {
   const { capabilities, state } = createTrustedDashboardState();
   const serialized = JSON.stringify(state);
   const raw = JSON.parse(serialized);
@@ -284,25 +297,40 @@ test("serialized or fully forged authorization is blocked until verified hydrati
   assert.equal(rawRoute.reason, "WORKFLOW_STATE_PROVENANCE_UNTRUSTED");
   assertStableBoundary(rawRoute, null, []);
 
-  const history = [{ sequence: 1, eventId: "evt-1", previousEventId: null }];
-  const hydrated = workflowCore.hydrateVerifiedWorkflowState({
-    serializedState: serialized,
-    history,
-    verifyHistoryReceipt: ({ state: verifiedState, history: verifiedHistory }) => ({
-      verifiedState,
-      receipt: {
-        headEventId: verifiedHistory.at(-1).eventId,
-        eventCount: verifiedHistory.length,
-        verifiedAt: "2026-08-26T05:00:00.000Z",
-      },
-    }),
-  });
-  const hydratedRoute = planWebsiteRoute({
-    capabilities, workflowState: hydrated, requestedSlice: "dashboard_integration", dashboardSlice: "all",
-  });
-  assert.equal(hydratedRoute.action, "execute");
-  assert.equal(hydratedRoute.continueWithoutConfirmation, true);
-  assertStableBoundary(hydratedRoute, "all", ["products", "orders"]);
+  const projectRoot = await mkdtemp(path.join(tmpdir(), "buyna-route-verified-"));
+  try {
+    const store = createVerifiedWorkflowStore({ projectRoot, receiptAuthority: receiptAuthority() });
+    await store.initializeWorkflow({ state: workflowCore.createWorkflow({ projectId: "real-dashboard-route" }) });
+    const apply = async (makeTransition) => {
+      const loaded = await store.loadVerifiedWorkflow();
+      const transition = makeTransition(loaded);
+      await store.saveWorkflow({ loadedState: loaded, transition });
+    };
+    await apply((loaded) => workflowCore.importVerifiedHistory({
+      state: loaded,
+      requestedGate: "frontend_code",
+      imports: [
+        { gate: "customer_intake", delivery: { record: "intake.json", capabilities }, approval: { record: "customer-approval.json", approvedBy: "user", approvedAt: "2026-08-26T04:00:00.000Z", decision: "approved" } },
+        { gate: "design_and_structure", delivery: { designRecord: "design.json", pageStructure: "pages.json", boardStatus: "delivered" }, approval: { record: "design-approval.json", approvedBy: "user", approvedAt: "2026-08-26T04:01:00.000Z", decision: "approved" } },
+      ],
+      importedBy: "route-test",
+    }));
+    await apply((loaded) => workflowCore.setApprovedDashboardSlices({ state: loaded, slices: ["products", "orders"], approvedBy: "user" }));
+    await apply((loaded) => workflowCore.authorizeWorkPackage({ state: loaded, gates: ["frontend_code", "dashboard_integration"], scope: "approved frontend and Dashboard slices", authorizedBy: "user" }));
+    await apply((loaded) => workflowCore.startGate({ state: loaded, gate: "frontend_code" }));
+    await apply((loaded) => workflowCore.recordDelivery({ state: loaded, gate: "frontend_code", delivery: { deliveredFiles: ["app.tsx"], verification: ["PASS"], interfaceContract: "contract.json" } }));
+    await apply((loaded) => workflowCore.completeAuthorizedGate({ state: loaded, gate: "frontend_code" }));
+
+    const verified = await store.loadVerifiedWorkflow();
+    const verifiedRoute = planWebsiteRoute({
+      capabilities, workflowState: verified, requestedSlice: "dashboard_integration", dashboardSlice: "all",
+    });
+    assert.equal(verifiedRoute.action, "execute");
+    assert.equal(verifiedRoute.continueWithoutConfirmation, true);
+    assertStableBoundary(verifiedRoute, "all", ["products", "orders"]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
 });
 
 test("core-produced active repair passes while its serialized copy is blocked", () => {

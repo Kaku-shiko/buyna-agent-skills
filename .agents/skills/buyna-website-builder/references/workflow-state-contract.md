@@ -8,6 +8,21 @@
 - Append-only events: `workflow/history/workflow-events.jsonl`
 - Delivery evidence: `workflow/records/`
 
+Construct `createVerifiedWorkflowStore` once during trusted server
+initialization with the server-owned receipt authority. The authority remains in
+the store's private closure and is never accepted from a route request, AI call,
+or individual load. Initialize only a fresh `createWorkflow` state. Every
+persisted resume calls `loadVerifiedWorkflow()`; every following persisted
+transition calls `saveWorkflow({loadedState, transition})` with that exact loaded
+state.
+
+The snapshot records state revision, state digest, and journal head. Every JSONL
+journal record contains sequence, event ID, previous event ID/hash, event
+contents, state revision, state digest, timestamp, content hash, and authority
+receipt. Verified load rejects altered state/event content, truncation, reorder,
+replay, revision/head mismatch, and invalid receipts before it restores opaque
+runtime provenance.
+
 Never store credentials, payment secrets, personal form values, or environment variables here.
 
 Store `configuration.interactionMode` as `team` or `developer`. The mode controls presentation only; gate status, delivery evidence, and approval transitions remain identical. Persist later mode changes through `setInteractionMode`, never by editing JSON.
@@ -39,9 +54,9 @@ approval files.
 The Interface validates every gate's ordinary delivery contract, applies the
 history to a cloned state, advances readiness once, and returns one transition
 with an ordered `events` batch plus the final aggregate `event`. Persist that
-transition through `saveTransition`; the file store appends the complete event
-batch in one write. Chat assertions are discovery hints and are never import
-evidence.
+transition through the verified store's `saveWorkflow`; it records the complete
+event batch under one state revision. Chat assertions are discovery hints and
+are never import evidence.
 
 For a completed workflow, `validateCompletedWorkflowState` requires every
 approved gate to carry valid delivery and approval evidence and every

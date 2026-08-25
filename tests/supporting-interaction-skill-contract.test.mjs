@@ -39,9 +39,15 @@ test("Builder is the single entrypoint and exposes bounded Dashboard selection w
   assert.match(builder, /authorizeWorkPackage/);
   assert.match(builder, /openRepairSlice/);
   assert.match(routing, /workflow transition evidence/i);
-  assert.match(builder, /hydrateVerifiedWorkflowState/);
+  assert.doesNotMatch(builder, /hydrateVerifiedWorkflowState|verifyHistoryReceipt/);
+  assert.doesNotMatch(routing, /hydrateVerifiedWorkflowState|verifyHistoryReceipt/);
+  assert.match(builder, /loadVerifiedWorkflow/);
+  assert.match(routing, /loadVerifiedWorkflow/);
+  assert.match(builder, /trusted server initialization|server initialization.*trusted/is);
+  assert.match(routing, /receipt authority.*private|private.*receipt authority/is);
+  assert.match(builder, /every (?:persisted )?(?:resume|load)|every resume/is);
   assert.match(routing, /WORKFLOW_STATE_PROVENANCE_UNTRUSTED/);
-  assert.match(routing, /append-only history.*receipt verifier|receipt verifier.*append-only history/is);
+  assert.match(routing, /append-only (?:journal|history)/i);
   assert.match(routing, /serialized.*not trusted|not trust.*serialized/is);
   assert.match(builder, /currentGate.*frontend_code.*ready/is);
   assert.match(builder, /DASHBOARD_SLICE_SCOPE_CHANGE_REQUIRED/);

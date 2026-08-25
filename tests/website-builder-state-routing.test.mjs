@@ -40,16 +40,32 @@ const runRoute = (input) => {
   return normalizeRouteResult(JSON.parse(result.stdout));
 };
 
-const runTrustedRoute = (input) => {
-  const history = [{ sequence: 1, eventId: "evt-1", previousEventId: null }];
-  const workflowState = workflowCore.hydrateVerifiedWorkflowState({
-    serializedState: JSON.stringify(input.workflowState),
-    history,
-    verifyHistoryReceipt: ({ state: verifiedState }) => ({
-      verifiedState,
-      receipt: { headEventId: "evt-1", eventCount: 1, verifiedAt: "2026-08-26T00:00:00.000Z" },
-    }),
-  });
+const runCoreAuthorizedRoute = (input) => {
+  const raw = input.workflowState;
+  const currentIndex = gates.indexOf(raw.currentGate);
+  const imports = gates.slice(0, currentIndex).map((gate) => ({
+    gate,
+    delivery: raw.gates[gate].delivery,
+    approval: {
+      record: `workflow/records/${gate}-approval.json`,
+      approvedBy: raw.gates[gate].approvedBy,
+      approvedAt: raw.gates[gate].approvedAt,
+      decision: "approved",
+    },
+  }));
+  let workflowState = workflowCore.importVerifiedHistory({
+    state: workflowCore.createWorkflow({ projectId: raw.projectId }),
+    requestedGate: raw.currentGate,
+    imports,
+    importedBy: "route-test",
+  }).state;
+  workflowState = workflowCore.authorizeWorkPackage({
+    state: workflowState,
+    gates: raw.configuration.workPackage.gates,
+    scope: raw.configuration.workPackage.scope,
+    authorizedBy: raw.configuration.workPackage.authorizedBy,
+    now: raw.configuration.workPackage.authorizedAt,
+  }).state;
   return normalizeRouteResult(routeBuilder.planWebsiteRoute({ ...input, workflowState }));
 };
 
@@ -252,7 +268,7 @@ test("static local preview selects only frontend behavior and canonical N/A gate
 });
 
 test("product commerce without provider payment executes checkout-flow and skips only provider settlement", () => {
-  assert.deepEqual(runTrustedRoute({
+  assert.deepEqual(runCoreAuthorizedRoute({
     capabilities: productNoPayment,
     workflowState: stateAt("checkout_payment", { capabilities: productNoPayment, workPackageGates: ["checkout_payment"] }),
     requestedSlice: "checkout_payment",
@@ -470,7 +486,7 @@ test("mixed product and booking commerce routes both backends exactly once", () 
 });
 
 test("dependency-ready checkout repair enters checkout directly without replaying earlier Skills", () => {
-  assert.deepEqual(runTrustedRoute({
+  assert.deepEqual(runCoreAuthorizedRoute({
     capabilities: productGlobepay,
     workflowState: stateAt("checkout_payment", { capabilities: productGlobepay, workPackageGates: ["checkout_payment", "testing_upload_gate"] }),
     requestedSlice: "checkout_payment",

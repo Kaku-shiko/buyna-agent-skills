@@ -35,10 +35,13 @@ for each record (exact actor, scope, timestamp, and event); a hand-built
 configuration object is blocked before module selection.
 
 Opaque provenance is runtime-owned. Serialized workflow JSON is not trusted.
-Before a persisted work package or active repair can continue, the host must call
-`hydrateVerifiedWorkflowState` with a trusted receipt verifier Adapter and
-append-only history. A boolean, string, or caller JSON marker is not a verifier.
-Unhydrated authorization returns `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`.
+At trusted server initialization, construct `createVerifiedWorkflowStore` with
+the receipt authority captured in its private closure. Every persisted resume,
+including routes without a work package or repair, must obtain state through
+`loadVerifiedWorkflow()`. The request and AI never pass a per-load verifier or
+receipt authority. The store verifies the append-only journal, hashes, revision,
+state digest, and provider receipt before restoring provenance. An unverified
+state returns `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`.
 
 Output:
 

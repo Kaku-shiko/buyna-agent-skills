@@ -47,11 +47,14 @@ evidence. Read [interaction modes](references/interaction-modes.md).
    verifiable missing history through
    `importVerifiedHistory`; if a required record is unavailable, request one
    grouped evidence input.
-   A serialized state is not trusted authorization. Before routing a persisted
-   work package or repair, call `hydrateVerifiedWorkflowState` with its append-only
-   history and a trusted receipt-verifier Adapter. Never accept a caller boolean,
-   string, or JSON marker as provenance; `WORKFLOW_STATE_PROVENANCE_UNTRUSTED`
-   requires verified hydration or a fresh core transition.
+   At trusted server initialization, construct one `createVerifiedWorkflowStore`
+   with the server-owned receipt authority; the store captures that authority in
+   its private closure. For every persisted load or resume, call
+   `loadVerifiedWorkflow()` before routing or transitioning. Save only through
+   `saveWorkflow({loadedState, transition})`. A route request, AI response, or
+   per-load call must never supply a verifier, receipt authority, boolean, string,
+   or JSON provenance marker. `WORKFLOW_STATE_PROVENANCE_UNTRUSTED` requires an
+   authoritative store load or a fresh in-memory core transition.
    After design/page-structure approval, persist the exact approved Dashboard
    slice list through `setApprovedDashboardSlices` only while `currentGate` is
    `frontend_code` and that gate is `ready`, before frontend start or delivery.
@@ -91,9 +94,9 @@ that do not claim persisted work-package or repair authorization:
 node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
 ```
 
-For authorized persisted work, hydrate and route in the same trusted runtime;
+For every persisted resume, load and route in the same trusted server runtime;
 serialization intentionally removes the opaque provenance held by the workflow
-core.
+core. The JSON stdin route is not a persisted-state loader.
 
 ## Fixed Versus Project-Owned
 

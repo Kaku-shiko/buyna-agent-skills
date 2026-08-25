@@ -7,6 +7,6 @@
     "./file-store": "./src/file-store.mjs"
   },
   "scripts": {
-    "test": "node --test test/workflow-state.test.mjs"
+    "test": "node --test test"
   }
 }

@@ -12,8 +12,8 @@ const { planWebsiteRoute, resolveRouteDependencyClosure } = await import(
 );
 const {
   approveGate,
+  authorizeWorkPackage,
   createWorkflow,
-  hydrateVerifiedWorkflowState,
   recordDelivery,
   requestApproval,
   setApprovedDashboardSlices,
@@ -105,6 +105,15 @@ const deliveryFor = (gate, capabilities, paymentArchitecture) => ({
 }[gate]);
 
 function stateAt(currentGate, capabilities, workPackageGates = []) {
+  if (workPackageGates.length) {
+    return authorizeWorkPackage({
+      state: workflowAtGate(currentGate, capabilities),
+      gates: workPackageGates,
+      scope: "approved lifecycle route test",
+      authorizedBy: "user",
+      now: "2026-08-26T00:00:00.000Z",
+    }).state;
+  }
   const currentIndex = gates.indexOf(currentGate);
   const paymentArchitecture = capabilities.requiresPayment ? "fixed-cores" : undefined;
   const dashboardSlices = capabilities.requiresDashboard ? ["orders"] : [];
@@ -138,16 +147,7 @@ function stateAt(currentGate, capabilities, workPackageGates = []) {
         : { status: index === currentIndex ? "ready" : "locked" },
     ])),
   };
-  if (!workPackageGates.length) return state;
-  const history = [{ sequence: 1, eventId: "evt-1", previousEventId: null }];
-  return hydrateVerifiedWorkflowState({
-    serializedState: JSON.stringify(state),
-    history,
-    verifyHistoryReceipt: ({ state: verifiedState }) => ({
-      verifiedState,
-      receipt: { headEventId: "evt-1", eventCount: 1, verifiedAt: "2026-08-26T00:00:00.000Z" },
-    }),
-  });
+  return state;
 }
 
 function assertManifestEvidence(route) {
@@ -483,6 +483,7 @@ test("user installation prefers the current namespaced manifest over a stale leg
     mkdirSync(manifestRoot, { recursive: true });
     copyFileSync(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root), join(routerRoot, "route-builder.mjs"));
     copyFileSync(new URL("packages/buyna-workflow-state-core/src/index.mjs", root), join(workflowRoot, "index.mjs"));
+    copyFileSync(new URL("packages/buyna-workflow-state-core/src/workflow-provenance.mjs", root), join(workflowRoot, "workflow-provenance.mjs"));
     copyFileSync(new URL("repository-manifest.json", root), join(manifestRoot, "repository-manifest.json"));
     writeFileSync(join(codexRoot, "repository-manifest.json"), JSON.stringify({
       schemaVersion: 0,
