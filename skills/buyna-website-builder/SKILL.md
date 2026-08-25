@@ -5,198 +5,96 @@ description: "Use when starting, continuing, or repairing a Buyna.ai static, pro
 
 # Buyna.ai Website Builder
 
-Use the fixed `packages/buyna-workflow-state-core` state machine. Execute the current gate or the remaining gates in one approved work package. Stop only at a decision point, blocker, or external mutation that is outside the approved package.
-Fast mode is default: group compatible tasks to reduce turns without reducing safety.
-默认优先级：**先把网站上线流程跑通**（设计/前端/后端交付与发布），再做最小验证；完整验证默认不跑，只有你明确回复「要完整验证」才启动。
+This is the single team entrypoint. `packages/buyna-workflow-state-core` owns
+workflow state and `scripts/route-builder.mjs` deterministically selects the
+minimum ready Skills and fixed modules. Project code owns Adapters,
+configuration, framework wiring, and visual presentation.
 
-## Elastic policy for all thresholds in this flow
+## Start Or Resume
 
-All gates are **classification-aware** and **scope-aware**.
-- **Hard gates (must pass, cannot skip):** secret safety, existing-resource verification, tenant isolation, idempotent payment state, architecture compatibility, rollback availability, and explicit approval.
-- **Capability gates (can be `SKIP`):** dashboard, commerce, checkout, payment, booking, extra UI modules, optional media polish, optional CRM reporting mode.
-- **Quality gates (retryable):** full test coverage and non-required optimization checks; can be marked `DEFERRED` only when user approves an explicit next-step plan.
+- New build: create/load the workflow and begin at `customer_intake`.
+- Repair or resume: load the existing workflow first. When verifiable delivery
+  and approval records are supplied for missing history, call
+  `importVerifiedHistory` once, persist its event batch, recompute readiness,
+  and enter the requested ready slice directly.
+- Chat statements identify evidence to inspect; the workflow advances from the
+  verified records returned to the import Interface.
 
-Hard thresholds are not "always on"; they are chosen by architecture and scope. For example,
-`NEW_EC2_INSTANCES/New databases/New buckets/New ports` must be 0 only when using `existing_buyna_resources`, and only when release target requires it.
-
-## Interaction mode
-
-Default new and legacy workflows to `team` and begin customer intake in the
-same response. Mention optional `developer` mode only when the user requests
+Default presentation is `team`. Use `developer` only when the user requests
 commands, resource identifiers, internal status codes, or detailed technical
-evidence. Persist an explicit later switch through `setInteractionMode`. Read
-[interaction modes](references/interaction-modes.md) for response rules.
+evidence. Read [interaction modes](references/interaction-modes.md).
 
-## Method
+## Execution Recipe
 
-1. Load the approved brief and workflow state, then determine capabilities and dependency readiness from their recorded values.
-2. Read [routing-map.md](references/routing-map.md) and only the references selected by those capabilities.
-3. Resolve `buyna-workflow-state-core` from the project installation, then the user installation. Check `repository-manifest.json` and the installed package root for every fixed module selected by the route. A missing required module returns `BLOCKED: FIXED_MODULE_NOT_INSTALLED` with its name.
-4. Call `getInteractionPolicy({state})` after every load or mode change. Treat `currentGate` as authoritative and persist transitions through the module API.
-5. Generate only project Adapters, configuration, and presentation around the installed fixed behavior. Record real changed paths and delivery evidence.
-6. Run the minimum applicable tests for the selected fixed modules and project slice.
-7. For an approved work package, call `completeAuthorizedGate` and continue to each ready included gate without another confirmation. At a decision point outside that package, request approval once and stop.
+1. Resolve the project installation, then the user installation. Load
+   `repository-manifest.json`, `buyna-workflow-state-core`, and the saved state.
+2. For repair/resume, import supplied verifiable missing history through
+   `importVerifiedHistory`; if a required record is unavailable, request one
+   grouped evidence input.
+3. Run `scripts/route-builder.mjs` with recorded capabilities, the loaded
+   readiness/evidence state, requested slice, release intent, and
+   `build | repair | resume` mode.
+4. Treat the script output as routing authority. Read
+   [routing-map.md](references/routing-map.md), the selected phase reference,
+   and only the returned child Skills.
+5. Verify every returned fixed module in the manifest and installed package
+   root. Generate only project Adapters, configuration, framework wiring,
+   presentation, and missing project code.
+6. Run the returned fixed-module tests and minimum applicable project tests.
+7. Persist delivery evidence through the workflow core. If
+   `continueWithoutConfirmation=true`, call `completeAuthorizedGate` and
+   continue to the next ready included gate. Otherwise render the current
+   decision point once.
 
-When chat asserts that earlier work is complete but the workflow record is
-missing, use the concise evidence recovery path in `routing-map.md`: inspect
-existing delivery files and checks, import only verifiable sanitized evidence
-through the workflow-state API, recompute readiness, and resume at the first
-dependency-ready node. If evidence is incomplete, request one grouped evidence
-input for the missing dependency.
+The routing script accepts JSON on stdin and returns JSON on stdout:
 
-Local preview runs in the current checkout or project. GitHub is used only when
-repository publication or contribution is requested. AWS is used only when a
-release, deployment, or infrastructure operation is in the approved scope.
-
-## Creator & Invoker Guidance
-
-### 给制作者（执行技能的人）
-
-先看流程图再开工。必读顺序：
-- `buyna-customer-intake` → `buyna-website-design` / `buyna-page-structure` → `buyna-frontend-builder`
-- 按能力跳到：`buyai-product-merchant-backend`/`buyai-booking-service-backend`、`buyai-dashboard-data-interaction`、`buyai-checkout-address-ux`、`buyai-globepay-payment`、`buyna-gmv-commerce`
-
-固定模块清单（优先复用）：
-- `buyna-workflow-state-core`（状态/步骤路由）
-- `buyna-postgres-merchant-core` + `buyna-s3-storage`（商户数据与文件隔离）
-- `buyna-cart-core`、`buyna-order-core`（购物车/订单）
-- `buyna-checkout-flow-core`（最低字段、支付方式、确认、提交与本地订单锁定）
-- `buyna-commerce-settlement-core`（可信支付/退款核对与幂等副作用）
-- `buyai-globepay-payment` + `buyna-gmv-commerce`（支付与GMV）
-
-执行原则：
-- 先引用固定模块，后补充项目适配器；
-- 未知项先提问，不猜字段名/路径；
-- 代码交付必须输出可落文件路径，不能只输出伪代码/说明。
-
-### 给引用者（调用技能的人）
-
-调用前只需确认 5 件事：
-1. 站点类型（商城/服务/展示）
-2. 是否需要后台（Dashboard）
-3. 是否需要购物车/支付
-4. 是否只做最小验收或要求全量验收
-5. 手机端支付是 H5/JSAPI 还是二维码优先
-
-输出我会自动给你：
-- 下一步可执行的目标节点；
-- 使用的固定模块名称；
-- 需要你提供的关键输入（域名、网站类型、支付方式、商品材料）；
-- `SKIP_REASON`（如果该能力不适用）；
-- 可继续或延期的 `DEFERRED` 清单与触发条件。
-
-### 手动支付订单模式
-
-若你声明“支付订单我自己会做”，则该技能流程采用：
-- 仍按正常上线流程交付前后端和发布基础能力；
-- 标记 `CHECK_MODE: MANUAL_PAYMENT_VALIDATION`；
-- 在测试门槛中仅保留最小支付边界（环境与回调基本可达）；
-- 不默认执行全面支付订单/退款回放，改为你手工确认后再继续。
-
-## Elastic Workflow (preferred)
-
-Build with a **mandatory core** + **capability-driven optional slices**.
-
-### Non-linear execution rule
-
-Do not force a fixed linear order for delivery turns.
-Use a dependency graph:
-
-- `customer_intake` is bootstrap and must complete first.
-- `design_and_structure` depends on `customer_intake`.
-- `frontend_code` depends on accepted `design_and_structure` outputs.
-- `dashboard_integration` depends on `frontend_code` (for API contract and route shape).
-- `checkout_payment` depends on `dashboard_integration` when commerce payment capability is required.
-- `testing_upload_gate` depends on all required in-scope delivery gates being `DONE` or `SKIP`.
-- `aws_release` depends on `testing_upload_gate` `PASS` and release-plan evidence.
-
-Within the same dependency level, steps can be reordered.
-No step should begin if its hard dependencies are not satisfied; if no hard dependency is required, it may be advanced when the user asks and the corresponding code blocks are available.
-
-### Mandatory core (must pass)
-
-1. 客户信息收集（站点类型/能力）
-2. 设计与页面结构（合并一并确认）
-3. 前端交付（页面/API联动）
-4. 能力型后端交付（按站点能力自动裁剪）
-5. 验收与发布（测试/发布）
-
-### Minimum Delivery Path（默认）
-
-- 支付相关：完成配置核对、待支付订单创建链路、`notify/query` 的一次关键联动验证即可放行该阶段。
-- 全量测试：先完成“上线可用最小门槛”（主流程、关键权限、支付核心链路、包体体积与敏感文件清理），非关键覆盖项记为 `DEFERRED` 并进入下一阶段追踪。
-- 你如果要正式发布商业站点并且允许耗时更久，可在用户确认后进入“完整验证模式”补跑全部测试与优化项。
-
-### Capability-driven optional slices
-
-- `requiresDashboard: true` 才执行 Dashboard 后端与登录态/权限 slice
-- `requiresCart/requiresCheckout/requiresPayment: true` 才执行订单、支付、GMV slice
-- `requiresBooking: true` 执行服务型预约 slice
-- 非必需能力可以记录 `skipped_by_capability`，不阻塞流程
-
-### Rules for elasticity
-
-- 同一阶段内的相关任务可一次提交，减少“硬切片”。
-- 有可复用结果的阶段不重复确认（例如：用户资料中已确认了站点类型，则相关能力判定沿用到后续阶段）。
-- 仅在安全、数据、支付、环境、发布存在硬风险时阻塞；体验建议类不阻塞。
-- 任何阶段失败只回滚到该阶段，不回到项目起点。
-- 对于可选能力失败，要求提供 `SKIP_REASON`（例如 `not applicable for service-only`、`user-declared no-payment`），并生成 `NOT_APPLICABLE`。
-- 对于“尚可验证但暂不需要的非硬指标”，可标记为 `DEFERRED` 后进入下一步，但必须在一处交付记录中写明后续补齐条件。
-
-See also: [elastic thresholds](references/elastic-thresholds.md).
-
-1. 客户信息 + 网站定位（类型、功能）→ `buyna-customer-intake`
-2. 设计与页面结构一并确认（`buyna-website-design` + `buyna-page-structure`）
-   （合并一次确认）
-3. 前端交付（`buyna-frontend-builder`）
-   同时提交可执行文件、API对接点
-4. 后端交易能力（按能力合并）
-   商城：`buyai-product-merchant-backend` / `buyai-dashboard-data-interaction`
-   服务：`buyai-booking-service-backend`
-   订单与支付：`buyai-checkout-address-ux` + `buyai-globepay-payment` + `buyna-gmv-commerce`
-   不需要的能力可 `SKIP`
-5. 最后验收与发布（`buyna-testing-quality` + `buyna-aws-release`）
-   默认先执行最小验收，再根据 `DEFERRED` 清单决定是否补跑全量。完整验证入口保持手动触发。
-
-## 七阶段（兼容内核）
-
-1. Customer information → `buyna-customer-intake`
-2. Website design and page structure → `buyna-website-design`, then `buyna-page-structure`, with one combined approval
-3. Frontend and Dashboard interface code → `buyna-frontend-builder` UI mode
-4. Capability-selected backend integration → `buyai-dashboard-data-interaction`; skip only when the intake capability record permits it
-5. Capability-selected checkout and payment → `buyai-checkout-address-ux`, `buyai-globepay-payment`, and mandatory `buyna-gmv-commerce`; skip only when the intake capability record permits it
-6. Testing and upload gate → `buyna-testing-quality`
-7. Architecture-aware AWS release → `buyna-aws-release`
-
-Gate 4 owns framework, identity, database, S3, product/service backend, and frontend API integration. Complete one Dashboard page or closely related slice at a time; do not implement the whole backend in one turn. Existing `phase-0N` reference filenames remain compatibility labels and do not add approval gates.
-
-## Approval Points
-
-Require explicit confirmation only for customer scope, combined design/structure, production release or traffic switch, paid-service activation, new cost, destructive or irreversible changes, and work outside the previously approved scope. After design approval, the user may authorize one bounded work package containing `frontend_code`, `dashboard_integration`, `checkout_payment`, and `testing_upload_gate`. Call `authorizeWorkPackage` once; then use `completeAuthorizedGate` after each gate passes its own evidence checks. Do not stop between gates in that package. A work package never authorizes new infrastructure, secret disclosure, destructive changes, production traffic switching, or weakening payment/data safeguards.
-
-Corrections, questions, silence, or a broad request are not approval. When no work package exists, retain the ordinary per-gate confirmation behavior.
-
-In `developer` mode, use the following only when the current result requires a decision-point approval; do not print it between gates covered by an approved work package:
-
-```text
-PHASE_STATUS: WAITING_FOR_USER_CONFIRMATION
-CURRENT_PHASE: <number and name>
-NEXT_PHASE: <number and name>
-请检查本阶段结果。只有回复“确认并进入下一步”后，我才会继续。
+```powershell
+node skills/buyna-website-builder/scripts/route-builder.mjs < route-input.json
 ```
 
-In `team` mode, show `当前步骤`, `状态`, `已经完成`, `需要你操作`, and `下一步`. Show `确认并进入下一步 / 需要修改 / 暂停` only at a decision point. Inside an approved work package, say that the next included gate will continue automatically. Keep the same internal state code but do not print it.
+## Fixed Versus Project-Owned
 
-## Delivery Record
+- `buyna-workflow-state-core`: gate state, approvals, work packages, verified
+  history import.
+- `buyna-cart-core` and `buyna-order-core`: product cart/order behavior.
+- `buyna-checkout-flow-core`: minimum fields, method selection, review,
+  submission, snapshot, and local order lock.
+- `buyna-commerce-settlement-core`: trusted result reconciliation, legal
+  paid/refund transitions, idempotency, and transactional effects.
+- Project: database/provider Adapters, routes, labels, pricing configuration,
+  forms, components, theme, layout, CSS, and other presentation.
 
-For code phases 4-8, report `DELIVERED_FILES`, `IMPLEMENTED_SCOPE`, `VERIFICATION`, `NOT_CONNECTED`, and `PHASE_RESULT`. A plan, screenshot, prompt, or chat-only code is not delivery.
+Payment-capable new builds use the fixed checkout core, GlobePay transport and
+verification Adapters, then the settlement core. Every new-path request carries
+server-owned `projectId + sellerId`; settlement reconciles exact order, amount,
+and currency before applying effects.
 
-## Guardrails
+## Approvals And External Actions
 
-- Do not invent information, credentials, files, checks, or approval.
-- Do not mix requirement, design, implementation, testing, or release phases.
-- Continue automatically only inside the approved work package; do not recommend or add optional features.
-- Mention only immediate security, data-loss, payment, or execution blockers.
-- Keep secrets out of chat, frontend code, project files, and Skill files.
-- Do not treat local preview as production delivery.
-- Interaction mode changes presentation only. It never changes required evidence, approval, security, payment, database, or release gates.
+Explicit approval remains required for customer scope, combined
+design/structure, production release or traffic switching, paid activation,
+new cost, destructive work, and scope expansion.
+
+After design approval, one bounded work package may include `frontend_code`,
+`dashboard_integration`, `checkout_payment`, and `testing_upload_gate`. Each
+gate still validates delivery evidence, while ready included gates continue
+without repeated confirmation.
+
+Local preview runs in the current checkout/project. GitHub is selected only for
+an approved repository publication/contribution request. AWS is selected only
+for an approved `aws_release` or infrastructure request with explicit release
+intent.
+
+## Response And Delivery
+
+After each state load/mode change, call `getInteractionPolicy({state})`.
+Child Skills return structured evidence to this Builder.
+
+In team mode show `当前步骤`, `状态`, `已经完成`, `需要你操作`, and `下一步`.
+Show `确认并进入下一步 / 需要修改 / 暂停` at a real decision point. For code
+gates report `DELIVERED_FILES`, `IMPLEMENTED_SCOPE`, `VERIFICATION`,
+`NOT_CONNECTED`, and `PHASE_RESULT`.
+
+Secrets stay outside chat, frontend code, project files, and Skill files.
+Local preview is local evidence, while production delivery requires the
+separate release gate.

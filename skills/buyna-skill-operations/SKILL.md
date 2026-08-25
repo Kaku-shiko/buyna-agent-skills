@@ -38,6 +38,8 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
 - Read `repository-manifest.json` after installation and verify every package in
   the selected profile at the installed module root.
+- Verify `buyna-website-builder/scripts/route-builder.mjs` is present in both
+  complete and project-scoped Builder installations.
 - Require `buyna-merchant-dashboard-core`, `buyna-merchant-dashboard-headless`, `buyna-merchant-catalog-core`,
   `buyna-cart-core`, `buyna-order-core`, `buyna-postgres-merchant-core`, and
   `buyna-merchant-file-core` under the installed module root. A

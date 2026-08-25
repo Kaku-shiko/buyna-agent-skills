@@ -7,7 +7,23 @@ description: "Use when a Buyna.ai request involves GlobePay configuration, one-t
 
 Use this as the GlobePay router. Do not implement detailed endpoint logic here; select the right payment subskill and combine it with product, booking, or checkout skills.
 
-## Fixed Core
+## New Fixed-Core Path
+
+For new builds and fixed-state repairs, use this sequence:
+
+1. `packages/buyna-checkout-flow-core` validates checkout and locks the local
+   `pending_payment` order/booking.
+2. Project GlobePay transport Adapter signs and creates/queries provider
+   requests with server-owned `projectId + sellerId` and server-selected
+   credentials.
+3. Project verification Adapter normalizes a trusted notify/query result.
+4. `packages/buyna-commerce-settlement-core` reconciles exact order, amount,
+   and currency, then owns transition legality, idempotency, and effects.
+
+Generate only project transport/verification/database Adapters,
+configuration, routes, and presentation around those fixed cores.
+
+## Transport Utilities
 
 Locate this installed Skill directory and use `scripts/globepay-core.mjs` as the
 canonical program API. Use `scripts/globepay-cli.mjs --operation <name>` for
@@ -24,20 +40,17 @@ environment variables; never put credentials in stdin, command arguments, or
 output. Treat the core result as validation or a proposed transition, not as a
 database write or proof of payment.
 
-For one-time checkout and status persistence, read
-`references/service-adapter-contract.md`, import `createGlobepayService` from
-`scripts/globepay-service.mjs`, and call `createCheckout` or
-`syncPaymentStatus`. Generate only the project-specific store/provider
-adapters, routes, and migration. Do not regenerate the orchestration already in
-the service module.
+The CLI/core operations validate transport inputs, signatures, checkout plans,
+status normalization, and recurring input. Their outputs are Adapter input or a
+proposed provider transition, never a database write or proof of payment.
 
-For one-time commerce checkout, require `packages/buyna-checkout-flow-core`
-before provider creation and `packages/buyna-commerce-settlement-core` for
-trusted provider results. The first core returns an `order_locked` local
-`pending_payment` snapshot; the second reconciles exact order, amount, currency,
-transition, and event idempotency. Generate only project Adapters,
-configuration, routes, and presentation around the fixed cores and GlobePay
-service.
+## Legacy-Only Service
+
+When an existing project explicitly records the legacy service architecture,
+`createGlobepayService` from `scripts/globepay-service.mjs` remains available
+for legacy-only maintenance through `references/service-adapter-contract.md`.
+That legacy path stays separate from the new fixed-core path; migration selects
+one architecture before implementation.
 
 ## Gold
 

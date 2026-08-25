@@ -35,6 +35,11 @@ function normalizeCapabilities(value){
   return Object.freeze(result);
 }
 
+function selectPaymentArchitecture(state,capabilities){
+  state.configuration??={};
+  if(capabilities.requiresPayment&&!state.configuration.paymentArchitecture)state.configuration.paymentArchitecture='fixed-cores';
+}
+
 export function createWorkflow({projectId,now=new Date().toISOString(),workflowVersion='1.2.0',dashboardSlices=[],interactionMode='team'}={}){
   const id=requiredText(projectId,'PROJECT_ID_REQUIRED');
   const gates=Object.fromEntries(gateOrder.map((gate,index)=>[gate,{status:index===0?'ready':'locked'}]));
@@ -100,7 +105,16 @@ function validateDelivery(state,gate,delivery){
     if(required.some(slice=>!completed.has(slice)))throw new Error('DASHBOARD_SLICES_INCOMPLETE');
     if(!nonEmptyArray(delivery.frontendFiles)||!nonEmptyArray(delivery.backendFiles)||!allChecksPassed(delivery.verification))throw new Error('DASHBOARD_DELIVERY_EVIDENCE_MISSING');
   }
-  if(gate==='checkout_payment'&&(!delivery.pendingOrder||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified||!allChecksPassed(delivery.verification)))throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
+  if(gate==='checkout_payment'){
+    const capabilities=state.configuration?.capabilities;
+    if(!delivery.pendingOrder||!allChecksPassed(delivery.verification))throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
+    if(capabilities?.requiresPayment){
+      const fixedCorePath=state.configuration?.paymentArchitecture==='fixed-cores'||delivery.paymentArchitecture==='fixed-cores';
+      const scopeValid=!fixedCorePath||(delivery.scope?.projectId===state.projectId&&Boolean(requiredText(delivery.scope?.sellerId,'SELLER_ID_REQUIRED')));
+      const coreValid=!fixedCorePath||(delivery.checkoutFlowVerified&&delivery.amountCurrencyReconciled);
+      if(!scopeValid||!coreValid||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified)throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
+    }else if(capabilities?.requiresCheckout&&!delivery.checkoutFlowVerified)throw new Error('CHECKOUT_DELIVERY_EVIDENCE_MISSING');
+  }
   if(gate==='testing_upload_gate'&&(delivery.result!=='PASS'||!allChecksPassed(delivery.verification)))throw new Error('TESTING_DELIVERY_EVIDENCE_MISSING');
   if(gate==='aws_release'){
     const architecture=requiredText(delivery.architectureType,'ARCHITECTURE_TYPE_REQUIRED');
@@ -128,7 +142,10 @@ export function recordDelivery({state,gate,delivery,now=new Date().toISOString()
   if(current.status!=='in_progress')throw new Error('GATE_NOT_IN_PROGRESS');
   if(!delivery||typeof delivery!=='object'||Array.isArray(delivery))throw new Error('DELIVERY_REQUIRED');
   current.delivery=structuredClone(delivery);
-  if(gate==='customer_intake')next.configuration.capabilities=normalizeCapabilities(delivery.capabilities);
+  if(gate==='customer_intake'){
+    next.configuration.capabilities=normalizeCapabilities(delivery.capabilities);
+    selectPaymentArchitecture(next,next.configuration.capabilities);
+  }
   current.deliveryRecordedAt=now;next.updatedAt=now;
   return result(next,{event:'delivery_recorded',gate,at:now});
 }
@@ -197,6 +214,44 @@ export function markNotApplicable({state,gate,reason,now=new Date().toISOString(
   current.status='not_applicable';current.reason=requiredText(reason,'NOT_APPLICABLE_REASON_REQUIRED');current.completedAt=now;
   unlockFollowing(next,gate);next.updatedAt=now;
   return result(next,{event:'gate_not_applicable',gate,reason:current.reason,at:now});
+}
+
+function verifiedApproval(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
+  const record=requiredText(value.record,'VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
+  const approvedBy=requiredText(value.approvedBy,'VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
+  const approvedAt=requiredText(value.approvedAt,'VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
+  if(value.decision!=='approved'||Number.isNaN(Date.parse(approvedAt)))throw new Error('VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
+  return{record,approvedBy,approvedAt,decision:'approved'};
+}
+
+export function importVerifiedHistory({state,requestedGate,imports,importedBy,now=new Date().toISOString()}={}){
+  const requestedIndex=gateOrder.indexOf(requestedGate),startIndex=gateOrder.indexOf(state?.currentGate);
+  if(requestedIndex<0||startIndex<0||requestedIndex<=startIndex)throw new Error('HISTORY_IMPORT_TARGET_INVALID');
+  if(!Array.isArray(imports)||imports.length!==requestedIndex-startIndex)throw new Error('HISTORY_IMPORT_INCOMPLETE');
+  const actor=requiredText(importedBy,'HISTORY_IMPORTER_REQUIRED'),next=copyState(state),events=[];
+  for(let offset=0;offset<imports.length;offset+=1){
+    const expectedGate=gateOrder[startIndex+offset],item=imports[offset];
+    if(item?.gate!==expectedGate)throw new Error('HISTORY_IMPORT_ORDER_INVALID');
+    if(!item.delivery||typeof item.delivery!=='object'||Array.isArray(item.delivery))throw new Error('VERIFIED_DELIVERY_EVIDENCE_REQUIRED');
+    if(expectedGate==='customer_intake'){
+      next.configuration.capabilities=normalizeCapabilities(item.delivery.capabilities);
+      selectPaymentArchitecture(next,next.configuration.capabilities);
+    }
+    validateDelivery(next,expectedGate,item.delivery);
+    const approval=verifiedApproval(item.approval),current=next.gates[expectedGate];
+    if(next.currentGate!==expectedGate||current.status!=='ready')throw new Error('HISTORY_IMPORT_STATE_INVALID');
+    current.status='approved';current.delivery=structuredClone(item.delivery);current.deliveryRecordedAt=now;
+    current.approvalMode='imported_verified_evidence';current.approvalRecord=approval.record;
+    current.approvedBy=approval.approvedBy;current.approvedAt=approval.approvedAt;
+    unlockFollowing(next,expectedGate);
+    events.push({event:'verified_gate_history_imported',gate:expectedGate,approvalRecord:approval.record,importedBy:actor,at:now});
+  }
+  if(next.currentGate!==requestedGate)throw new Error('HISTORY_IMPORT_INCOMPLETE');
+  next.updatedAt=now;
+  const summary={event:'verified_history_imported',gates:imports.map(item=>item.gate),requestedGate,importedBy:actor,at:now};
+  events.push(summary);
+  return{state:next,event:summary,events};
 }
 
 export function rejectGate({state,gate,feedback,rejectedBy,now=new Date().toISOString()}={}){

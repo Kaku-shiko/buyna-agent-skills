@@ -1,6 +1,9 @@
-# Service Adapter Contract
+# Legacy-Only Service Adapter Contract
 
-Use `scripts/globepay-service.mjs` instead of regenerating checkout and payment-sync orchestration.
+Use this reference only when an existing project explicitly records the legacy
+service architecture. Maintain that project through
+`scripts/globepay-service.mjs`; new fixed-state builds use checkout-flow core,
+project transport/verification Adapters, and settlement core.
 
 ## Public Interface
 

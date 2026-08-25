@@ -22,10 +22,18 @@ idempotency key inside one project-owned database transaction. Never call it
 with redirect/browser state as a trusted event, and never treat its output as a
 completed write until the transaction and post-write read both succeed.
 
-Use `createGlobepayService(...).syncPaymentStatus(...)` to enforce that flow.
-Implement only the project store/provider adapters described in
-`buyai-globepay-payment/references/service-adapter-contract.md`; route handlers
-must not duplicate status, transaction, or idempotency orchestration.
+For the new fixed-core path, the project verification Adapter supplies a trusted
+notify/query event with server-owned `projectId + sellerId`; pass it directly to
+`packages/buyna-commerce-settlement-core`. The core reconciles exact local
+order, amount, and currency before a legal transition and idempotent effects.
+Project code supplies only provider/database Adapters, configuration, routes,
+and presentation.
+
+When an existing project explicitly records the legacy service architecture,
+`createGlobepayService(...).syncPaymentStatus(...)` remains a legacy-only
+maintenance Interface described by
+`buyai-globepay-payment/references/service-adapter-contract.md`. The legacy
+service and new fixed-core path are selected separately.
 
 ## Required Flow
 

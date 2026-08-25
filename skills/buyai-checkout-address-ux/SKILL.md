@@ -11,10 +11,12 @@ Use for buyer/customer forms, shipping UX, Japan postal auto-fill, mobile input,
 
 Confirm buyer language, admin language, seller country, shipping/service country, flow type, and required fields. Inspect form state, validation, checkout/payment actions, order schema, order detail, and CSV.
 
-For product commerce, resolve `buyna-cart-core`, `buyna-order-core`, and
-`buyna-checkout-flow-core` from the
-project `packages/` or `$env:USERPROFILE/.codex/packages/`. Stop with
-`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when a selected core is missing.
+For every approved product or booking checkout, resolve
+`buyna-checkout-flow-core` from the project `packages/` or
+`$env:USERPROFILE/.codex/packages/`. Product commerce also resolves
+`buyna-cart-core` and `buyna-order-core`; paid booking uses its booking Adapter
+and does not require cart. Return `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED`
+when a selected core is missing.
 
 Read `references/checkout-address-rules.md` for labels, schemas, and postal-code behavior.
 
@@ -22,12 +24,12 @@ Read `references/checkout-address-rules.md` for labels, schemas, and postal-code
 
 Use `buyai-product-merchant-backend` for product checkout, `buyai-booking-service-backend` for booking forms, `buyai-globepay-payment` for payment, and `buyai-storefront-layout-ux` for mobile/readability.
 
-For product commerce, use `packages/buyna-cart-core` for cart state and
-`packages/buyna-checkout-flow-core` for the fixed progression: minimum fields
+For product commerce, use `packages/buyna-cart-core` for cart state. For product
+or booking, use `packages/buyna-checkout-flow-core` for the fixed progression: minimum fields
 valid → payment method selected → order review → submitting → `order_locked`.
 The checkout core creates the immutable submission snapshot and locks the local
-`pending_payment` order through the `buyna-order-core` Adapter before provider
-payment begins. Generate only project presentation, field/configuration
+`pending_payment` order/booking through the selected order or booking Adapter
+before provider payment begins. Generate only project presentation, field/configuration
 mapping, persistence Adapter, routes, and approved shipping/discount/tax
 configuration.
 

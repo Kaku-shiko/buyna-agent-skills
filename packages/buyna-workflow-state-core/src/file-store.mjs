@@ -9,12 +9,14 @@ function locations(projectRoot){
 }
 export async function loadWorkflow({projectRoot}={}){return JSON.parse(await readFile(locations(projectRoot).state,'utf8'))}
 export async function saveTransition({projectRoot,transition}={}){
-  if(!transition?.state||!transition?.event)throw new Error('TRANSITION_REQUIRED');
+  if(!transition?.state||(!transition?.event&&!Array.isArray(transition?.events)))throw new Error('TRANSITION_REQUIRED');
+  const events=Array.isArray(transition.events)?transition.events:[transition.event];
+  if(events.length===0||events.some(event=>!event||typeof event!=='object'||Array.isArray(event)))throw new Error('TRANSITION_REQUIRED');
   const target=locations(projectRoot),temporary=`${target.state}.tmp`;
   await mkdir(path.dirname(target.history),{recursive:true});
   await writeFile(temporary,`${JSON.stringify(transition.state,null,2)}\n`,'utf8');
   await rename(temporary,target.state);
-  await appendFile(target.history,`${JSON.stringify(transition.event)}\n`,'utf8');
+  await appendFile(target.history,events.map(event=>JSON.stringify(event)).join('\n')+'\n','utf8');
   return transition.state;
 }
 export async function initializeWorkflow({projectRoot,state,now=new Date().toISOString()}={}){

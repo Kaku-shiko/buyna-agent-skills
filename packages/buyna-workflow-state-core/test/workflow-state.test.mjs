@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approveGate,authorizeWorkPackage,blockGate,completeAuthorizedGate,createWorkflow,getInteractionPolicy,markNotApplicable,recordDelivery,rejectGate,requestApproval,resumeGate,setInteractionMode,startGate} from '../src/index.mjs';
+import * as workflowCore from '../src/index.mjs';
 import {initializeWorkflow,loadWorkflow,saveTransition} from '../src/file-store.mjs';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -210,4 +211,97 @@ test('state is atomic and transition history is append only',async()=>{
     const history=await readFile(path.join(root,'workflow','history','workflow-events.jsonl'),'utf8');
     assert.equal(history.trim().split('\n').length,2);
   }finally{await rm(root,{recursive:true,force:true})}
+});
+
+const verifiedApproval=(gate)=>({
+  record:`workflow/records/${gate}-approval.json`,
+  approvedBy:'customer',
+  approvedAt:'2026-08-25T01:00:00.000Z',
+  decision:'approved',
+});
+
+const importedHistory=(capabilities=commerceCapabilities)=>[
+  {gate:'customer_intake',delivery:intake(capabilities),approval:verifiedApproval('customer_intake')},
+  {gate:'design_and_structure',delivery:{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'},approval:verifiedApproval('design_and_structure')},
+  {gate:'frontend_code',delivery:{deliveredFiles:['app.tsx'],verification:['PASS'],interfaceContract:'contract.json'},approval:verifiedApproval('frontend_code')},
+  {gate:'dashboard_integration',delivery:{completedSlices:[],frontendFiles:['dashboard.tsx'],backendFiles:['server.mjs'],verification:['PASS']},approval:verifiedApproval('dashboard_integration')},
+];
+
+test('verified history import validates canonical evidence and advances directly to the requested gate',()=>{
+  assert.equal(typeof workflowCore.importVerifiedHistory,'function');
+  const transition=workflowCore.importVerifiedHistory({
+    state:createWorkflow({projectId:'recovered-shop'}),
+    requestedGate:'checkout_payment',
+    imports:importedHistory(),
+    importedBy:'operator',
+    now:'2026-08-25T02:00:00.000Z',
+  });
+  assert.equal(transition.state.currentGate,'checkout_payment');
+  assert.equal(transition.state.gates.checkout_payment.status,'ready');
+  assert.deepEqual(transition.events.map(({event,gate})=>[event,gate??null]),[
+    ['verified_gate_history_imported','customer_intake'],
+    ['verified_gate_history_imported','design_and_structure'],
+    ['verified_gate_history_imported','frontend_code'],
+    ['verified_gate_history_imported','dashboard_integration'],
+    ['verified_history_imported',null],
+  ]);
+  assert.equal(transition.event.event,'verified_history_imported');
+  assert.equal(transition.state.gates.frontend_code.approvalMode,'imported_verified_evidence');
+  assert.equal(transition.state.configuration.paymentArchitecture,'fixed-cores');
+});
+
+test('history import rejects chat assertions, missing approval evidence, and noncanonical order atomically',()=>{
+  assert.equal(typeof workflowCore.importVerifiedHistory,'function');
+  const original=createWorkflow({projectId:'unsafe-import'}),snapshot=structuredClone(original);
+  assert.throws(()=>workflowCore.importVerifiedHistory({state:original,requestedGate:'design_and_structure',imports:[{gate:'customer_intake',chatAssertion:'customer said complete'}],importedBy:'operator'}),/VERIFIED_DELIVERY_EVIDENCE_REQUIRED/);
+  assert.throws(()=>workflowCore.importVerifiedHistory({state:original,requestedGate:'design_and_structure',imports:[{gate:'customer_intake',delivery:intake(),approval:{approvedBy:'customer'}}],importedBy:'operator'}),/VERIFIED_APPROVAL_EVIDENCE_REQUIRED/);
+  assert.throws(()=>workflowCore.importVerifiedHistory({
+    state:original,
+    requestedGate:'frontend_code',
+    imports:[
+      {gate:'design_and_structure',delivery:{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'},approval:verifiedApproval('design_and_structure')},
+      {gate:'customer_intake',delivery:intake(),approval:verifiedApproval('customer_intake')},
+    ],
+    importedBy:'operator',
+  }),/HISTORY_IMPORT_ORDER_INVALID/);
+  assert.deepEqual(original,snapshot);
+});
+
+test('one file-store transition appends the complete verified import event batch',async()=>{
+  assert.equal(typeof workflowCore.importVerifiedHistory,'function');
+  const root=await mkdtemp(path.join(tmpdir(),'buyna-workflow-import-'));
+  try{
+    const initial=createWorkflow({projectId:'persisted-recovery',now:'2026-08-25T00:00:00.000Z'});
+    await initializeWorkflow({projectRoot:root,state:initial,now:'2026-08-25T00:00:00.000Z'});
+    const transition=workflowCore.importVerifiedHistory({state:initial,requestedGate:'checkout_payment',imports:importedHistory(),importedBy:'operator',now:'2026-08-25T02:00:00.000Z'});
+    await saveTransition({projectRoot:root,transition});
+    const persisted=await loadWorkflow({projectRoot:root});
+    const history=(await readFile(path.join(root,'workflow','history','workflow-events.jsonl'),'utf8')).trim().split('\n').map(line=>JSON.parse(line));
+    assert.equal(persisted.currentGate,'checkout_payment');
+    assert.equal(history.length,1+transition.events.length);
+    assert.deepEqual(history.slice(1).map(event=>event.event),transition.events.map(event=>event.event));
+  }finally{await rm(root,{recursive:true,force:true})}
+});
+
+test('no-provider product checkout requires checkout-flow evidence but no settlement evidence',()=>{
+  assert.equal(typeof workflowCore.importVerifiedHistory,'function');
+  const noPaymentCapabilities={...commerceCapabilities,requiresPayment:false};
+  let state=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'no-provider-checkout'}),requestedGate:'checkout_payment',imports:importedHistory(noPaymentCapabilities),importedBy:'operator'}).state;
+  state=startGate({state,gate:'checkout_payment'}).state;
+  state=recordDelivery({state,gate:'checkout_payment',delivery:{pendingOrder:true,checkoutFlowVerified:true,verification:['PASS']}}).state;
+  state=requestApproval({state,gate:'checkout_payment'}).state;
+  assert.equal(state.gates.checkout_payment.status,'waiting_for_approval');
+});
+
+test('provider payment checkout requires exact amount and currency reconciliation',()=>{
+  assert.equal(typeof workflowCore.importVerifiedHistory,'function');
+  let state=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'provider-checkout'}),requestedGate:'checkout_payment',imports:importedHistory(),importedBy:'operator'}).state;
+  state=startGate({state,gate:'checkout_payment'}).state;
+  state=recordDelivery({state,gate:'checkout_payment',delivery:{pendingOrder:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']}}).state;
+  assert.throws(()=>requestApproval({state,gate:'checkout_payment'}),/PAYMENT_DELIVERY_EVIDENCE_MISSING/);
+  state=recordDelivery({state,gate:'checkout_payment',delivery:{paymentArchitecture:'fixed-cores',scope:{projectId:'provider-checkout',sellerId:'seller-1'},pendingOrder:true,checkoutFlowVerified:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']}}).state;
+  assert.throws(()=>requestApproval({state,gate:'checkout_payment'}),/PAYMENT_DELIVERY_EVIDENCE_MISSING/);
+  state=recordDelivery({state,gate:'checkout_payment',delivery:{paymentArchitecture:'fixed-cores',scope:{projectId:'provider-checkout',sellerId:'seller-1'},pendingOrder:true,checkoutFlowVerified:true,amountCurrencyReconciled:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']}}).state;
+  state=requestApproval({state,gate:'checkout_payment'}).state;
+  assert.equal(state.gates.checkout_payment.status,'waiting_for_approval');
 });

@@ -14,6 +14,21 @@ Store `configuration.interactionMode` as `team` or `developer`. The mode control
 
 After loading state, call `getInteractionPolicy({state})`. This is the canonical presentation contract. A child Skill returns structured evidence to the Builder; it must not bypass the policy by printing raw technical output directly to a team-mode user.
 
+## Verified history recovery
+
+For repair/resume, call `importVerifiedHistory({state, requestedGate, imports,
+importedBy})` only with real delivery objects and approval records. Imports start
+at `currentGate`, follow the canonical order without gaps, and end immediately
+before `requestedGate`. Each approval contains its record path, approver,
+approved timestamp, and `decision: approved`.
+
+The Interface validates every gate's ordinary delivery contract, applies the
+history to a cloned state, advances readiness once, and returns one transition
+with an ordered `events` batch plus the final aggregate `event`. Persist that
+transition through `saveTransition`; the file store appends the complete event
+batch in one write. Chat assertions are discovery hints and are never import
+evidence.
+
 ## Work-package authorization
 
 After customer scope and combined design/structure are explicitly approved, a user may approve one bounded execution package. Persist it through `authorizeWorkPackage`; never infer it from a general request. Only `frontend_code`, `dashboard_integration`, `checkout_payment`, and `testing_upload_gate` may be included. Each included gate still validates its full delivery evidence, then advances through `completeAuthorizedGate` without another confirmation. Customer scope, design/structure, production release or traffic switching, paid-service activation, new cost, destructive work, and scope expansion always require explicit confirmation.
@@ -26,13 +41,17 @@ After customer scope and combined design/structure are explicitly approved, a us
 | 2-3 | `design_and_structure` | design record, page structure, board delivered/postponed |
 | 4 | `frontend_code` | files, passing checks, interface contract |
 | 5 | `dashboard_integration` | configured slices only; each slice is `DONE`/`SKIP` |
-| 6 | `checkout_payment` | pending order, responsive routing, verified status sync, idempotency, GMV Outbox, tests |
+| 6 | `checkout_payment` | always: checkout-flow/local pending order and tests; when payment is enabled: trusted notify/query, exact amount/currency, idempotency, GMV Outbox |
 | 7 | `testing_upload_gate` | required checks PASS and soft checks can be `DEFERRED` |
 | 8 | `aws_release` | version, architecture-specific target, required zero-create counters, URLs, health, rollback |
 
 The intake delivery stores `siteType` and all five capability booleans. Dashboard and
-checkout/payment may be `not_applicable` when capabilities are unnecessary; other
+checkout may be `not_applicable` when capabilities are unnecessary; other
 gates can continue with `SKIP` + `SKIP_REASON` when capability-driven.
+Product commerce without provider payment records `requiresCart=true`,
+`requiresCheckout=true`, and `requiresPayment=false`; its checkout gate runs
+the checkout-flow core and skips provider settlement only. Paid booking may set
+`requiresCart=false` with checkout and payment true.
 Hard checks (security, identity isolation, existing-resource verification, payment integrity, rollback availability, required infrastructure policy) must pass and cannot be deferred.
 Other checks may be `DEFERRED` only with explicit approval context.
 Child Skills return evidence; only `buyna-website-builder` persists transitions. A work package reduces repeated confirmation, never evidence requirements or authorization for external mutations.

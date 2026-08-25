@@ -11,7 +11,7 @@ Use for product ecommerce: jewelry, apparel, goods, SKU catalogs, and shippable 
 
 Resolve the fixed-module root before implementation. In a repository/project
 installation it is `packages/`; in a user installation it is
-`$env:USERPROFILE/.codex/packages/`. For every checkout-capable Buyna merchant,
+`$env:USERPROFILE/.codex/packages/`. For every payment-capable Buyna merchant,
 also require `buyna-gmv-core`. Stop with
 `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when Dashboard, catalog, cart,
 order, PostgreSQL, or file core is missing. Do not regenerate a missing core.
@@ -44,8 +44,14 @@ review, submission, snapshot, and local order-lock states. When payment is an
 approved capability, call `packages/buyna-commerce-settlement-core`; it owns
 trusted paid/refund transitions and idempotent transactional effects. A
 no-payment product route uses cart/order modules and marks the payment node
-`NOT_APPLICABLE`. Project code supplies only the applicable Adapters,
+provider portion skipped while `checkout_payment` remains applicable. Project code supplies only the applicable Adapters,
 configuration, API wiring, and presentation.
+
+When invoked by `buyna-website-builder`, inherit the saved
+`configuration.workPackage` authorization and `interactionMode`. An included
+`dashboard_integration` or `checkout_payment` slice returns evidence to the
+Builder and continues without another approval question. Standalone work uses
+its ordinary current-step approval.
 
 Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
 
@@ -64,15 +70,17 @@ navigation as frontend-owned; this Skill implements server behavior only.
 ## Combine Skills
 
 Use with `buyai-globepay-payment`, `buyai-checkout-address-ux`, `buyai-storefront-layout-ux`, and `aws-project-deployer` when AWS infrastructure or deployment is in scope.
-Use `buyna-gmv-commerce` for every checkout-capable Buyna merchant. The user
-still approves the current implementation step, but GMV is not an optional
-production capability once payments are enabled.
+Use `buyna-gmv-commerce` for every payment-capable Buyna merchant. The Builder's
+bounded work-package authorization controls confirmation; GMV remains required
+once provider payment is enabled.
 
 ## Gold
 
 Product data is source of truth. Import customer-supplied prices when present. When absent, continue without confirmation, expose price maintenance in 商品管理, and keep the product draft/unpublished until it has a valid sellable price. Never invent a price. Backend changes to name, price, category, status, images, stock, variants, featured flag, and sort order update public pages, checkout, and seller preview.
 
-Checkout requires buyer/shipping form and local `pending_payment` before GlobePay. No disconnected payment buttons.
+Checkout requires buyer/shipping form and local `pending_payment`. When provider
+payment is enabled, the locked local order precedes GlobePay transport. A
+no-provider checkout completes local review/order flow without settlement.
 
 ## MVP
 
