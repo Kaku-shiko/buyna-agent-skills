@@ -39,6 +39,18 @@ snapshot 和 settlement 提供优惠结果；catalog 管理生命周期独立运
 负责 Adapter 的持久化、API、身份与基础设施连接。共享模块不包含 CSS、商家标识、
 凭据、支付传输、SQL/ORM 或 AWS 资源操作。
 
+### 固定交互状态模块的职责
+
+| 固定模块 | 仓库固定的行为 | 项目生成或接入的部分 |
+| --- | --- | --- |
+| [`buyna-auth-session-core`](packages/buyna-auth-session-core/src/index.mjs) | 登录会话状态、过期、退出和稳定的 401/403 判断 | 密码/SSO 校验、Cookie 或 Token 存储、中间件和登录 UI |
+| [`buyna-merchant-context-core`](packages/buyna-merchant-context-core/src/index.mjs) | 用服务端观察到的域名与已认证身份解析不可变商户上下文 | 请求框架绑定、会员目录及 PostgreSQL/ORM Adapter |
+| [`buyna-merchant-file-core`](packages/buyna-merchant-file-core/src/file-core.mjs) | 文件生命周期、上传队列、重试、进度、顺序、封面和幂等 effect | 上传控件和全部 UI；S3 传输及 PostgreSQL 文件元数据 Adapter |
+
+这些模块固定程序行为，不固定 Dashboard、登录页或文件卡片设计。登录/session 存储和
+S3/PostgreSQL 连接仍由各项目代码负责。`buyna-storefront-gallery-core` 当前未登记；图库
+交互与 UI 仍按项目生成。完整安装仍只遍历 `manifest.packages`，不增加第二套安装命令。
+
 当前预留：
 
 - `planned-skills/buyna-erp/`

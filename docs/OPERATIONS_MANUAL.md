@@ -41,6 +41,8 @@ buyna-agent-skills/
 │   ├── buyna-inventory-core/                 # fixed inventory reservations
 │   ├── buyna-coupon-core/                    # fixed coupon lifecycle
 │   ├── buyna-merchant-catalog-core/          # fixed catalog lifecycle
+│   ├── buyna-auth-session-core/              # fixed trusted auth state
+│   ├── buyna-merchant-context-core/           # fixed server-owned merchant scope
 │   ├── buyna-cart-core/
 │   ├── buyna-order-core/
 │   ├── buyna-postgres-merchant-core/
@@ -104,6 +106,18 @@ checkout 和 settlement 状态行为；这些模块在 `website-builder` profile
 snapshot 和 settlement 提供库存结果；coupon 独立向适用的 checkout snapshot 和 settlement
 提供优惠结果；catalog 管理生命周期独立运行；Dashboard 页面操作状态独立运行。项目的 UI、表单展示、provider Adapter 和 database Adapter 均由项目生成；项目负责 API、身份和
 基础设施连接。共享模块不包含 CSS、商家标识、凭据、支付传输、SQL/ORM 或 AWS 资源操作。
+
+### 固定交互状态模块的职责
+
+| 固定模块 | 仓库固定的行为 | 项目生成或接入的部分 |
+| --- | --- | --- |
+| [`buyna-auth-session-core`](../packages/buyna-auth-session-core/src/index.mjs) | 会话状态、过期、退出和 401/403 判断 | 密码/SSO 校验、Cookie 或 Token 存储、中间件和登录 UI |
+| [`buyna-merchant-context-core`](../packages/buyna-merchant-context-core/src/index.mjs) | 由服务端域名和认证身份解析不可变商户上下文 | 请求框架绑定、会员目录及 PostgreSQL/ORM Adapter |
+| [`buyna-merchant-file-core`](../packages/buyna-merchant-file-core/src/file-core.mjs) | 文件生命周期、上传队列、重试、顺序、封面和幂等 effect | 上传 UI、S3 传输及 PostgreSQL 文件元数据 Adapter |
+
+固定模块不提供统一 Dashboard 皮肤。登录/session 存储、S3/PostgreSQL 连接和所有可见
+UI 均由项目代码负责。完整安装继续遍历 `repository-manifest.json` 的
+`manifest.packages`；`buyna-storefront-gallery-core` 尚未登记，图库按项目生成。
 
 ## 5. 第一次安装
 

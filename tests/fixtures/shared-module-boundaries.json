@@ -55,5 +55,46 @@
       "\\b(?:import|require)\\b[^\\r\\n]*\\.(?:css|scss|sass|less|styl|stylus)[\\\"']?",
       "\\b(?:createElement|jsx|jsxs)\\s*\\("
     ]
+  },
+  "supportingInteractionSourceBoundary": {
+    "stylesheetExtensions": ["css", "scss", "sass", "less"],
+    "componentExtensions": ["jsx", "tsx", "vue", "svelte"],
+    "scannedSourceExtensions": ["mjs", "js", "cjs", "mts", "cts", "ts", "json"],
+    "forbiddenModuleSpecifiers": {
+      "uiFrameworkImport": [
+        "^(?:react(?:-dom)?|react(?:-dom)?/.*|vue|vue/.*|svelte|svelte/.*|@angular/.*|lit)$"
+      ],
+      "awsSdkImport": ["^@aws-sdk/"],
+      "sqlOrOrmImport": [
+        "^(?:pg|pg-promise|knex|prisma|@prisma/.*|drizzle-orm|sequelize|typeorm|mysql2|better-sqlite3)(?:/.*)?$"
+      ],
+      "passwordLibraryImport": [
+        "^(?:bcrypt|bcryptjs|argon2|scrypt-js)(?:/.*)?$"
+      ],
+      "cookieMiddlewareImport": [
+        "^(?:cookie-parser|cookie-session|express-session|iron-session)(?:/.*)?$"
+      ],
+      "projectRouteImport": ["(?:^|/)routes?(?:/|$)"],
+      "providerTransportImport": [
+        "^(?:axios|got|undici|node:https?|https?|stripe|@stripe/.*|globepay|worldpay)(?:/.*)?$"
+      ]
+    },
+    "providerTransportExecutablePatterns": [
+      "\\b(?:fetch|https?\\.(?:request|get))\\s*\\("
+    ],
+    "sqlOrOrmExecutablePatterns": [
+      "[\"'`](?:SELECT\\s+[\\s\\S]{0,160}\\s+FROM|INSERT\\s+INTO|UPDATE\\s+[A-Za-z_][A-Za-z0-9_.]*\\s+SET|DELETE\\s+FROM|CREATE\\s+(?:TABLE|SCHEMA|DATABASE)|ALTER\\s+(?:TABLE|SCHEMA|DATABASE)|DROP\\s+(?:TABLE|SCHEMA|DATABASE))[\\s\\S]{0,200}[\"'`]",
+      "\\b(?:client|pool|db)\\.query\\s*\\("
+    ],
+    "merchantIdentifierPatterns": [
+      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
+    ],
+    "rawSecretLiteralPatterns": [
+      "\\bAKIA[0-9A-Z]{16}\\b",
+      "-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+      "[\"'`][A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}[\"'`]",
+      "[\"'`]Bearer\\s+[A-Za-z0-9._~+/=-]{8,}[\"'`]",
+      "(?:\\b(?:const|let|var)\\s+|[,{]\\s*)(?:password|token|cookie|credential)\\s*(?:=|:)\\s*[\"'`][^\"'`\\r\\n]+[\"'`]"
+    ]
   }
 }
