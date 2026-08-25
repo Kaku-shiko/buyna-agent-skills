@@ -7,6 +7,14 @@ const CALLER_SCOPE_KEYS = Object.freeze([
 ]);
 const CALLER_SCOPE_KEY_SET = new Set(CALLER_SCOPE_KEYS);
 const MAX_CALLER_PROTOTYPE_DEPTH = 64;
+const MEMBERSHIP_AUTHORITY_KEYS = Object.freeze([
+  'subjectId',
+  'projectId',
+  'sellerId',
+  'status',
+  'role',
+]);
+const MEMBERSHIP_AUTHORITY_KEY_SET = new Set(MEMBERSHIP_AUTHORITY_KEYS);
 
 const IDENTITY_KEYS = Object.freeze([
   'subjectId',
@@ -33,6 +41,10 @@ function requiredRecordText(value) {
   return typeof value === 'string' && value !== '' && value === value.trim()
     ? value
     : null;
+}
+
+function symbolName(key) {
+  return Symbol.keyFor(key) ?? key.description;
 }
 
 function normalizeObservedHost(value) {
@@ -130,8 +142,7 @@ function assertNoCallerScope(input) {
     }
     if (keys.some((key) => {
       if (typeof key === 'string') return CALLER_SCOPE_KEY_SET.has(key);
-      const symbolName = Symbol.keyFor(key) ?? key.description;
-      return CALLER_SCOPE_KEY_SET.has(symbolName);
+      return CALLER_SCOPE_KEY_SET.has(symbolName(key));
     })) {
       fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
     }
@@ -146,6 +157,74 @@ function assertNoCallerScope(input) {
   if (current !== null) {
     fail('MERCHANT_CONTEXT_CALLER_SCOPE_FORBIDDEN', 400);
   }
+}
+
+function ownMembershipData(membership, key, code) {
+  let descriptor;
+  try {
+    descriptor = Reflect.getOwnPropertyDescriptor(membership, key);
+  } catch {
+    fail(code, 403);
+  }
+  if (!descriptor || !Object.hasOwn(descriptor, 'value')) fail(code, 403);
+  return descriptor.value;
+}
+
+function validateMembership(membership, { subjectId, projectId, sellerId }) {
+  if (!membership || typeof membership !== 'object' || Array.isArray(membership)) {
+    fail('MERCHANT_CONTEXT_FORBIDDEN', 403);
+  }
+
+  let membershipKeys;
+  try {
+    membershipKeys = Reflect.ownKeys(membership);
+  } catch {
+    fail('MERCHANT_CONTEXT_FORBIDDEN', 403);
+  }
+  if (membershipKeys.some((key) => (
+    typeof key === 'symbol'
+    && MEMBERSHIP_AUTHORITY_KEY_SET.has(symbolName(key))
+  ))) {
+    fail('MERCHANT_CONTEXT_SCOPE_MISMATCH', 403);
+  }
+
+  const status = ownMembershipData(
+    membership,
+    'status',
+    'MERCHANT_CONTEXT_FORBIDDEN',
+  );
+  if (status !== 'active') fail('MERCHANT_CONTEXT_FORBIDDEN', 403);
+
+  const membershipSubjectId = requiredRecordText(ownMembershipData(
+    membership,
+    'subjectId',
+    'MERCHANT_CONTEXT_SCOPE_MISMATCH',
+  ));
+  const membershipProjectId = requiredRecordText(ownMembershipData(
+    membership,
+    'projectId',
+    'MERCHANT_CONTEXT_SCOPE_MISMATCH',
+  ));
+  const membershipSellerId = requiredRecordText(ownMembershipData(
+    membership,
+    'sellerId',
+    'MERCHANT_CONTEXT_SCOPE_MISMATCH',
+  ));
+  if (
+    membershipSubjectId !== subjectId
+    || membershipProjectId !== projectId
+    || membershipSellerId !== sellerId
+  ) {
+    fail('MERCHANT_CONTEXT_SCOPE_MISMATCH', 403);
+  }
+
+  const role = requiredRecordText(ownMembershipData(
+    membership,
+    'role',
+    'MERCHANT_CONTEXT_FORBIDDEN',
+  ));
+  if (!role) fail('MERCHANT_CONTEXT_FORBIDDEN', 403);
+  return role;
 }
 
 export function createMerchantContextResolver({
@@ -175,17 +254,7 @@ export function createMerchantContextResolver({
     }
 
     const membership = await findMembership({ subjectId, projectId, sellerId });
-    if (membership?.status !== 'active') {
-      fail('MERCHANT_CONTEXT_FORBIDDEN', 403);
-    }
-    if (
-      membership.projectId !== projectId
-      || membership.sellerId !== sellerId
-    ) {
-      fail('MERCHANT_CONTEXT_SCOPE_MISMATCH', 403);
-    }
-    const role = requiredRecordText(membership.role);
-    if (!role) fail('MERCHANT_CONTEXT_FORBIDDEN', 403);
+    const role = validateMembership(membership, { subjectId, projectId, sellerId });
 
     return Object.freeze({
       projectId,

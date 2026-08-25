@@ -30,6 +30,7 @@ function activeDirectory({ calls, merchant, membership }) {
     async findMembership(scope) {
       calls?.push(`membership:${scope.subjectId}:${scope.projectId}:${scope.sellerId}`);
       return membership === undefined ? {
+        subjectId: 'user_1',
         projectId: 'project_alpha',
         sellerId: 'seller_alpha',
         role: 'admin',
@@ -106,6 +107,7 @@ test('allows an authoritative directory to own a valid single-label server host'
       },
       async findMembership() {
         return {
+          subjectId: 'user_1',
           projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'admin', status: 'active',
         };
       },
@@ -290,6 +292,7 @@ test('returns 404 for an unknown or inactive host without membership lookup', as
 
 test('returns 403 for missing or inactive membership', async () => {
   for (const membership of [null, {
+    subjectId: 'user_1',
     projectId: 'project_alpha',
     sellerId: 'seller_alpha',
     role: 'admin',
@@ -314,8 +317,12 @@ test('returns 403 for missing or inactive membership', async () => {
 
 test('returns 403 when membership ownership differs from the active host record', async () => {
   for (const membership of [
-    { projectId: 'project_other', sellerId: 'seller_alpha', role: 'admin', status: 'active' },
-    { projectId: 'project_alpha', sellerId: 'seller_other', role: 'admin', status: 'active' },
+    { subjectId: 'user_other', projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'admin', status: 'active' },
+    { subjectId: 'user_1', projectId: 'project_other', sellerId: 'seller_alpha', role: 'admin', status: 'active' },
+    { subjectId: 'user_1', projectId: 'project_alpha', sellerId: 'seller_other', role: 'admin', status: 'active' },
+    { projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'admin', status: 'active' },
+    { subjectId: 'user_1', sellerId: 'seller_alpha', role: 'admin', status: 'active' },
+    { subjectId: 'user_1', projectId: 'project_alpha', role: 'admin', status: 'active' },
   ]) {
     const resolver = createMerchantContextResolver({
       requestAdapter: { async getObservedHost() { return 'shop.example.com'; } },
@@ -325,6 +332,96 @@ test('returns 403 when membership ownership differs from the active host record'
 
     await rejectsWith(resolver.resolve(), 'MERCHANT_CONTEXT_SCOPE_MISMATCH', 403);
   }
+});
+
+test('requires Membership authority fields to be own data properties without getter or Symbol spoofing', async (t) => {
+  const cases = [];
+
+  const inheritedSubject = Object.assign(Object.create({ subjectId: 'user_1' }), {
+    projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'admin', status: 'active',
+  });
+  cases.push({ name: 'inherited subjectId', membership: inheritedSubject, code: 'MERCHANT_CONTEXT_SCOPE_MISMATCH' });
+
+  let getterCalls = 0;
+  const accessorSubject = {
+    projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'admin', status: 'active',
+  };
+  Object.defineProperty(accessorSubject, 'subjectId', {
+    get() { getterCalls += 1; throw new Error('subject getter must not run'); },
+  });
+  cases.push({ name: 'accessor subjectId', membership: accessorSubject, code: 'MERCHANT_CONTEXT_SCOPE_MISMATCH' });
+
+  for (const scopeKey of ['projectId', 'sellerId']) {
+    const accessorScope = {
+      subjectId: 'user_1',
+      projectId: 'project_alpha',
+      sellerId: 'seller_alpha',
+      role: 'admin',
+      status: 'active',
+    };
+    Object.defineProperty(accessorScope, scopeKey, {
+      get() { getterCalls += 1; throw new Error(`${scopeKey} getter must not run`); },
+    });
+    cases.push({
+      name: `accessor ${scopeKey}`,
+      membership: accessorScope,
+      code: 'MERCHANT_CONTEXT_SCOPE_MISMATCH',
+    });
+  }
+
+  const accessorStatus = {
+    subjectId: 'user_1', projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'admin',
+  };
+  Object.defineProperty(accessorStatus, 'status', {
+    get() { getterCalls += 1; throw new Error('status getter must not run'); },
+  });
+  cases.push({ name: 'accessor status', membership: accessorStatus, code: 'MERCHANT_CONTEXT_FORBIDDEN' });
+
+  const accessorRole = {
+    subjectId: 'user_1', projectId: 'project_alpha', sellerId: 'seller_alpha', status: 'active',
+  };
+  Object.defineProperty(accessorRole, 'role', {
+    get() { getterCalls += 1; throw new Error('role getter must not run'); },
+  });
+  cases.push({ name: 'accessor role', membership: accessorRole, code: 'MERCHANT_CONTEXT_FORBIDDEN' });
+
+  for (const authorityKey of ['subjectId', 'projectId', 'sellerId', 'status', 'role']) {
+    const symbolKey = authorityKey === 'projectId'
+      ? Symbol.for(authorityKey)
+      : Symbol(authorityKey);
+    const symbolSpoof = {
+      subjectId: 'user_1', projectId: 'project_alpha', sellerId: 'seller_alpha',
+      role: 'admin', status: 'active',
+    };
+    Object.defineProperty(symbolSpoof, symbolKey, {
+      get() { getterCalls += 1; throw new Error('symbol getter must not run'); },
+    });
+    cases.push({
+      name: `symbol ${Symbol.keyFor(symbolKey) ?? symbolKey.description}`,
+      membership: symbolSpoof,
+      code: 'MERCHANT_CONTEXT_SCOPE_MISMATCH',
+    });
+  }
+
+  for (const { name, membership, code } of cases) {
+    await t.test(name, async () => {
+      const calls = [];
+      const resolver = createMerchantContextResolver({
+        requestAdapter: { async getObservedHost() { calls.push('host'); return 'shop.example.com'; } },
+        sessionAdapter: { async getAuthenticatedIdentity() { calls.push('identity'); return identity; } },
+        directory: activeDirectory({ calls, membership }),
+      });
+
+      await rejectsWith(resolver.resolve(), code, 403);
+      assert.deepEqual(calls, [
+        'host',
+        'identity',
+        'merchant:shop.example.com',
+        'membership:user_1:project_alpha:seller_alpha',
+      ]);
+    });
+  }
+  assert.equal(getterCalls, 0);
 });
 
 test('does not normalize directory ownership identifiers into a match', async () => {
@@ -360,10 +457,10 @@ test('one resolver performs the complete sequence again for two hosts and identi
   ]);
   const memberships = new Map([
     ['user_alpha:project_alpha:seller_alpha', {
-      projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'owner', status: 'active',
+      subjectId: 'user_alpha', projectId: 'project_alpha', sellerId: 'seller_alpha', role: 'owner', status: 'active',
     }],
     ['user_beta:project_beta:seller_beta', {
-      projectId: 'project_beta', sellerId: 'seller_beta', role: 'editor', status: 'active',
+      subjectId: 'user_beta', projectId: 'project_beta', sellerId: 'seller_beta', role: 'editor', status: 'active',
     }],
   ]);
   const calls = [];

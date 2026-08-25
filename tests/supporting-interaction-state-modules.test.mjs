@@ -479,7 +479,8 @@ test("public supporting-state data exposes only the fixed safe contracts", async
           subjectId: "user_1", projectId: "project_alpha", sellerId: "seller_alpha",
         });
         return {
-          projectId: "project_alpha", sellerId: "seller_alpha", role: "admin", status: "active",
+          subjectId: "user_1", projectId: "project_alpha", sellerId: "seller_alpha",
+          role: "admin", status: "active",
           token: "adapter-token", bucket: "adapter-bucket", url: "https://adapter.invalid",
           credential: "adapter-credential",
         };

@@ -253,7 +253,13 @@ test('authenticated merchant upload keeps fresh server scope, exact-once effects
       async findMembership(scope) {
         requestCalls.push({ adapter: 'membership', host: observedHost, scope: { ...scope } });
         if (scope.projectId !== projectId || scope.sellerId !== sellerId) return null;
-        return { projectId, sellerId, role: 'admin', status: 'active' };
+        return {
+          subjectId: scope.subjectId,
+          projectId,
+          sellerId,
+          role: 'admin',
+          status: 'active',
+        };
       },
     },
   };
