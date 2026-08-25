@@ -34,6 +34,8 @@ When an existing project explicitly records
 `createGlobepayService(...).syncPaymentStatus(...)` remains a legacy-only
 maintenance Interface described by
 `buyai-globepay-payment/references/service-adapter-contract.md`. The legacy
+paid path verifies notify authenticity, confirms success through provider Query,
+and reconciles the Query's exact amount and currency to the local order. The legacy
 service and `paymentArchitecture: fixed-cores` path are selected separately;
 missing or unknown architecture blocks status mutation.
 

@@ -14,6 +14,13 @@ Store `configuration.interactionMode` as `team` or `developer`. The mode control
 
 After loading state, call `getInteractionPolicy({state})`. This is the canonical presentation contract. A child Skill returns structured evidence to the Builder; it must not bypass the policy by printing raw technical output directly to a team-mode user.
 
+Before routing an active/resumed workflow, call
+`validateWorkflowReadinessEvidence(state)`. It applies the ordinary delivery
+schema and approval evidence checks to every prior approved gate, including
+approved timestamp and imported approval record, and applies the same trusted
+N/A evidence check used by completed validation. A truthy or empty delivery
+object is not readiness evidence.
+
 ## Verified history recovery
 
 For repair/resume, call `importVerifiedHistory({state, requestedGate, imports,
@@ -76,6 +83,8 @@ gates can continue with `SKIP` + `SKIP_REASON` when capability-driven.
 When `requiresPayment=true`, intake also stores an explicit
 `paymentArchitecture` of `fixed-cores` or `legacy-globepay-service`; omission or
 another value is invalid.
+The persisted capabilities are authoritative after intake. A differing external
+capability assertion starts a capability scope-change result before routing.
 Product commerce without provider payment records `requiresCart=true`,
 `requiresCheckout=true`, and `requiresPayment=false`; its checkout gate runs
 the checkout-flow core and skips provider settlement only. Paid booking may set

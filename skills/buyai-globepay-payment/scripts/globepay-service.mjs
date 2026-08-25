@@ -29,7 +29,11 @@ export function createGlobepayService({store,provider}={}){
       let providerResult;
       if(eventType==='notify'){
         callable(provider,'verifyNotification');
-        providerResult=await provider.verifyNotification(input.payload);
+        const notification=await provider.verifyNotification(input.payload);
+        required(notification?.providerOrderId,'MISSING_PROVIDER_ORDER_ID');
+        callable(provider,'queryOrder');
+        providerResult=await provider.queryOrder({sellerId:input.sellerId,providerOrderId:notification.providerOrderId});
+        if(providerResult?.providerOrderId!==notification.providerOrderId){const error=new Error('PROVIDER_ORDER_MISMATCH');error.code=error.message;throw error}
       }else if(['query','reconcile'].includes(eventType)){
         required(input.providerOrderId,'MISSING_PROVIDER_ORDER_ID');
         callable(provider,'queryOrder');
@@ -49,6 +53,14 @@ export function createGlobepayService({store,provider}={}){
         if(!order){const error=new Error('ORDER_NOT_FOUND');error.code=error.message;throw error}
         const transition=evaluateProviderStatus({currentStatus:order.status,eventType,resultCode:providerResult.resultCode});
         if(transition.status!=='pass'){const error=new Error(transition.code);error.code=transition.code;throw error}
+        if(transition.nextStatus==='paid'){
+          positiveInteger(providerResult.amount,'INVALID_PROVIDER_AMOUNT');
+          positiveInteger(order.amount,'INVALID_ORDER_AMOUNT');
+          if(Number(providerResult.amount)!==Number(order.amount)){const error=new Error('PAYMENT_AMOUNT_MISMATCH');error.code=error.message;throw error}
+          const providerCurrency=String(providerResult.currency??'').trim().toUpperCase();
+          const orderCurrency=String(order.currency??'').trim().toUpperCase();
+          if(!providerCurrency||!orderCurrency||providerCurrency!==orderCurrency){const error=new Error('PAYMENT_CURRENCY_MISMATCH');error.code=error.message;throw error}
+        }
         const idempotencyKey=buildIdempotencyKey({providerOrderId:providerResult.providerOrderId,eventType,resultCode:providerResult.resultCode,payload:providerResult.payload??input.payload});
         const claimed=await tx.claimPaymentEvent({sellerId:input.sellerId,orderId:order.id,idempotencyKey,eventType,providerResult});
         if(claimed)await tx.applyPaymentTransition({sellerId:input.sellerId,orderId:order.id,idempotencyKey,providerResult,...transition});

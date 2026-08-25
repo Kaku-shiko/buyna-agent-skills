@@ -365,10 +365,10 @@ test('payment-capable intake rejects an omitted or unsupported payment architect
 });
 
 test('explicit fixed and named legacy payment architectures select separate validation paths',()=>{
-  const legacyDelivery={pendingOrder:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']};
+  const legacyDelivery={paymentArchitecture:'legacy-globepay-service',pendingOrder:true,providerQueryVerified:true,amountCurrencyReconciled:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']};
   let fixedState=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'explicit-fixed'}),requestedGate:'checkout_payment',imports:importedHistory(commerceCapabilities,'fixed-cores'),importedBy:'operator'}).state;
   fixedState=startGate({state:fixedState,gate:'checkout_payment'}).state;
-  fixedState=recordDelivery({state:fixedState,gate:'checkout_payment',delivery:legacyDelivery}).state;
+  fixedState=recordDelivery({state:fixedState,gate:'checkout_payment',delivery:{...legacyDelivery,paymentArchitecture:'fixed-cores'}}).state;
   assert.throws(()=>requestApproval({state:fixedState,gate:'checkout_payment'}),/PAYMENT_DELIVERY_EVIDENCE_MISSING/);
 
   let legacyState=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'explicit-legacy'}),requestedGate:'checkout_payment',imports:importedHistory(commerceCapabilities,'legacy-globepay-service'),importedBy:'operator'}).state;
@@ -377,6 +377,17 @@ test('explicit fixed and named legacy payment architectures select separate vali
   legacyState=requestApproval({state:legacyState,gate:'checkout_payment'}).state;
   assert.equal(legacyState.configuration.paymentArchitecture,'legacy-globepay-service');
   assert.equal(legacyState.gates.checkout_payment.status,'waiting_for_approval');
+});
+
+test('legacy payment evidence requires provider query and exact amount-currency reconciliation',()=>{
+  const base={paymentArchitecture:'legacy-globepay-service',pendingOrder:true,providerQueryVerified:true,amountCurrencyReconciled:true,routingVerified:true,statusSyncVerified:true,idempotencyVerified:true,gmvOutboxVerified:true,verification:['PASS']};
+  for(const missing of ['providerQueryVerified','amountCurrencyReconciled']){
+    let state=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:`legacy-${missing}`}),requestedGate:'checkout_payment',imports:importedHistory(commerceCapabilities,'legacy-globepay-service'),importedBy:'operator'}).state;
+    state=startGate({state,gate:'checkout_payment'}).state;
+    const delivery={...base};delete delivery[missing];
+    state=recordDelivery({state,gate:'checkout_payment',delivery}).state;
+    assert.throws(()=>requestApproval({state,gate:'checkout_payment'}),/PAYMENT_DELIVERY_EVIDENCE_MISSING/);
+  }
 });
 
 test('ambiguous persisted payment workflow cannot approve checkout evidence as implicit legacy',()=>{
@@ -498,4 +509,34 @@ test('completed static workflow rejects dashboard repair as capability expansion
 test('completed static workflow rejects checkout repair as capability expansion',()=>{
   const state=completedStaticWorkflow('static-checkout-repair');
   assert.throws(()=>workflowCore.openRepairSlice({state,gate:'checkout_payment',scope:'add checkout',authorizedBy:'user'}),/REPAIR_CAPABILITY_SCOPE_CHANGE_REQUIRED/);
+});
+
+test('active workflow readiness validates complete historical delivery and approval evidence',()=>{
+  const valid=workflowCore.importVerifiedHistory({state:createWorkflow({projectId:'active-history'}),requestedGate:'checkout_payment',imports:importedHistory(),importedBy:'operator'}).state;
+  assert.equal(typeof workflowCore.validateWorkflowReadinessEvidence,'function');
+  assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(valid));
+
+  const invalidDelivery=structuredClone(valid);
+  invalidDelivery.gates.frontend_code.delivery={};
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(invalidDelivery),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+
+  const invalidApproval=structuredClone(valid);
+  delete invalidApproval.gates.frontend_code.approvedAt;
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(invalidApproval),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+
+  const invalidImport=structuredClone(valid);
+  delete invalidImport.gates.frontend_code.approvalRecord;
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(invalidImport),/HISTORICAL_GATE_EVIDENCE_INVALID/);
+});
+
+test('active workflow readiness requires trustworthy not-applicable history evidence',()=>{
+  let state=createWorkflow({projectId:'active-static-history'});
+  state=completeGate(state,'customer_intake',intake());
+  state=completeGate(state,'design_and_structure',{designRecord:'design.json',pageStructure:'pages.json',boardStatus:'delivered'});
+  state=completeGate(state,'frontend_code',{deliveredFiles:['index.html'],verification:['PASS'],interfaceContract:'contract.json'});
+  state=markNotApplicable({state,gate:'dashboard_integration',reason:'dashboard not required'}).state;
+  state=markNotApplicable({state,gate:'checkout_payment',reason:'checkout not required'}).state;
+  assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(state));
+  delete state.gates.dashboard_integration.notApplicableEvidence;
+  assert.throws(()=>workflowCore.validateWorkflowReadinessEvidence(state),/HISTORICAL_GATE_EVIDENCE_INVALID/);
 });

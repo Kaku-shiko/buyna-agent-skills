@@ -34,9 +34,11 @@ Checkout requires `createOrder({ localOrder, checkout })`. Return a real
 
 Notification sync requires `verifyNotification(payload)`. Verify authenticity
 according to the approved GlobePay protocol before returning
-`providerOrderId`, `resultCode`, and the provider payload. Query or reconciliation
-requires `queryOrder({ sellerId, providerOrderId })` and the same normalized
-result shape.
+`providerOrderId`, `resultCode`, and the provider payload. Before a paid
+transition, call `queryOrder({ sellerId, providerOrderId })`; its normalized
+result supplies `providerOrderId`, `resultCode`, integer `amount`, `currency`,
+and provider payload. The service reconciles that Query result to the local
+order's exact amount and currency before claiming or applying payment effects.
 
 Keep partner and credential codes in the server environment. Never return them
 from an adapter.
@@ -44,6 +46,7 @@ from an adapter.
 ## Required Verification
 
 Test pending-before-provider ordering, seller-scoped lookup, invalid provider
-notification, provider failure with the pending order preserved, duplicate
-event handling, paid/refund transitions, one-time stock/capacity effects, and a
-post-write read of the saved order.
+notification, mandatory Query after notification, amount/currency mismatch,
+provider failure with the pending order preserved, duplicate event handling,
+paid/refund transitions, one-time stock/capacity effects, and a post-write read
+of the saved order.

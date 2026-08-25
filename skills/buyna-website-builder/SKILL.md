@@ -37,8 +37,9 @@ evidence. Read [interaction modes](references/interaction-modes.md).
 2. For repair/resume, import supplied verifiable missing history through
    `importVerifiedHistory`; if a required record is unavailable, request one
    grouped evidence input.
-3. Run `scripts/route-builder.mjs` with recorded capabilities, the loaded
-   readiness/evidence state, requested slice, release intent, and
+3. Run `scripts/route-builder.mjs` with the capabilities persisted in the loaded
+   workflow state, the same capabilities as the external request assertion,
+   requested slice, release intent, and
    `build | repair | resume` mode.
    When it returns `CAPABILITY_SCOPE_CHANGE_REQUIRED`, return to scope/capability
    intake. When it returns `reopen_repair`, record the separately authorized
@@ -82,8 +83,10 @@ verification Adapters, then the settlement core. Every new-path request carries
 server-owned `projectId + sellerId`; settlement reconciles exact order, amount,
 and currency before applying effects. Payment-capable intake records one
 explicit supported architecture: `fixed-cores` for this new path or
-`legacy-globepay-service` for an already recorded legacy project. An omitted or
-unknown architecture is a blocker, not an implicit legacy selection.
+`legacy-globepay-service` for an already recorded legacy project. The legacy
+route uses that service without the fixed checkout/settlement cores and confirms
+paid through provider Query plus exact amount/currency reconciliation. An
+omitted or unknown architecture is a blocker, not an implicit legacy selection.
 
 ## Approvals And External Actions
 

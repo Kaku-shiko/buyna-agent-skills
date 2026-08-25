@@ -1,22 +1,26 @@
 # Phase 6: Checkout And Payment
 
-Use `NOT_APPLICABLE` when `requiresCheckout=false`. For every checkout, resolve
-`packages/buyna-checkout-flow-core`; it owns minimum-field validation,
-payment-method selection when configured, review/submission, snapshot creation,
-and local `pending_payment` order/booking locking. Project code supplies form
-presentation, configuration, database Adapter, routes, and framework wiring.
+Use `NOT_APPLICABLE` when `requiresCheckout=false`. Select the checkout sequence
+from persisted workflow state:
 
-When `requiresPayment=true`, resolve
-`packages/buyna-commerce-settlement-core`. The new-build sequence is checkout
-core → GlobePay transport/verification Adapters → settlement core. Every call
-uses server-owned `projectId + sellerId`. A callback is a trusted provider
-notify/query result only after signature/source verification and exact amount
-and currency reconciliation; browser return parameters remain display/navigation
-input. Record `paymentArchitecture: fixed-cores`, the server scope, checkout-flow
-verification, and amount/currency reconciliation in gate delivery evidence.
-An existing legacy project records `paymentArchitecture:
-legacy-globepay-service` explicitly. Missing or unknown architecture blocks
-payment work; it never selects the legacy service implicitly.
+- `requiresCheckout=true, requiresPayment=false`: resolve
+  `packages/buyna-checkout-flow-core` for minimum fields, optional method
+  selection, review/submission, snapshot creation, and local order/booking lock.
+- `paymentArchitecture: fixed-cores`: execute checkout-flow core → project
+  GlobePay transport/verification Adapters →
+  `packages/buyna-commerce-settlement-core`. Every call uses server-owned
+  `projectId + sellerId`.
+- `paymentArchitecture: legacy-globepay-service`: maintain the explicit legacy
+  service path without either fixed payment core. A paid transition verifies
+  notify authenticity, confirms success through provider Query, and reconciles
+  the Query's exact amount and currency to the local order before effects.
+
+Project code supplies form presentation, configuration, database/provider
+Adapters, routes, and framework wiring. For the fixed path, a callback becomes a
+trusted provider notify/query result only after signature/source verification
+and exact amount/currency reconciliation; browser return parameters remain
+display/navigation input. Record the selected architecture and its required
+evidence. Missing or unknown architecture blocks payment work.
 
 ### Default fast check (minimum delivery path)
 

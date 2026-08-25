@@ -50,6 +50,9 @@ When an existing project explicitly records
 `paymentArchitecture: legacy-globepay-service`,
 `createGlobepayService` from `scripts/globepay-service.mjs` remains available
 for legacy-only maintenance through `references/service-adapter-contract.md`.
+Its paid transition verifies the notification, performs a provider Query, and
+reconciles the Query's exact amount and currency to the local order before any
+idempotency claim or payment effect.
 That legacy path stays separate from the new fixed-core path; migration selects
 one named architecture before implementation. New fixed-core work records
 `paymentArchitecture: fixed-cores`; a missing or unknown value blocks payment

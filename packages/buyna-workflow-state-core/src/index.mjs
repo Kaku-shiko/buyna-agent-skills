@@ -36,6 +36,10 @@ function normalizeCapabilities(value){
   return Object.freeze(result);
 }
 
+function capabilitiesEqual(left,right){
+  return left.siteType===right.siteType&&['requiresDashboard','requiresCart','requiresCheckout','requiresPayment','requiresBooking'].every(key=>left[key]===right[key]);
+}
+
 function selectPaymentArchitecture(state,capabilities,value){
   state.configuration??={};
   if(!capabilities.requiresPayment)return;
@@ -102,7 +106,17 @@ function allChecksPassed(value){
   });
 }
 export function validateDeliveryEvidence(state,gate,delivery){
-  if(gate==='customer_intake'&&(!requiredText(delivery.record,'CUSTOMER_RECORD_REQUIRED')||!state.configuration?.capabilities))throw new Error('CUSTOMER_RECORD_REQUIRED');
+  if(gate==='customer_intake'){
+    requiredText(delivery.record,'CUSTOMER_RECORD_REQUIRED');
+    const deliveredCapabilities=normalizeCapabilities(delivery.capabilities);
+    const persistedCapabilities=normalizeCapabilities(state.configuration?.capabilities);
+    if(!capabilitiesEqual(deliveredCapabilities,persistedCapabilities))throw new Error('SITE_CAPABILITIES_MISMATCH');
+    if(deliveredCapabilities.requiresPayment){
+      const architecture=requiredText(state.configuration?.paymentArchitecture,'PAYMENT_ARCHITECTURE_REQUIRED');
+      if(!paymentArchitectures.includes(architecture))throw new Error('PAYMENT_ARCHITECTURE_UNSUPPORTED');
+      if(delivery.paymentArchitecture!==architecture)throw new Error('PAYMENT_ARCHITECTURE_MISMATCH');
+    }
+  }
   if(gate==='design_and_structure'&&(!requiredText(delivery.designRecord,'DESIGN_RECORD_REQUIRED')||!requiredText(delivery.pageStructure,'PAGE_STRUCTURE_REQUIRED')||!['delivered','postponed'].includes(delivery.boardStatus)))throw new Error('DESIGN_STRUCTURE_EVIDENCE_MISSING');
   if(gate==='frontend_code'&&(!nonEmptyArray(delivery.deliveredFiles)||!allChecksPassed(delivery.verification)||!requiredText(delivery.interfaceContract,'FRONTEND_DELIVERY_EVIDENCE_MISSING')))throw new Error('FRONTEND_DELIVERY_EVIDENCE_MISSING');
   if(gate==='dashboard_integration'){
@@ -116,11 +130,13 @@ export function validateDeliveryEvidence(state,gate,delivery){
     if(capabilities?.requiresPayment){
       const architecture=requiredText(state.configuration?.paymentArchitecture,'PAYMENT_ARCHITECTURE_REQUIRED');
       if(!paymentArchitectures.includes(architecture))throw new Error('PAYMENT_ARCHITECTURE_UNSUPPORTED');
-      if(delivery.paymentArchitecture&&delivery.paymentArchitecture!==architecture)throw new Error('PAYMENT_ARCHITECTURE_MISMATCH');
+      if(!delivery.paymentArchitecture)throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
+      if(delivery.paymentArchitecture!==architecture)throw new Error('PAYMENT_ARCHITECTURE_MISMATCH');
       const fixedCorePath=architecture==='fixed-cores';
       const scopeValid=!fixedCorePath||(delivery.scope?.projectId===state.projectId&&Boolean(requiredText(delivery.scope?.sellerId,'SELLER_ID_REQUIRED')));
       const coreValid=!fixedCorePath||(delivery.checkoutFlowVerified&&delivery.amountCurrencyReconciled);
-      if(!scopeValid||!coreValid||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified)throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
+      const legacyValid=fixedCorePath||(delivery.providerQueryVerified&&delivery.amountCurrencyReconciled);
+      if(!scopeValid||!coreValid||!legacyValid||!delivery.routingVerified||!delivery.statusSyncVerified||!delivery.idempotencyVerified||!delivery.gmvOutboxVerified)throw new Error('PAYMENT_DELIVERY_EVIDENCE_MISSING');
     }else if(capabilities?.requiresCheckout&&!delivery.checkoutFlowVerified)throw new Error('CHECKOUT_DELIVERY_EVIDENCE_MISSING');
   }
   if(gate==='testing_upload_gate'&&(delivery.result!=='PASS'||!allChecksPassed(delivery.verification)))throw new Error('TESTING_DELIVERY_EVIDENCE_MISSING');
@@ -257,25 +273,45 @@ export function validateCompletedWorkflowState(state){
     if(!state.gates||typeof state.gates!=='object'||Array.isArray(state.gates))throw new Error('GATE_STATE_REQUIRED');
     for(const gate of gateOrder){
       const current=state.gates[gate];
-      if(!current||typeof current!=='object'||Array.isArray(current))throw new Error('GATE_STATE_REQUIRED');
-      if(current.status==='approved'){
-        if(!current.delivery||typeof current.delivery!=='object'||Array.isArray(current.delivery))throw new Error('DELIVERY_REQUIRED');
-        validateDeliveryEvidence(state,gate,current.delivery);
-        requiredText(current.approvedBy,'APPROVER_REQUIRED');
-        if(!validTimestamp(current.approvedAt))throw new Error('APPROVAL_EVIDENCE_REQUIRED');
-        if(current.approvalMode==='imported_verified_evidence')requiredText(current.approvalRecord,'VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
-        continue;
-      }
-      if(current.status==='not_applicable'){
-        validateNotApplicableEvidence(state,gate,current);
-        continue;
-      }
-      throw new Error('WORKFLOW_NOT_COMPLETE');
+      validateTerminalGateEvidence(state,gate,current);
     }
     return state;
   }catch(error){
     if(error instanceof Error&&error.message==='COMPLETED_GATE_EVIDENCE_INVALID')throw error;
     throw new Error('COMPLETED_GATE_EVIDENCE_INVALID',{cause:error});
+  }
+}
+
+function validateTerminalGateEvidence(state,gate,current){
+  if(!current||typeof current!=='object'||Array.isArray(current))throw new Error('GATE_STATE_REQUIRED');
+  if(current.status==='approved'){
+    if(!current.delivery||typeof current.delivery!=='object'||Array.isArray(current.delivery))throw new Error('DELIVERY_REQUIRED');
+    validateDeliveryEvidence(state,gate,current.delivery);
+    requiredText(current.approvedBy,'APPROVER_REQUIRED');
+    if(!validTimestamp(current.approvedAt))throw new Error('APPROVAL_EVIDENCE_REQUIRED');
+    if(current.approvalMode==='imported_verified_evidence')requiredText(current.approvalRecord,'VERIFIED_APPROVAL_EVIDENCE_REQUIRED');
+    return;
+  }
+  if(current.status==='not_applicable'){
+    validateNotApplicableEvidence(state,gate,current);
+    return;
+  }
+  throw new Error('GATE_HISTORY_NOT_TERMINAL');
+}
+
+export function validateWorkflowReadinessEvidence(state){
+  if(state?.currentGate===null)return validateCompletedWorkflowState(state);
+  try{
+    if(!state||typeof state!=='object'||Array.isArray(state))throw new Error('WORKFLOW_STATE_REQUIRED');
+    if(!state.gates||typeof state.gates!=='object'||Array.isArray(state.gates))throw new Error('GATE_STATE_REQUIRED');
+    const currentIndex=gateOrder.indexOf(state.currentGate);
+    if(currentIndex<0)throw new Error('CURRENT_GATE_INVALID');
+    for(const gate of gateOrder)if(!state.gates[gate]||typeof state.gates[gate]!=='object'||Array.isArray(state.gates[gate]))throw new Error('GATE_STATE_REQUIRED');
+    for(const gate of gateOrder.slice(0,currentIndex))validateTerminalGateEvidence(state,gate,state.gates[gate]);
+    return state;
+  }catch(error){
+    if(error instanceof Error&&error.message==='HISTORICAL_GATE_EVIDENCE_INVALID')throw error;
+    throw new Error('HISTORICAL_GATE_EVIDENCE_INVALID',{cause:error});
   }
 }
 

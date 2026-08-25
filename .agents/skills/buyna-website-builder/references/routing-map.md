@@ -7,10 +7,12 @@ defines its inputs and the domain meaning of its outputs.
 
 Input:
 
-- `capabilities`: `siteType` plus boolean `requiresDashboard`, `requiresCart`,
-  `requiresCheckout`, `requiresPayment`, and `requiresBooking`.
+- `capabilities`: an external assertion of `siteType` plus boolean
+  `requiresDashboard`, `requiresCart`, `requiresCheckout`, `requiresPayment`,
+  and `requiresBooking`. After intake, the identical persisted workflow value is
+  authoritative; a mismatch returns `CAPABILITY_SCOPE_CHANGE_REQUIRED`.
 - `workflowState`: canonical gate status plus real delivery/approval evidence
-  for completed history.
+  for every prior gate in active or completed history.
 - `requestedSlice`: one canonical gate ID or `local_preview`.
 - `releaseIntent`: explicit boolean.
 - `mode`: `build`, `repair`, or `resume`.
@@ -87,8 +89,10 @@ New payment path:
 3. `buyna-commerce-settlement-core` accepts only trusted provider notify/query
    results with exact order, amount, and currency reconciliation.
 
-`createGlobepayService` belongs only to explicitly recorded legacy maintenance
-and is not composed with this new path.
+An explicitly recorded `legacy-globepay-service` route uses
+`createGlobepayService` without the checkout-flow or settlement cores. Its paid
+writer requires provider Query plus exact amount and currency reconciliation.
+The fixed-core and legacy routes are never composed.
 
 Payment-capable intake names exactly one supported architecture:
 `fixed-cores` or `legacy-globepay-service`. Missing or unknown values block the

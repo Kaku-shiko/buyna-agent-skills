@@ -27,9 +27,18 @@ method, trusted browser context, and enabled-method map. Use its
 `endpointFamily` and `nextAction` in the project server Adapter. Do not rewrite
 method/channel routing or let frontend code override the result.
 
-Use `createGlobepayService(...).createCheckout(...)` for the actual sequence.
-Implement only the project store/provider Adapters described in
-`buyai-globepay-payment/references/service-adapter-contract.md`.
+Read the saved workflow `paymentArchitecture` and use its matching sequence:
+
+- `fixed-cores`: use `buyna-checkout-flow-core` to validate/review the checkout
+  and lock the local `pending_payment` snapshot, then call the project GlobePay
+  transport Adapter. Settlement stays with `buyna-commerce-settlement-core`.
+- `legacy-globepay-service`: use
+  `createGlobepayService(...).createCheckout(...)` with the project store/provider
+  Adapters in
+  `buyai-globepay-payment/references/service-adapter-contract.md`.
+
+Each request uses exactly the saved architecture. Missing or unknown architecture
+returns to workflow intake/configuration before payment creation.
 
 When a pending order contains a coupon snapshot, call `@buyna/coupon-core`
 `resolveCouponPaymentAmount({quote, orderTotal})` before provider order creation.

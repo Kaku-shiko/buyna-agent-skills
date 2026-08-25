@@ -8,7 +8,7 @@ const workflowCoreUrls = [
 ];
 const workflowCoreUrl = workflowCoreUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
 if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED");
-const { validateCompletedWorkflowState } = await import(workflowCoreUrl.href);
+const { validateWorkflowReadinessEvidence } = await import(workflowCoreUrl.href);
 
 const gates = Object.freeze([
   "customer_intake",
@@ -28,6 +28,7 @@ const capabilityKeys = Object.freeze([
   "requiresPayment",
   "requiresBooking",
 ]);
+const paymentArchitectures = Object.freeze(["fixed-cores", "legacy-globepay-service"]);
 
 function requiredObject(value, code) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(code);
@@ -47,22 +48,13 @@ function normalizeCapabilities(value) {
   return capabilities;
 }
 
+function capabilitiesEqual(left, right) {
+  return left.siteType === right.siteType && capabilityKeys.every((key) => left[key] === right[key]);
+}
+
 function verifyReadiness(workflowState) {
   const state = requiredObject(workflowState, "WORKFLOW_STATE_REQUIRED");
-  const gateStates = requiredObject(state.gates, "GATE_STATE_REQUIRED");
-  for (const gate of gates) requiredObject(gateStates[gate], "GATE_STATE_REQUIRED");
-  if (state.currentGate === null) {
-    validateCompletedWorkflowState(state);
-    return state;
-  }
-  if (!gates.includes(state.currentGate)) throw new Error("CURRENT_GATE_INVALID");
-  const currentIndex = gates.indexOf(state.currentGate);
-  for (const gate of gates.slice(0, currentIndex)) {
-    const prior = gateStates[gate];
-    const approved = prior.status === "approved" && prior.delivery && prior.approvedBy;
-    const skipped = prior.status === "not_applicable" && String(prior.reason ?? "").trim();
-    if (!approved && !skipped) throw new Error("VERIFIED_READINESS_EVIDENCE_REQUIRED");
-  }
+  validateWorkflowReadinessEvidence(state);
   return state;
 }
 
@@ -73,7 +65,22 @@ function notApplicableGates(capabilities) {
   return result;
 }
 
-function routeForGate({ gate, capabilities, mode }) {
+function capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities }) {
+  return {
+    action: "blocked",
+    targetGate: workflowState.currentGate ?? requestedGate,
+    requestedSlice,
+    reason: "CAPABILITY_SCOPE_CHANGE_REQUIRED",
+    skills: [],
+    fixedModules: ["buyna-workflow-state-core"],
+    notApplicableGates: notApplicableGates(capabilities),
+    continueWithoutConfirmation: false,
+    commerceArchitecture: null,
+    externalActions: { git: false, aws: false },
+  };
+}
+
+function routeForGate({ gate, capabilities, paymentArchitecture, mode }) {
   const fixedModules = ["buyna-workflow-state-core"];
   if (gate === "customer_intake") return { skills: ["buyna-customer-intake"], fixedModules, commerceArchitecture: null };
   if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure"], fixedModules, commerceArchitecture: null };
@@ -93,30 +100,51 @@ function routeForGate({ gate, capabilities, mode }) {
     if (capabilities.requiresCart) skills.push("buyai-product-merchant-backend");
     if (capabilities.requiresBooking) skills.push("buyai-booking-service-backend");
   }
-  if (capabilities.requiresCheckout) {
+  const fixedCorePayment = capabilities.requiresPayment && paymentArchitecture === "fixed-cores";
+  if (capabilities.requiresCheckout && (!capabilities.requiresPayment || fixedCorePayment)) {
     skills.push("buyai-checkout-address-ux");
     fixedModules.push("buyna-checkout-flow-core");
+  } else if (capabilities.requiresCheckout) {
+    skills.push("buyai-checkout-address-ux");
   }
   if (capabilities.requiresCart) fixedModules.splice(1, 0, "buyna-cart-core", "buyna-order-core");
   if (capabilities.requiresPayment) {
     skills.push("buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce");
-    fixedModules.push("buyna-commerce-settlement-core");
+    if (fixedCorePayment) fixedModules.push("buyna-commerce-settlement-core");
   }
   return {
     skills,
     fixedModules,
     commerceArchitecture: capabilities.requiresPayment
-      ? "checkout-flow+transport-adapters+settlement"
+      ? fixedCorePayment ? "checkout-flow+transport-adapters+settlement" : "legacy-globepay-service"
       : capabilities.requiresCheckout ? "checkout-flow-only" : null,
   };
 }
 
 export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState: rawState, requestedSlice, releaseIntent = false, mode = "build" } = {}) {
-  const capabilities = normalizeCapabilities(rawCapabilities);
   if (!requestedSlices.includes(requestedSlice)) throw new Error("REQUESTED_SLICE_INVALID");
   if (!["build", "repair", "resume"].includes(mode)) throw new Error("ROUTE_MODE_INVALID");
   const workflowState = verifyReadiness(rawState);
   const requestedGate = requestedSlice === "local_preview" ? "frontend_code" : requestedSlice;
+  const persistedCapabilities = workflowState.configuration?.capabilities
+    ? normalizeCapabilities(workflowState.configuration.capabilities)
+    : null;
+  let requestedCapabilities;
+  try {
+    requestedCapabilities = normalizeCapabilities(rawCapabilities);
+  } catch (error) {
+    if (persistedCapabilities) return capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities: persistedCapabilities });
+    throw error;
+  }
+  const capabilities = persistedCapabilities ?? requestedCapabilities;
+  if (persistedCapabilities && !capabilitiesEqual(requestedCapabilities, persistedCapabilities)) {
+    return capabilityScopeChangeRoute({ workflowState, requestedGate, requestedSlice, capabilities: persistedCapabilities });
+  }
+  const paymentArchitecture = capabilities.requiresPayment
+    ? String(workflowState.configuration?.paymentArchitecture ?? "").trim()
+    : null;
+  if (capabilities.requiresPayment && !paymentArchitecture) throw new Error("PAYMENT_ARCHITECTURE_REQUIRED");
+  if (capabilities.requiresPayment && !paymentArchitectures.includes(paymentArchitecture)) throw new Error("PAYMENT_ARCHITECTURE_UNSUPPORTED");
   const completed = workflowState.currentGate === null;
   if (completed && mode !== "repair") throw new Error("WORKFLOW_COMPLETE");
   if (completed && !repairSlices.includes(requestedGate)) throw new Error("REPAIR_SLICE_INVALID");
@@ -138,7 +166,7 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   }
   const requestedStatus = workflowState.gates[requestedGate].status;
   const targetGate = completed ? requestedGate : ["ready", "in_progress"].includes(requestedStatus) ? requestedGate : workflowState.currentGate;
-  const selected = routeForGate({ gate: targetGate, capabilities, mode });
+  const selected = routeForGate({ gate: targetGate, capabilities, paymentArchitecture, mode });
   const workPackageGates = workflowState.configuration?.workPackage?.gates ?? [];
   const base = {
     targetGate,

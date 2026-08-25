@@ -26,7 +26,7 @@ test('checkout persists a pending order before calling GlobePay and then attache
 
 test('verified notification applies one idempotent payment transition inside a transaction',async()=>{
   const calls=[];
-  const order={id:'local-1',sellerId:'seller-1',status:'pending_payment'};
+  const order={id:'local-1',sellerId:'seller-1',status:'pending_payment',amount:1200,currency:'JPY'};
   const store={
     async withTransaction(work){calls.push('transaction');return work({
       async getOrderByProviderId(){calls.push('find');return order},
@@ -37,14 +37,15 @@ test('verified notification applies one idempotent payment transition inside a t
   };
   const provider={
     async verifyNotification(){calls.push('verify');return{providerOrderId:'GP-1',resultCode:'PAY_SUCCESS',payload:{result_code:'PAY_SUCCESS'}}},
+    async queryOrder(){calls.push('query');return{providerOrderId:'GP-1',resultCode:'PAY_SUCCESS',amount:1200,currency:'JPY',payload:{result_code:'PAY_SUCCESS',total_fee:1200,currency:'JPY'}}},
   };
   const service=createGlobepayService({store,provider});
 
   const result=await service.syncPaymentStatus({sellerId:'seller-1',eventType:'notify',payload:{signed:'provider-payload'}});
 
-  assert.deepEqual(calls.slice(0,4),['verify','transaction','find','claim']);
-  assert.deepEqual(calls[4],['apply','paid','upsert_payment','upsert_paid_record','apply_inventory_once']);
-  assert.equal(calls[5],'read');
+  assert.deepEqual(calls.slice(0,5),['verify','query','transaction','find','claim']);
+  assert.deepEqual(calls[5],['apply','paid','upsert_payment','upsert_paid_record','apply_inventory_once']);
+  assert.equal(calls[6],'read');
   assert.equal(result.order.status,'paid');
   assert.equal(result.applied,true);
 });
@@ -52,12 +53,12 @@ test('verified notification applies one idempotent payment transition inside a t
 test('a duplicate provider event is read safely without applying payment effects twice',async()=>{
   let applied=0;
   const store={async withTransaction(work){return work({
-    async getOrderByProviderId(input){assert.equal(input.sellerId,'seller-1');return{id:'local-1',status:'paid'}},
+    async getOrderByProviderId(input){assert.equal(input.sellerId,'seller-1');return{id:'local-1',status:'paid',amount:1200,currency:'JPY'}},
     async claimPaymentEvent(){return false},
     async applyPaymentTransition(){applied+=1},
-    async getOrderById(input){assert.equal(input.sellerId,'seller-1');return{id:'local-1',status:'paid'}},
+    async getOrderById(input){assert.equal(input.sellerId,'seller-1');return{id:'local-1',status:'paid',amount:1200,currency:'JPY'}},
   })}};
-  const provider={async queryOrder(){return{providerOrderId:'GP-1',resultCode:'PAY_SUCCESS',payload:{result_code:'PAY_SUCCESS'}}}};
+  const provider={async queryOrder(){return{providerOrderId:'GP-1',resultCode:'PAY_SUCCESS',amount:1200,currency:'JPY',payload:{result_code:'PAY_SUCCESS',total_fee:1200,currency:'JPY'}}}};
   const service=createGlobepayService({store,provider});
 
   const result=await service.syncPaymentStatus({sellerId:'seller-1',eventType:'query',providerOrderId:'GP-1'});
@@ -65,6 +66,25 @@ test('a duplicate provider event is read safely without applying payment effects
   assert.equal(result.applied,false);
   assert.equal(applied,0);
   assert.equal(result.order.status,'paid');
+});
+
+test('legacy paid transition rejects provider query amount or currency mismatches before claiming effects',async()=>{
+  for(const providerResult of [
+    {providerOrderId:'GP-1',resultCode:'PAY_SUCCESS',amount:1199,currency:'JPY'},
+    {providerOrderId:'GP-1',resultCode:'PAY_SUCCESS',amount:1200,currency:'CNY'},
+  ]){
+    let claimed=false;
+    const store={async withTransaction(work){return work({
+      async getOrderByProviderId(){return{id:'local-1',status:'pending_payment',amount:1200,currency:'JPY'}},
+      async claimPaymentEvent(){claimed=true;return true},
+      async applyPaymentTransition(){throw new Error('must not apply')},
+      async getOrderById(){return{id:'local-1',status:'pending_payment',amount:1200,currency:'JPY'}},
+    })}};
+    const provider={async queryOrder(){return{...providerResult,payload:{result_code:'PAY_SUCCESS'}}}};
+    const service=createGlobepayService({store,provider});
+    await assert.rejects(()=>service.syncPaymentStatus({sellerId:'seller-1',eventType:'query',providerOrderId:'GP-1'}),/PAYMENT_(?:AMOUNT|CURRENCY)_MISMATCH/);
+    assert.equal(claimed,false);
+  }
 });
 
 test('provider creation failure happens only after the pending order is persisted',async()=>{
