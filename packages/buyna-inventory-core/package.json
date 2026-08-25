@@ -1,0 +1,10 @@
+{
+  "name": "@buyna/inventory-core",
+  "version": "0.1.0",
+  "description": "Framework-neutral scoped inventory reservation state",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "scripts": {
+    "test": "node --test test/inventory.test.mjs"
+  }
+}
