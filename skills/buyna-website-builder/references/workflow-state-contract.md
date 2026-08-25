@@ -36,9 +36,17 @@ transition through `saveTransition`; the file store appends the complete event
 batch in one write. Chat assertions are discovery hints and are never import
 evidence.
 
-For a completed/deployed workflow (`currentGate=null`), authorize a bounded
-implementation repair through `openRepairSlice({state, gate, scope,
-authorizedBy})`. The Interface returns separate `activeRepair` readiness and a
+For a completed workflow, `validateCompletedWorkflowState` requires every
+approved gate to carry valid delivery and approval evidence and every
+`not_applicable` gate to carry a capability-legitimate reason plus trustworthy
+native-transition or verified-import evidence. Imported approvals also carry
+their approval record. `openRepairSlice` reuses this complete validation.
+
+For an eligible completed/deployed workflow (`currentGate=null`), authorize a
+bounded implementation repair through `openRepairSlice({state, gate, scope,
+authorizedBy})`. A repair gate must already be enabled by the saved capabilities;
+adding Dashboard or checkout starts a capability scope change instead. The
+Interface returns separate `activeRepair` readiness and a
 `repair_slice_opened` event while preserving canonical gate status, delivery,
 approval, and release evidence. The router then enters that matching repair
 slice without reopening the original workflow. After delivery, call

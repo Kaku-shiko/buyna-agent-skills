@@ -1,6 +1,14 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const workflowCoreUrls = [
+  new URL("../../../packages/buyna-workflow-state-core/src/index.mjs", import.meta.url),
+  new URL("../../../../packages/buyna-workflow-state-core/src/index.mjs", import.meta.url),
+];
+const workflowCoreUrl = workflowCoreUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
+if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED");
+const { validateCompletedWorkflowState } = await import(workflowCoreUrl.href);
 
 const gates = Object.freeze([
   "customer_intake",
@@ -44,7 +52,7 @@ function verifyReadiness(workflowState) {
   const gateStates = requiredObject(state.gates, "GATE_STATE_REQUIRED");
   for (const gate of gates) requiredObject(gateStates[gate], "GATE_STATE_REQUIRED");
   if (state.currentGate === null) {
-    if (gates.some((gate) => !["approved", "not_applicable"].includes(gateStates[gate].status))) throw new Error("COMPLETED_WORKFLOW_EVIDENCE_REQUIRED");
+    validateCompletedWorkflowState(state);
     return state;
   }
   if (!gates.includes(state.currentGate)) throw new Error("CURRENT_GATE_INVALID");
@@ -113,10 +121,24 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   if (completed && mode !== "repair") throw new Error("WORKFLOW_COMPLETE");
   if (completed && !repairSlices.includes(requestedGate)) throw new Error("REPAIR_SLICE_INVALID");
   const activeRepair = completed && workflowState.activeRepair?.gate === requestedGate && ["ready", "in_progress"].includes(workflowState.activeRepair.status);
+  const skippedGates = notApplicableGates(capabilities);
+  if (completed && workflowState.gates[requestedGate].status === "not_applicable") {
+    return {
+      action: "blocked",
+      targetGate: requestedGate,
+      requestedSlice,
+      reason: "CAPABILITY_SCOPE_CHANGE_REQUIRED",
+      skills: [],
+      fixedModules: ["buyna-workflow-state-core"],
+      notApplicableGates: skippedGates,
+      continueWithoutConfirmation: false,
+      commerceArchitecture: null,
+      externalActions: { git: false, aws: false },
+    };
+  }
   const requestedStatus = workflowState.gates[requestedGate].status;
   const targetGate = completed ? requestedGate : ["ready", "in_progress"].includes(requestedStatus) ? requestedGate : workflowState.currentGate;
   const selected = routeForGate({ gate: targetGate, capabilities, mode });
-  const skippedGates = notApplicableGates(capabilities);
   const workPackageGates = workflowState.configuration?.workPackage?.gates ?? [];
   const base = {
     targetGate,

@@ -21,8 +21,9 @@ Output:
 - `notApplicableGates` contains only canonical optional gates.
 - `continueWithoutConfirmation` inherits the saved bounded work package.
 - `externalActions.git` and `externalActions.aws` are explicit.
-- A completed workflow in repair mode returns `action: reopen_repair` and an
-  `openRepairSlice` transition until a matching separate repair slice exists.
+- A fully evidenced completed workflow in repair mode returns `action:
+  reopen_repair` and an `openRepairSlice` transition until a matching separate
+  repair slice exists.
 
 ## Canonical Gates
 
@@ -66,10 +67,14 @@ dependency-ready slice is then selected directly. A chat assertion supplies no
 readiness evidence by itself.
 
 When a deployed workflow has `currentGate=null`, `mode=repair` selects the
-requested implementation gate and returns `reopen_repair`. Authorize the bounded
-repair scope through `openRepairSlice`; this creates separate repair readiness
-without changing canonical completed gates. Rerun the router to execute that
-authorized slice directly.
+requested implementation gate after the workflow core validates delivery,
+approval, and trustworthy N/A evidence for every completed gate. Repair keeps the
+saved capability boundary; a canonically N/A Dashboard or checkout request returns
+`CAPABILITY_SCOPE_CHANGE_REQUIRED` as a capability scope change before any reopen.
+Authorize an eligible bounded repair scope through
+`openRepairSlice`; this creates separate repair readiness without changing
+canonical completed gates. Rerun the router to execute that authorized slice
+directly.
 
 ## Payment Architecture
 

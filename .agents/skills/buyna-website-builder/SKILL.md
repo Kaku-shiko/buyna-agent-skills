@@ -18,7 +18,9 @@ configuration, framework wiring, and visual presentation.
   `importVerifiedHistory` once, persist its event batch, recompute readiness,
   and enter the requested ready slice directly.
 - Completed/deployed repair: when `currentGate=null`, run the router in `repair`
-  mode. On `reopen_repair`, authorize one bounded repair scope through
+  mode. It validates full gate evidence first. A canonically N/A Dashboard or
+  checkout request becomes a capability scope change. On `reopen_repair`,
+  authorize one bounded repair scope through
   `openRepairSlice`, persist the transition, and rerun the router. The repair
   slice is separate; canonical completed gates and release evidence stay intact.
 - Chat statements identify evidence to inspect; the workflow advances from the
@@ -38,8 +40,9 @@ evidence. Read [interaction modes](references/interaction-modes.md).
 3. Run `scripts/route-builder.mjs` with recorded capabilities, the loaded
    readiness/evidence state, requested slice, release intent, and
    `build | repair | resume` mode.
-   When it returns `reopen_repair`, record the separately authorized repair
-   slice with `openRepairSlice` and run the same input against the new state.
+   When it returns `CAPABILITY_SCOPE_CHANGE_REQUIRED`, return to scope/capability
+   intake. When it returns `reopen_repair`, record the separately authorized
+   repair slice with `openRepairSlice` and run the same input against the new state.
 4. Treat the script output as routing authority. Read
    [routing-map.md](references/routing-map.md), the selected phase reference,
    and only the returned child Skills.
