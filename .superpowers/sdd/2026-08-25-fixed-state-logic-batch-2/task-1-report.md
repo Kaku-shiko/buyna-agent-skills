@@ -48,3 +48,35 @@ transaction-bound `complete(result)` function for an idempotent no-mutation
 completion. Duplicate claims return their persisted event result. A real
 Adapter that releases the stock/reservation lock before `work` completes would
 not preserve the oversell guarantee and must be rejected during integration.
+
+## Review Fix Round 1
+
+The review identified incomplete replay and Adapter-boundary validation. A new
+RED run produced 16 passing and 5 failing tests:
+
+- reserve replay accepted changed quantity, product, or SKU under the same
+  event ID;
+- commit/release accepted malformed Adapter reservation rows or replay results;
+- the in-memory transaction retained failed event claims.
+
+The fix now persists and compares an immutable event fingerprint containing
+scope, operation, reservation ID, product ID, SKU ID, and quantity where
+applicable. Commit/release validate scope, requested reservation ID, required
+product/SKU identity, positive quantity, and known state before mutation.
+Stored results must match the event fingerprint. The reference memory Adapter
+now snapshots and restores stock, reservation, and event state on transaction
+failure.
+
+A self-review mutation test then exposed valid-looking product/SKU/result and
+operation-result-state swaps; the focused mutation RED runs each had 20 passing
+and 1 failing test. Event completion now persists result identity into the
+stored fingerprint, and commit/release replay requires its operation-specific
+terminal state, closing those replay gaps.
+
+Final review-fix verification:
+
+- `npm test --prefix packages/buyna-inventory-core` — 21/21 passed.
+- `node --check packages/buyna-inventory-core/src/index.mjs` — passed.
+- Root tests — 30/30 passed.
+- Repository validation still reports only the expected pre-Task-5 manifest
+  inventory mismatch.

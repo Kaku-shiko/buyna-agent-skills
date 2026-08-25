@@ -12,6 +12,15 @@ function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
 }
 
+function cloneMap(map) {
+  return new Map([...map].map(([key, value]) => [key, clone(value)]));
+}
+
+function restoreMap(target, snapshot) {
+  target.clear();
+  for (const [key, value] of snapshot) target.set(key, clone(value));
+}
+
 function stockKey({ projectId, sellerId, productId, skuId }) {
   return `${projectId}:${sellerId}:${productId}:${skuId}`;
 }
@@ -38,9 +47,25 @@ function createMemoryStore({ quantity = 5 } = {}) {
     return reservation;
   }
 
+  function completeEvent(eventId, result) {
+    const event = events.get(eventId);
+    event.result = clone(result);
+    event.fingerprint = {
+      ...event.fingerprint,
+      productId: result.productId,
+      skuId: result.skuId,
+      quantity: result.quantity,
+    };
+  }
+
   const transaction = (work) => {
     const run = transactionTail.then(async () => {
       calls.push('transaction');
+      const before = {
+        stock: cloneMap(stock),
+        reservations: cloneMap(reservations),
+        events: cloneMap(events),
+      };
       const tx = {
         async claimReservationEvent(input) {
           calls.push(`claim:${input.operation}:${input.eventId}`);
@@ -57,7 +82,7 @@ function createMemoryStore({ quantity = 5 } = {}) {
             claimed: true,
             reservation: clone(scopedReservation(input.scope, input.reservationId)),
             async complete(result) {
-              events.get(input.eventId).result = clone(result);
+              completeEvent(input.eventId, result);
             },
           };
         },
@@ -79,23 +104,30 @@ function createMemoryStore({ quantity = 5 } = {}) {
         async createReservation({ reservation, eventId }) {
           calls.push(`create:${reservation.reservationId}`);
           reservations.set(reservation.reservationId, clone(reservation));
-          events.get(eventId).result = clone(reservation);
+          completeEvent(eventId, reservation);
           return clone(reservation);
         },
         async commitReservation({ reservation, eventId }) {
           calls.push(`commit:${reservation.reservationId}`);
           reservations.set(reservation.reservationId, clone(reservation));
-          events.get(eventId).result = clone(reservation);
+          completeEvent(eventId, reservation);
           return clone(reservation);
         },
         async releaseReservation({ reservation, eventId }) {
           calls.push(`release:${reservation.reservationId}`);
           reservations.set(reservation.reservationId, clone(reservation));
-          events.get(eventId).result = clone(reservation);
+          completeEvent(eventId, reservation);
           return clone(reservation);
         },
       };
-      return work(tx);
+      try {
+        return await work(tx);
+      } catch (error) {
+        restoreMap(stock, before.stock);
+        restoreMap(reservations, before.reservations);
+        restoreMap(events, before.events);
+        throw error;
+      }
     });
     transactionTail = run.catch(() => undefined);
     return run;
@@ -104,6 +136,7 @@ function createMemoryStore({ quantity = 5 } = {}) {
   return {
     store: { transaction },
     calls,
+    stock,
     reservations,
     events,
   };
@@ -334,4 +367,91 @@ test('never releases a committed reservation even when release is retried', asyn
     );
   }
   assert.equal(calls.filter((call) => call === 'release:reservation_1').length, 0);
+});
+
+test('reserve event replay rejects every immutable fingerprint change', async () => {
+  for (const changed of [
+    { quantity: 1 },
+    { productId: 'product_other' },
+    { skuId: 'sku_other' },
+  ]) {
+    const { inventory } = moduleFixture();
+    await inventory.reserve(reserveInput());
+    await assert.rejects(
+      inventory.reserve(reserveInput(changed)),
+      (error) => error.code === 'INVENTORY_EVENT_CONFLICT',
+    );
+  }
+});
+
+test('commit rejects malformed Adapter reservation identity before mutation', async () => {
+  const mutations = [
+    (record) => { record.reservationId = 'reservation_other'; },
+    (record) => { record.productId = ''; },
+    (record) => { record.skuId = ''; },
+    (record) => { record.quantity = 0; },
+    (record) => { record.state = 'adapter_unknown'; },
+  ];
+  for (const mutate of mutations) {
+    const { inventory, reservations, calls } = moduleFixture();
+    await inventory.reserve(reserveInput());
+    mutate(reservations.get('reservation_1'));
+    await assert.rejects(
+      inventory.commit({ eventId: 'event_commit_1', reservationId: 'reservation_1' }),
+      (error) => error.code === 'INVENTORY_ADAPTER_RESERVATION_INVALID',
+    );
+    assert.equal(calls.filter((call) => call === 'commit:reservation_1').length, 0);
+  }
+});
+
+test('release rejects replay results that do not match stored reservation identity', async () => {
+  const mutations = [
+    (record) => { record.reservationId = 'reservation_other'; },
+    (record) => { record.productId = 'product_other'; },
+    (record) => { record.skuId = 'sku_other'; },
+    (record) => { record.quantity = 1; },
+    (record) => { record.state = 'committed'; },
+  ];
+  for (const mutate of mutations) {
+    const { inventory, events, calls } = moduleFixture();
+    await inventory.reserve(reserveInput());
+    await inventory.release({
+      eventId: 'event_release_1',
+      reservationId: 'reservation_1',
+    });
+    mutate(events.get('event_release_1').result);
+    await assert.rejects(
+      inventory.release({ eventId: 'event_release_1', reservationId: 'reservation_1' }),
+      (error) => error.code === 'INVENTORY_ADAPTER_RESERVATION_INVALID',
+    );
+    assert.equal(calls.filter((call) => call === 'release:reservation_1').length, 1);
+  }
+});
+
+test('failed insufficient reservation rolls back its event claim and can be retried', async () => {
+  const { inventory, stock, calls } = moduleFixture({ quantity: 1 });
+  const input = reserveInput({ quantity: 2 });
+  await assert.rejects(
+    inventory.reserve(input),
+    (error) => error.code === 'INVENTORY_INSUFFICIENT',
+  );
+  stock.values().next().value.onHandQuantity = 2;
+  const reserved = await inventory.reserve(input);
+  assert.equal(reserved.state, 'reserved');
+  assert.equal(calls.filter((call) => call === 'create:reservation_1').length, 1);
+});
+
+test('failed illegal transition rolls back its event claim and can be retried', async () => {
+  const { inventory, reservations, calls } = moduleFixture();
+  await inventory.reserve(reserveInput());
+  await inventory.commit({ eventId: 'event_commit_1', reservationId: 'reservation_1' });
+  const releaseInput = { eventId: 'event_release_1', reservationId: 'reservation_1' };
+  await assert.rejects(
+    inventory.release(releaseInput),
+    (error) => error.code === 'INVENTORY_INVALID_TRANSITION',
+  );
+  reservations.get('reservation_1').state = 'reserved';
+  const released = await inventory.release(releaseInput);
+  assert.equal(released.state, 'released');
+  assert.equal(calls.filter((call) => call === 'release:reservation_1').length, 1);
 });

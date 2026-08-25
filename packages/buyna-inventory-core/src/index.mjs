@@ -52,6 +52,8 @@ export const INVENTORY_TRANSITIONS = Object.freeze({
   insufficient: Object.freeze([]),
 });
 
+const KNOWN_INVENTORY_STATES = new Set(Object.values(INVENTORY_STATES));
+
 function scopeFrom(projectId, sellerId) {
   return Object.freeze({
     projectId: requiredText(projectId, 'INVENTORY_SCOPE_REQUIRED'),
@@ -81,10 +83,56 @@ function serializable(record) {
   return structuredClone(record);
 }
 
+function reservationFingerprint(scope, operation, reservationId, identity) {
+  return Object.freeze({
+    ...scope,
+    operation,
+    reservationId,
+    ...(identity ?? {}),
+  });
+}
+
+function verifyFingerprint(actual, expected) {
+  if (!actual || typeof actual !== 'object') fail('INVENTORY_EVENT_CONFLICT');
+  for (const [key, value] of Object.entries(expected)) {
+    if (actual[key] !== value) fail('INVENTORY_EVENT_CONFLICT');
+  }
+}
+
+function verifyAdapterReservation(record, expected, scope) {
+  if (!record || typeof record !== 'object') {
+    fail('INVENTORY_ADAPTER_RESERVATION_INVALID');
+  }
+  verifyRecordScope(record, scope);
+  if (
+    record.reservationId !== expected.reservationId
+    || typeof record.productId !== 'string'
+    || record.productId.trim() === ''
+    || typeof record.skuId !== 'string'
+    || record.skuId.trim() === ''
+    || !Number.isSafeInteger(record.quantity)
+    || record.quantity <= 0
+    || !KNOWN_INVENTORY_STATES.has(record.state)
+  ) {
+    fail('INVENTORY_ADAPTER_RESERVATION_INVALID');
+  }
+  if (expected.productId !== undefined && record.productId !== expected.productId) {
+    fail('INVENTORY_ADAPTER_RESERVATION_INVALID');
+  }
+  if (expected.skuId !== undefined && record.skuId !== expected.skuId) {
+    fail('INVENTORY_ADAPTER_RESERVATION_INVALID');
+  }
+  if (expected.quantity !== undefined && record.quantity !== expected.quantity) {
+    fail('INVENTORY_ADAPTER_RESERVATION_INVALID');
+  }
+  return record;
+}
+
 function eventResult(claim, expected, scope) {
   const event = claim?.event;
   if (!event) fail('INVENTORY_EVENT_INVALID');
   verifyRecordScope(event.scope, scope);
+  verifyFingerprint(event.fingerprint, expected.fingerprint);
   if (
     event.operation !== expected.operation
     || event.reservationId !== expected.reservationId
@@ -92,7 +140,15 @@ function eventResult(claim, expected, scope) {
     fail('INVENTORY_EVENT_CONFLICT');
   }
   if (!event.result) fail('INVENTORY_EVENT_INCOMPLETE');
-  verifyRecordScope(event.result, scope);
+  const result = verifyAdapterReservation(event.result, expected.fingerprint, scope);
+  if (
+    event.fingerprint.productId !== result.productId
+    || event.fingerprint.skuId !== result.skuId
+    || event.fingerprint.quantity !== result.quantity
+    || (expected.resultState !== undefined && result.state !== expected.resultState)
+  ) {
+    fail('INVENTORY_ADAPTER_RESERVATION_INVALID');
+  }
   return serializable(event.result);
 }
 
@@ -138,12 +194,17 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
         operation: 'reserve',
         eventId,
         reservationId,
+        fingerprint: reservationFingerprint(scope, 'reserve', reservationId, {
+          productId,
+          skuId,
+          quantity: requestedQuantity,
+        }),
       };
       const claim = await tx.claimReservationEvent(claimInput);
       if (claim?.claimed !== true) return eventResult(claim, claimInput, scope);
 
       if (claim.reservation) {
-        verifyRecordScope(claim.reservation, scope);
+        verifyAdapterReservation(claim.reservation, { reservationId }, scope);
         verifyReservationIdentity(claim.reservation, {
           productId,
           skuId,
@@ -193,12 +254,19 @@ export function createInventoryModule({ projectId, sellerId, store, clock } = {}
     return store.transaction(async (tx) => {
       method(tx, 'claimReservationEvent');
       method(tx, adapterMethod);
-      const claimInput = { scope, operation, eventId, reservationId };
+      const claimInput = {
+        scope,
+        operation,
+        eventId,
+        reservationId,
+        fingerprint: reservationFingerprint(scope, operation, reservationId),
+        resultState: targetState,
+      };
       const claim = await tx.claimReservationEvent(claimInput);
       if (claim?.claimed !== true) return eventResult(claim, claimInput, scope);
       const current = claim.reservation;
       if (!current) fail('INVENTORY_RESERVATION_NOT_FOUND');
-      verifyRecordScope(current, scope);
+      verifyAdapterReservation(current, { reservationId }, scope);
 
       if (current.state === targetState) {
         method(claim, 'complete');
