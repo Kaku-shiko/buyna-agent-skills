@@ -47,7 +47,7 @@ function pseudoUtc(parts) {
   );
 }
 
-function localMidnightToUtc(format, calendar) {
+function exactLocalMidnight(format, calendar) {
   const wanted = { ...calendar, hour: 0, minute: 0, second: 0 };
   const wantedPseudo = pseudoUtc(wanted);
   let candidate = wantedPseudo;
@@ -58,8 +58,64 @@ function localMidnightToUtc(format, calendar) {
     candidate += delta;
   }
   const actual = localParts(format, candidate);
-  if (pseudoUtc(actual) !== wantedPseudo) fail('READ_MODEL_TIME_ZONE_INVALID');
+  if (pseudoUtc(actual) !== wantedPseudo) return null;
   return candidate;
+}
+
+function dateKey(calendar) {
+  return `${String(calendar.year).padStart(4, '0')}-${String(calendar.month).padStart(2, '0')}-${String(calendar.day).padStart(2, '0')}`;
+}
+
+function formattedDateKey(format, epoch) {
+  const parts = localParts(format, epoch);
+  return dateKey(parts);
+}
+
+function firstRepresentableInstant(format, calendar) {
+  const exact = exactLocalMidnight(format, calendar);
+  if (exact !== null) return exact;
+
+  const target = dateKey(calendar);
+  const approximate = Date.UTC(calendar.year, calendar.month - 1, calendar.day);
+  const step = 15 * 60 * 1000;
+  const searchStart = approximate - (72 * 60 * 60 * 1000);
+  const searchEnd = approximate + (72 * 60 * 60 * 1000);
+  let previous = searchStart;
+  for (let current = searchStart; current <= searchEnd; current += step) {
+    if (formattedDateKey(format, current) === target) {
+      let low = previous;
+      while (formattedDateKey(format, low) === target) low -= step;
+      let high = current;
+      while (high - low > 1) {
+        const middle = low + Math.floor((high - low) / 2);
+        if (formattedDateKey(format, middle) === target) high = middle;
+        else low = middle;
+      }
+      return high;
+    }
+    previous = current;
+  }
+  return null;
+}
+
+function daysInMonth(calendar) {
+  return new Date(Date.UTC(calendar.year, calendar.month, 0)).getUTCDate();
+}
+
+function periodStart(format, calendar, interval, cache) {
+  const cacheKey = `${interval}:${calendar.year}:${calendar.month}:${calendar.day}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
+  let result = null;
+  if (interval === 'day') {
+    result = firstRepresentableInstant(format, calendar);
+  } else {
+    for (let day = 1; day <= daysInMonth(calendar); day += 1) {
+      result = firstRepresentableInstant(format, { ...calendar, day });
+      if (result !== null) break;
+    }
+  }
+  cache.set(cacheKey, result);
+  return result;
 }
 
 function advance(calendar, interval) {
@@ -99,20 +155,29 @@ export function buildTimeBuckets({ from, to, timeZone, interval }) {
     day: interval === 'day' ? localFrom.day : 1,
   };
   const cap = interval === 'day' ? MAX_DAY_BUCKETS : MAX_MONTH_BUCKETS;
+  const cache = new Map();
+  let previous = null;
+  let scanned = 0;
   while (true) {
-    const next = advance(calendar, interval);
-    const startMs = localMidnightToUtc(format, calendar);
-    const endMs = localMidnightToUtc(format, next);
-    if (startMs >= toMs) break;
-    if (endMs > fromMs) {
-      if (buckets.length >= cap) fail('READ_MODEL_SPAN_EXCEEDED');
-      buckets.push({
-        key: keyFor(calendar, interval),
-        startUtc: new Date(startMs).toISOString(),
-        endUtc: new Date(endMs).toISOString(),
-      });
+    scanned += 1;
+    if (scanned > cap + 400) fail('READ_MODEL_SPAN_EXCEEDED');
+    const startMs = periodStart(format, calendar, interval, cache);
+    if (startMs !== null) {
+      if (previous !== null) {
+        if (startMs <= previous.startMs) fail('READ_MODEL_TIME_ZONE_INVALID');
+        if (previous.startMs < toMs && startMs > fromMs) {
+          if (buckets.length >= cap) fail('READ_MODEL_SPAN_EXCEEDED');
+          buckets.push({
+            key: previous.key,
+            startUtc: new Date(previous.startMs).toISOString(),
+            endUtc: new Date(startMs).toISOString(),
+          });
+        }
+      }
+      previous = { key: keyFor(calendar, interval), startMs };
+      if (startMs >= toMs) break;
     }
-    calendar = next;
+    calendar = advance(calendar, interval);
   }
   return deepFreeze(buckets);
 }

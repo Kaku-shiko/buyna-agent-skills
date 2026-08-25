@@ -44,3 +44,27 @@
   process timezone and display-string parsing are not used.
 - Output is deeply frozen, serializable domain data only. No visual labels,
   styling, components, routes, infrastructure, or live actions were added.
+
+## Review-fix RED evidence
+
+- Command: `node --test packages/buyna-commerce-read-model-core/test/read-model.test.mjs`
+- Result after adding adversarial review tests: 22 passed, 4 failed.
+- Expected failures reproduced all review findings: local midnight gaps were
+  rejected as invalid zones, the Pacific/Apia skipped date could not be
+  represented, duplicate pending order IDs inflated the snapshot, and pending
+  timestamps after `asOf` or before `createdAt` were accepted.
+
+## Review-fix GREEN evidence
+
+- Package command: `npm test --prefix packages/buyna-commerce-read-model-core`
+- Package result: 26 passed, 0 failed.
+- Root command: `node --test tests`
+- Root result: 86 passed, 0 failed.
+- Midnight-gap coverage now includes America/Santiago, America/Havana, and
+  Africa/Cairo. The first representable instant becomes the bucket boundary.
+- Pacific/Apia 2011-12-30 is correctly omitted as a nonexistent local date;
+  adjacent existing buckets remain chronological with exact UTC boundaries.
+- Duplicate pending `orderId` values are rejected across the complete paged
+  snapshot, including cross-page duplicates.
+- Pending rows now require canonical `createdAt <= updatedAt <= asOf` before
+  any amount is summarized.

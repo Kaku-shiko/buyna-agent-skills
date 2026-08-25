@@ -310,6 +310,50 @@ test('builds New York DST days without duplicate keys or fixed 24-hour assumptio
   ]);
 });
 
+test('uses the first representable instant when local midnight is skipped', () => {
+  const cases = [
+    {
+      timeZone: 'America/Santiago',
+      from: '2026-09-06T04:00:00.000Z',
+      to: '2026-09-07T03:00:00.000Z',
+      expected: { key: '2026-09-06', startUtc: '2026-09-06T04:00:00.000Z', endUtc: '2026-09-07T03:00:00.000Z' },
+    },
+    {
+      timeZone: 'America/Havana',
+      from: '2026-03-08T05:00:00.000Z',
+      to: '2026-03-09T04:00:00.000Z',
+      expected: { key: '2026-03-08', startUtc: '2026-03-08T05:00:00.000Z', endUtc: '2026-03-09T04:00:00.000Z' },
+    },
+    {
+      timeZone: 'Africa/Cairo',
+      from: '2026-04-23T22:00:00.000Z',
+      to: '2026-04-24T21:00:00.000Z',
+      expected: { key: '2026-04-24', startUtc: '2026-04-23T22:00:00.000Z', endUtc: '2026-04-24T21:00:00.000Z' },
+    },
+  ];
+  for (const item of cases) {
+    assert.deepEqual(buildTimeBuckets({
+      from: item.from,
+      to: item.to,
+      timeZone: item.timeZone,
+      interval: 'day',
+    }), [item.expected]);
+  }
+});
+
+test('omits a completely skipped local calendar date without merging its key', () => {
+  assert.deepEqual(buildTimeBuckets({
+    from: '2011-12-29T10:00:00.000Z',
+    to: '2012-01-01T10:00:00.000Z',
+    timeZone: 'Pacific/Apia',
+    interval: 'day',
+  }), [
+    { key: '2011-12-29', startUtc: '2011-12-29T10:00:00.000Z', endUtc: '2011-12-30T10:00:00.000Z' },
+    { key: '2011-12-31', startUtc: '2011-12-30T10:00:00.000Z', endUtc: '2011-12-31T10:00:00.000Z' },
+    { key: '2012-01-01', startUtc: '2011-12-31T10:00:00.000Z', endUtc: '2012-01-01T10:00:00.000Z' },
+  ]);
+});
+
 test('builds chronological month buckets at local calendar boundaries', () => {
   assert.deepEqual(buildTimeBuckets({
     from: '2026-01-31T15:00:00.000Z',
@@ -479,6 +523,30 @@ test('rejects out-of-order rows within and across pages in every stream', async 
     crossPageModel.getOverview(overviewInput()),
     'READ_MODEL_SOURCE_ORDER_INVALID',
   );
+});
+
+test('rejects duplicate current-pending order IDs within and across pages', async () => {
+  const duplicate = pending({ orderId: 'same_order' });
+  const { model } = createFixture({ currentPending: [duplicate, { ...duplicate }] });
+  await rejectsCode(model.getOverview(overviewInput()), 'READ_MODEL_FACT_INVALID');
+
+  const { model: crossPageModel } = createFixture({
+    currentPending: ({ cursor }) => cursor === null
+      ? { items: [duplicate], nextCursor: 'page-2' }
+      : { items: [{ ...duplicate }], nextCursor: null },
+  });
+  await rejectsCode(crossPageModel.getOverview(overviewInput()), 'READ_MODEL_FACT_INVALID');
+});
+
+test('rejects pending snapshot timestamps outside createdAt <= updatedAt <= asOf', async () => {
+  for (const row of [
+    pending({ createdAt: '2026-08-02T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' }),
+    pending({ updatedAt: '2026-08-03T01:00:00.001Z' }),
+    pending({ createdAt: '2026-08-03T01:00:00.001Z', updatedAt: '2026-08-03T01:00:00.001Z' }),
+  ]) {
+    const { model } = createFixture({ currentPending: [row] });
+    await rejectsCode(model.getOverview(overviewInput()), 'READ_MODEL_FACT_INVALID');
+  }
 });
 
 test('accepts from inclusively and rejects an Adapter fact at exclusive to', async () => {

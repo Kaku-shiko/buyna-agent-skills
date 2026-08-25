@@ -172,7 +172,7 @@ export function createCommerceReadModel({ projectId, sellerId, source, clock } =
         ...pageRequest, currency, asOf, cursor, order: ORDERS.pending,
       }),
       compare: comparePending,
-    }), scope, currency);
+    }), scope, currency, asOf);
     const settlementEvents = normalizeSettlementEvents(await readPaged({
       maxRows: MAX_FACT_ROWS - pendingRows.length,
       maxPages: MAX_FACT_PAGES,

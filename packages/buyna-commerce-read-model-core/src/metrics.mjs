@@ -26,19 +26,26 @@ function safeAdd(left, right) {
   return result;
 }
 
-export function normalizePendingRows(rows, scope, currency) {
+export function normalizePendingRows(rows, scope, currency, asOf) {
+  const orderIds = new Set();
   return deepFreeze(rows.map((row) => {
     verifyScope(row, scope);
     verifyCurrency(row, currency);
     if (row?.status !== 'pending_payment') fail('READ_MODEL_FACT_INVALID');
+    const orderId = requiredText(row.orderId);
+    if (orderIds.has(orderId)) fail('READ_MODEL_FACT_INVALID');
+    orderIds.add(orderId);
+    const createdAt = isoInstant(row.createdAt);
+    const updatedAt = isoInstant(row.updatedAt);
+    if (createdAt > updatedAt || updatedAt > asOf) fail('READ_MODEL_FACT_INVALID');
     return {
-      orderId: requiredText(row.orderId),
+      orderId,
       ...scope,
       status: 'pending_payment',
       payableAmount: money(row.payableAmount),
       currency,
-      createdAt: isoInstant(row.createdAt),
-      updatedAt: isoInstant(row.updatedAt),
+      createdAt,
+      updatedAt,
     };
   }));
 }
