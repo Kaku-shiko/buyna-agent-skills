@@ -21,6 +21,7 @@ function normalize(value, ancestors) {
     return value;
   }
   if (typeof value !== 'object') failDelivery('DELIVERY_INTENT_INVALID');
+  if (Object.getOwnPropertySymbols(value).length !== 0) failDelivery('DELIVERY_INTENT_INVALID');
   if (ancestors.has(value)) failDelivery('DELIVERY_INTENT_INVALID');
 
   const nextAncestors = new Set(ancestors);
@@ -47,8 +48,17 @@ function normalize(value, ancestors) {
   return Object.fromEntries(normalizedEntries);
 }
 
+function serializeNormalized(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => serializeNormalized(entry)).join(',')}]`;
+  }
+  const keys = Object.keys(value).sort(compareCodePoints);
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${serializeNormalized(value[key])}`).join(',')}}`;
+}
+
 export function canonicalizeDeliveryIntent(value) {
-  return JSON.stringify(normalize(value, new Set()));
+  return serializeNormalized(normalize(value, new Set()));
 }
 
 export function digestDeliveryIntent(value) {

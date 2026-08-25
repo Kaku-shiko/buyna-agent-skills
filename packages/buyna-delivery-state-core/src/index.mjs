@@ -128,13 +128,17 @@ function sourceIdentity(input, normalizedIntent) {
   };
 }
 
+function deterministicSourceEventId(input, normalizedIntent) {
+  return `notification-source:v1:${digestDeliveryIntent(sourceIdentity(input, normalizedIntent))}`;
+}
+
 export function createNotificationSourceEvent(input = {}) {
   if (!exactAllowedKeys(input, SOURCE_KEYS, SOURCE_KEYS.filter((key) => key !== 'sourceEventId'))) {
     failDelivery('DELIVERY_SOURCE_EVENT_INVALID');
   }
   const normalizedIntent = normalizeIntent(input.intent);
   const identity = sourceIdentity(input, normalizedIntent);
-  const derivedId = `notification-source:v1:${digestDeliveryIntent(identity)}`;
+  const derivedId = deterministicSourceEventId(input, normalizedIntent);
   if (Object.hasOwn(input, 'sourceEventId') && input.sourceEventId !== derivedId) {
     failDelivery('DELIVERY_SOURCE_EVENT_INVALID');
   }
@@ -163,6 +167,9 @@ function normalizeSourceEvent(input) {
   if (!/^notification-source:v1:[0-9a-f]{64}$/.test(normalized.sourceEventId)) {
     failDelivery('DELIVERY_SOURCE_EVENT_INVALID');
   }
+  if (normalized.sourceEventId !== deterministicSourceEventId(normalized, normalized.intent)) {
+    failDelivery('DELIVERY_SOURCE_EVENT_INVALID');
+  }
   return frozenClone(normalized);
 }
 
@@ -179,17 +186,24 @@ function intentDigestFor(sourceEvent) {
   });
 }
 
-function validateAttempt(attempt, index, record) {
+function validateAttempt(attempt, index, record, policy, lease) {
   if (!exactKeys(attempt, ATTEMPT_KEYS)) failDelivery('DELIVERY_RECORD_INVALID');
-  if (
-    typeof attempt.attemptId !== 'string' || attempt.attemptId === ''
-    || attempt.attemptNumber !== index + 1
-    || typeof attempt.workerId !== 'string' || attempt.workerId === ''
-    || iso(attempt.claimedAt, 'DELIVERY_RECORD_INVALID') !== attempt.claimedAt
-    || !['sending', 'delivered', 'failed'].includes(attempt.state)
-  ) failDelivery('DELIVERY_RECORD_INVALID');
+  try {
+    if (
+      text(attempt.attemptId, 'DELIVERY_RECORD_INVALID') !== attempt.attemptId
+      || attempt.attemptNumber !== index + 1
+      || text(attempt.workerId, 'DELIVERY_RECORD_INVALID') !== attempt.workerId
+      || iso(attempt.claimedAt, 'DELIVERY_RECORD_INVALID') !== attempt.claimedAt
+      || attempt.claimedAt < record.createdAt
+      || attempt.claimedAt > record.updatedAt
+      || !['sending', 'delivered', 'failed'].includes(attempt.state)
+    ) failDelivery('DELIVERY_RECORD_INVALID');
+  } catch {
+    failDelivery('DELIVERY_RECORD_INVALID');
+  }
   if (attempt.state === 'sending') {
     if (attempt.leaseUntil === null || iso(attempt.leaseUntil, 'DELIVERY_RECORD_INVALID') !== attempt.leaseUntil
+      || attempt.leaseUntil !== new Date(new Date(attempt.claimedAt).valueOf() + lease * 1000).toISOString()
       || attempt.deliveredAt !== null || attempt.failedAt !== null
       || attempt.receipt !== null || attempt.failure !== null) failDelivery('DELIVERY_RECORD_INVALID');
   } else if (attempt.leaseUntil !== null) failDelivery('DELIVERY_RECORD_INVALID');
@@ -197,7 +211,10 @@ function validateAttempt(attempt, index, record) {
     if (attempt.deliveredAt === null || attempt.failedAt !== null || attempt.receipt === null || attempt.failure !== null) failDelivery('DELIVERY_RECORD_INVALID');
     try {
       const receipt = normalizeReceipt(attempt.receipt);
-      if (JSON.stringify(receipt) !== JSON.stringify(attempt.receipt)
+      if (canonicalizeDeliveryIntent(receipt) !== canonicalizeDeliveryIntent(attempt.receipt)
+        || iso(attempt.deliveredAt, 'DELIVERY_RECORD_INVALID') !== attempt.deliveredAt
+        || attempt.deliveredAt < attempt.claimedAt
+        || attempt.deliveredAt > record.updatedAt
         || receipt.acceptedAt < record.createdAt
         || receipt.acceptedAt > attempt.deliveredAt) failDelivery('DELIVERY_RECORD_INVALID');
     } catch {
@@ -208,39 +225,85 @@ function validateAttempt(attempt, index, record) {
     if (attempt.failedAt === null || attempt.deliveredAt !== null || attempt.failure === null || attempt.receipt !== null) failDelivery('DELIVERY_RECORD_INVALID');
     try {
       const failure = normalizeFailure(attempt.failure);
-      if (JSON.stringify(failure) !== JSON.stringify(attempt.failure)) failDelivery('DELIVERY_RECORD_INVALID');
+      if (canonicalizeDeliveryIntent(failure) !== canonicalizeDeliveryIntent(attempt.failure)) failDelivery('DELIVERY_RECORD_INVALID');
+      if (iso(attempt.failedAt, 'DELIVERY_RECORD_INVALID') !== attempt.failedAt
+        || attempt.failedAt < attempt.claimedAt
+        || attempt.failedAt > record.updatedAt) failDelivery('DELIVERY_RECORD_INVALID');
     } catch {
       failDelivery('DELIVERY_RECORD_INVALID');
     }
   }
-  if (index < record.attempts.length - 1 && attempt.state === 'sending') failDelivery('DELIVERY_RECORD_INVALID');
+  if (index < record.attempts.length - 1) {
+    const next = record.attempts[index + 1];
+    const delay = policy.delaysSeconds[index];
+    const eligibleAt = new Date(new Date(attempt.failedAt).valueOf() + delay * 1000).toISOString();
+    if (attempt.state !== 'failed' || attempt.failure?.retryable !== true || next?.claimedAt < eligibleAt) {
+      failDelivery('DELIVERY_RECORD_INVALID');
+    }
+  }
 }
 
-function validateRecord(record, scope) {
+function validateRecord(record, scope, policy, lease) {
   if (!exactKeys(record, RECORD_KEYS)) failDelivery('DELIVERY_RECORD_INVALID');
   verifyRowScope(record, scope);
-  if (
-    !Number.isSafeInteger(record.version) || record.version < 1
-    || typeof record.deliveryId !== 'string' || record.deliveryId === ''
-    || typeof record.sourceEventId !== 'string' || record.sourceEventId === ''
-    || !Array.isArray(record.attempts)
-    || record.attemptCount !== record.attempts.length
-    || iso(record.createdAt, 'DELIVERY_RECORD_INVALID') !== record.createdAt
-    || iso(record.updatedAt, 'DELIVERY_RECORD_INVALID') !== record.updatedAt
-    || record.updatedAt < record.createdAt
-    || !Object.values(DELIVERY_STATES).includes(record.state)
-  ) failDelivery('DELIVERY_RECORD_INVALID');
-  record.attempts.forEach((attempt, index) => validateAttempt(attempt, index, record));
+  try {
+    const normalizedIntent = normalizeIntent(record.intent);
+    const canonicalIntent = canonicalizeDeliveryIntent(normalizedIntent);
+    const digest = intentDigestFor({
+      ...record,
+      occurredAt: record.createdAt,
+      intent: normalizedIntent,
+    });
+    const expectedSourceEventId = deterministicSourceEventId(record, normalizedIntent);
+    if (
+      !Number.isSafeInteger(record.version) || record.version < 1
+      || text(record.deliveryId, 'DELIVERY_RECORD_INVALID') !== record.deliveryId
+      || text(record.domainRecordId, 'DELIVERY_RECORD_INVALID') !== record.domainRecordId
+      || text(record.domainEventId, 'DELIVERY_RECORD_INVALID') !== record.domainEventId
+      || record.sourceEventId !== expectedSourceEventId
+      || !/^[0-9a-f]{64}$/.test(record.intentDigest)
+      || record.intentDigest !== digest
+      || record.idempotencyKey !== `delivery:v1:${record.intentDigest}`
+      || record.requestKey !== `delivery-request:v1:${record.intentDigest}`
+      || canonicalizeDeliveryIntent(record.intent) !== canonicalIntent
+      || !Array.isArray(record.attempts)
+      || record.attemptCount !== record.attempts.length
+      || iso(record.createdAt, 'DELIVERY_RECORD_INVALID') !== record.createdAt
+      || iso(record.updatedAt, 'DELIVERY_RECORD_INVALID') !== record.updatedAt
+      || record.updatedAt < record.createdAt
+      || !Object.values(DELIVERY_STATES).includes(record.state)
+    ) failDelivery('DELIVERY_RECORD_INVALID');
+  } catch {
+    failDelivery('DELIVERY_RECORD_INVALID');
+  }
+  const attemptIds = new Set();
+  record.attempts.forEach((attempt, index) => {
+    validateAttempt(attempt, index, record, policy, lease);
+    if (attemptIds.has(attempt.attemptId)) failDelivery('DELIVERY_RECORD_INVALID');
+    attemptIds.add(attempt.attemptId);
+  });
   if (record.state === 'pending') {
-    if (record.attempts.length !== 0 || record.currentAttempt !== null || record.nextRetryAt !== null) failDelivery('DELIVERY_RECORD_INVALID');
+    if (record.version !== 1 || record.attempts.length !== 0 || record.currentAttempt !== null || record.nextRetryAt !== null) failDelivery('DELIVERY_RECORD_INVALID');
   } else {
     const last = record.attempts.at(-1);
     if (!exactKeys(record.currentAttempt, ['attemptId', 'attemptNumber'])
       || record.currentAttempt.attemptId !== last?.attemptId
       || record.currentAttempt.attemptNumber !== last?.attemptNumber
       || last.state !== record.state) failDelivery('DELIVERY_RECORD_INVALID');
+    const minimumVersion = record.attemptCount * 2 + (record.state === 'sending' ? 0 : 1);
+    if (record.version < minimumVersion) failDelivery('DELIVERY_RECORD_INVALID');
+    const stateTimestamp = record.state === 'sending' ? last.claimedAt
+      : record.state === 'delivered' ? last.deliveredAt : last.failedAt;
+    if (record.updatedAt !== stateTimestamp) failDelivery('DELIVERY_RECORD_INVALID');
   }
-  if (record.nextRetryAt !== null && iso(record.nextRetryAt, 'DELIVERY_RECORD_INVALID') !== record.nextRetryAt) failDelivery('DELIVERY_RECORD_INVALID');
+  const last = record.attempts.at(-1);
+  const retryEligible = record.state === 'failed'
+    && last.failure.retryable
+    && record.attemptCount < policy.maxAttempts;
+  const expectedNextRetryAt = retryEligible
+    ? new Date(new Date(last.failedAt).valueOf() + policy.delaysSeconds[record.attemptCount - 1] * 1000).toISOString()
+    : null;
+  if (record.nextRetryAt !== expectedNextRetryAt) failDelivery('DELIVERY_RECORD_INVALID');
   return record;
 }
 
@@ -332,13 +395,13 @@ export function createDeliveryStateCore({
       const createDelivery = requireDeliveryMethod(tx, 'createDelivery', 'DELIVERY_STORE_ADAPTER_REQUIRED');
       const existing = await getExisting({ scope, sourceEventId: event.sourceEventId });
       if (existing) {
-        validateRecord(existing, scope);
+        validateRecord(existing, scope, policy, lease);
         if (existing.intentDigest !== digest
           || existing.domainRecordId !== event.domainRecordId
           || existing.domainEventId !== event.domainEventId) failDelivery('DELIVERY_IDEMPOTENCY_CONFLICT');
         return frozenClone(existing);
       }
-      const at = timestamp();
+      const at = timestamp(event.occurredAt);
       const deliveryId = text(deliveryIdGenerator(), 'DELIVERY_ID_GENERATOR_REQUIRED');
       const record = {
         version: 1,
@@ -356,10 +419,10 @@ export function createDeliveryStateCore({
         currentAttempt: null,
         attemptCount: 0,
         nextRetryAt: null,
-        createdAt: at,
+        createdAt: event.occurredAt,
         updatedAt: at,
       };
-      validateRecord(record, scope);
+      validateRecord(record, scope, policy, lease);
       await createDelivery({ scope, record: frozenClone(record) });
       return frozenClone(record);
     });
@@ -370,7 +433,7 @@ export function createDeliveryStateCore({
     const deliveryId = text(input.deliveryId, 'DELIVERY_SOURCE_EVENT_INVALID');
     const record = await store.getDelivery({ scope, deliveryId });
     if (!record) failDelivery('DELIVERY_NOT_FOUND');
-    validateRecord(record, scope);
+    validateRecord(record, scope, policy, lease);
     return frozenClone(record);
   }
 
@@ -380,10 +443,10 @@ export function createDeliveryStateCore({
       const save = requireDeliveryMethod(tx, 'saveDelivery', 'DELIVERY_STORE_ADAPTER_REQUIRED');
       const current = await read({ scope, deliveryId });
       if (!current) failDelivery('DELIVERY_NOT_FOUND');
-      validateRecord(current, scope);
+      validateRecord(current, scope, policy, lease);
       const next = await mutate(current);
       if (next === current) return frozenClone(current);
-      validateRecord(next, scope);
+      validateRecord(next, scope, policy, lease);
       await save({ scope, expectedVersion: current.version, record: frozenClone(next) });
       return frozenClone(next);
     });

@@ -14,15 +14,21 @@
    - Command: `node --test packages/buyna-delivery-state-core/test/delivery-state.test.mjs`
    - Result: 14 passed, 1 failed; the Store-row poison fixture proved an undocumented `receipt.token` was not rejected.
    - Production change: terminal receipt/failure validation now re-applies the public allowlists when Store rows are read.
+3. Independent review fix RED
+   - Command: `node --test packages/buyna-delivery-state-core/test/delivery-state.test.mjs`
+   - Result: 16 passed, 4 failed.
+   - Failures proved: integer-like object keys were reordered by `JSON.stringify`; a forged `sourceEventId` reached Store I/O; poisoned intent/digest/lease rows reached dispatch; and poisoned retry timing was accepted.
 
 ## GREEN evidence
 
 - Command: `npm test --prefix packages/buyna-delivery-state-core`
-- Result: 16 tests passed, 0 failed.
+- Result after review fixes: 20 tests passed, 0 failed.
 - Command: `git diff --check`
 - Result: clean.
 - Command: `node --check` for every module in `packages/buyna-delivery-state-core/src`
 - Result: clean.
+- Command: `node --test tests`
+- Result after review fixes: 86 repository tests passed, 0 failed.
 
 ## Implemented behavior
 
@@ -34,6 +40,8 @@
 - Store/transaction/read/lock/OCC/save failures propagate unchanged and never cross the business-error boundary.
 - Receipt/failure redaction, transient recipient handling, minimal provider metadata, and exact frozen merchant scope.
 - Transactional source-event recovery behavior for commit-before-reconciliation and rollback.
+- Direct Unicode code-point canonical serialization, including integer-like keys, plus own-symbol rejection.
+- Deterministic source identity verification before Store I/O and full persisted-row invariant verification before any delivery effect.
 
 ## Self-review
 

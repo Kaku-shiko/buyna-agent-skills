@@ -153,6 +153,20 @@ test('canonical JSON normalizes strings and keys, but preserves array order and 
   assert.throws(() => canonicalizeDeliveryIntent({ '\u00e9': 1, 'e\u0301': 2 }), expectCode('DELIVERY_INTENT_INVALID'));
 });
 
+test('canonical JSON emits Unicode code-point key order without JSON integer-key reordering', () => {
+  assert.equal(
+    canonicalizeDeliveryIntent({ 2: 'two', 10: 'ten', '\ud83d\ude00': 'face', a: 'letter' }),
+    '{"10":"ten","2":"two","a":"letter","\ud83d\ude00":"face"}',
+  );
+  const symbol = Symbol('hidden');
+  const object = { visible: true };
+  object[symbol] = 'secret';
+  assert.throws(() => canonicalizeDeliveryIntent(object), expectCode('DELIVERY_INTENT_INVALID'));
+  const array = ['visible'];
+  array[symbol] = 'secret';
+  assert.throws(() => canonicalizeDeliveryIntent(array), expectCode('DELIVERY_INTENT_INVALID'));
+});
+
 test('source identity is deterministic while every identity component changes it', () => {
   const base = source();
   assert.deepEqual(Object.keys(base).sort(), ['sourceEventId', 'projectId', 'sellerId', 'domainRecordId', 'domainEventId', 'occurredAt', 'intent'].sort());
@@ -179,6 +193,21 @@ test('validates source events, scope, intent, retry policy, and lease before sto
   assert.throws(() => source({ occurredAt: 'not-time' }), expectCode('DELIVERY_SOURCE_EVENT_INVALID'));
   const { core } = setup({ store });
   await assert.rejects(core.reconcileSourceEvent({ ...source(), sellerId: 'other' }), expectCode('DELIVERY_SCOPE_MISMATCH'));
+  assert.equal(store.writes.length, 0);
+});
+
+test('rejects a forged sourceEventId before transaction or delivery creation', async () => {
+  const store = new MemoryStore();
+  let transactions = 0;
+  const originalTransaction = store.transaction.bind(store);
+  store.transaction = async (work) => {
+    transactions += 1;
+    return originalTransaction(work);
+  };
+  const { core } = setup({ store });
+  const forged = { ...source(), sourceEventId: `notification-source:v1:${'0'.repeat(64)}` };
+  await assert.rejects(core.reconcileSourceEvent(forged), expectCode('DELIVERY_SOURCE_EVENT_INVALID'));
+  assert.equal(transactions, 0);
   assert.equal(store.writes.length, 0);
 });
 
@@ -288,13 +317,15 @@ test('duplicate source reconciliation is idempotent but changed intent under ide
   assert.equal(store.writes.length, 1);
   for (const changed of [
     { ...event, occurredAt: '2026-08-25T23:58:00.000Z' },
-    { ...event, intent: intent({ kind: 'booking' }) },
-    { ...event, intent: intent({ channel: 'sms' }) },
-    { ...event, intent: intent({ templateKey: 'changed' }) },
     { ...event, intent: intent({ locale: 'en-US' }) },
     { ...event, intent: intent({ recipientRef: 'customer:99' }) },
     { ...event, intent: intent({ payload: { orderId: 'other' } }) },
   ]) await assert.rejects(core.reconcileSourceEvent(changed), expectCode('DELIVERY_IDEMPOTENCY_CONFLICT'));
+  for (const forgedIdentity of [
+    { ...event, intent: intent({ kind: 'booking' }) },
+    { ...event, intent: intent({ channel: 'sms' }) },
+    { ...event, intent: intent({ templateKey: 'changed' }) },
+  ]) await assert.rejects(core.reconcileSourceEvent(forgedIdentity), expectCode('DELIVERY_SOURCE_EVENT_INVALID'));
 });
 
 test('claim races have one winner and lease recovery preserves attempt and request identity', async () => {
@@ -340,6 +371,65 @@ test('rejects a persisted Store row that smuggles secret-bearing terminal data',
   poisoned.attempts[0].receipt.token = 'secret';
   store.deliveries.set(delivered.deliveryId, poisoned);
   await assert.rejects(core.get({ deliveryId: delivered.deliveryId }), expectCode('DELIVERY_RECORD_INVALID'));
+});
+
+test('rejects every poisoned persisted identity, digest, intent, attempt, lease, and retry invariant before dispatch effects', async () => {
+  const cases = [
+    ['intent payload', (row) => { row.intent.payload.orderId = 'poison'; }],
+    ['intent shape', (row) => { row.intent.extra = true; }],
+    ['source identity', (row) => { row.sourceEventId = `notification-source:v1:${'f'.repeat(64)}`; }],
+    ['intent digest', (row) => { row.intentDigest = 'ABC'; }],
+    ['idempotency key', (row) => { row.idempotencyKey = 'delivery:v1:forged'; }],
+    ['request key', (row) => { row.requestKey = 'delivery-request:v1:forged'; }],
+    ['domain identity', (row) => { row.domainRecordId = ' order-42 '; }],
+    ['current attempt shape', (row) => { row.currentAttempt.extra = true; }],
+    ['attempt number', (row) => { row.attempts[0].attemptNumber = 2; }],
+    ['attempt timestamp', (row) => { row.attempts[0].claimedAt = '2025-01-01T00:00:00.000Z'; }],
+    ['lease duration', (row) => { row.attempts[0].leaseUntil = '2027-01-01T00:00:00.000Z'; }],
+    ['sending failure', (row) => { row.attempts[0].failure = { code: 'X', retryable: true }; }],
+    ['next retry while sending', (row) => { row.nextRetryAt = '2026-08-26T00:02:00.000Z'; }],
+  ];
+  for (const [name, poison] of cases) {
+    const fixture = setup();
+    const pending = await fixture.core.reconcileSourceEvent(source({ domainEventId: `poison-${name}` }));
+    const sending = await fixture.core.claim({ deliveryId: pending.deliveryId, workerId: 'worker' });
+    const row = clone(sending);
+    poison(row);
+    fixture.store.deliveries.set(row.deliveryId, row);
+    let effects = 0;
+    const adapters = {
+      recipients: { resolve: async () => { effects += 1; return { address: 'buyer@example.test' }; } },
+      templates: { render: async () => { effects += 1; return { text: 'x' }; } },
+      providers: { email: { send: async () => { effects += 1; return { providerMessageId: 'x', acceptedAt: '2026-08-26T00:00:00.000Z' }; } } },
+    };
+    await assert.rejects(
+      fixture.core.dispatch({ deliveryId: row.deliveryId, workerId: 'worker-2', ...adapters }),
+      expectCode('DELIVERY_RECORD_INVALID'),
+      name,
+    );
+    assert.equal(effects, 0, name);
+  }
+});
+
+test('rejects poisoned failed retry timing and historical attempt sequencing', async () => {
+  const { core, store } = setup();
+  const pending = await core.reconcileSourceEvent(source({ domainEventId: 'poison-retry' }));
+  await core.claim({ deliveryId: pending.deliveryId, workerId: 'worker' });
+  const failed = await core.markFailed({
+    deliveryId: pending.deliveryId,
+    attemptId: 'attempt-1',
+    failure: { code: 'TEMP', retryable: true },
+  });
+  for (const poison of [
+    (row) => { row.nextRetryAt = '2026-08-26T00:09:00.000Z'; },
+    (row) => { row.attempts[0].failedAt = '2025-01-01T00:00:00.000Z'; },
+    (row) => { row.attempts[0].state = 'delivered'; row.attempts[0].failure = null; row.attempts[0].receipt = { providerMessageId: 'x', acceptedAt: row.createdAt }; },
+  ]) {
+    const row = clone(failed);
+    poison(row);
+    store.deliveries.set(row.deliveryId, row);
+    await assert.rejects(core.get({ deliveryId: row.deliveryId }), expectCode('DELIVERY_RECORD_INVALID'));
+  }
 });
 
 test('dispatch sends transient recipient and minimal metadata, then persists allowlisted receipt', async () => {
