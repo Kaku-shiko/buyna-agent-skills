@@ -25,14 +25,17 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 `skills/` 保持扁平结构，业务分类通过命名和文档表达，以保持稳定、简单的 GitHub安装路径。
 
-### 固定结账与结算状态模块
+### 固定商城状态模块
 
-`buyna-checkout-flow-core` 与 `buyna-commerce-settlement-core` 是固定的
-checkout 和 settlement 状态行为；两者在 `website-builder` profile 中声明。
+`buyna-inventory-core`、`buyna-coupon-core`、`buyna-merchant-catalog-core`、
+`buyna-merchant-dashboard-core`、`buyna-checkout-flow-core` 与
+`buyna-commerce-settlement-core` 提供固定的 inventory、coupon、catalog、Dashboard、
+checkout 和 settlement 状态行为；这些模块在 `website-builder` profile 中声明。
 完整安装器通过 `repository-manifest.json` 的 `manifest.packages` 安装全部固定模块，
-包括这两个模块。
-每个项目生成自己的表单展示、provider Adapter 和 database Adapter，不能在这些
-共享状态模块中加入 CSS、商家标识或支付/数据库实现。
+不另设 profile 安装命令。适用行为按 inventory → coupon → catalog/checkout → settlement
+顺序调用。UI、表单展示、provider Adapter 和 database Adapter 均由项目生成；项目负责
+Adapter 的持久化、API、身份与基础设施连接。共享模块不包含 CSS、商家标识、
+凭据、支付传输、SQL/ORM 或 AWS 资源操作。
 
 当前预留：
 

@@ -38,7 +38,9 @@ buyna-agent-skills/
 │   ├── buyna-merchant-dashboard-headless/   # fixed interactions, no visual theme
 │   ├── buyna-checkout-flow-core/             # fixed checkout state behavior
 │   ├── buyna-commerce-settlement-core/       # fixed trusted settlement state
-│   ├── buyna-merchant-catalog-core/
+│   ├── buyna-inventory-core/                 # fixed inventory reservations
+│   ├── buyna-coupon-core/                    # fixed coupon lifecycle
+│   ├── buyna-merchant-catalog-core/          # fixed catalog lifecycle
 │   ├── buyna-cart-core/
 │   ├── buyna-order-core/
 │   ├── buyna-postgres-merchant-core/
@@ -91,13 +93,16 @@ flowchart TD
 
 流程图表示调用顺序，不表示一次性执行。已批准的有边界工作包可在包含的代码步骤和最低测试通过后继续；只有范围变化、设计、生产发布/流量切换、付费激活、费用、破坏性操作或真实阻塞需要再次确认。不适用的节点必须记录为 `不适用`，不能静默跳过。
 
-### 固定结账与结算状态模块
+### 固定商城状态模块
 
-`buyna-checkout-flow-core` 与 `buyna-commerce-settlement-core` 提供固定的
-checkout 和 settlement 状态行为；两者在 `website-builder` profile 中声明。完整安装器
-通过 `repository-manifest.json` 的 `manifest.packages` 安装全部固定模块，包括这两个
-模块。每个项目只生成自己的表单展示、provider Adapter 和 database Adapter；共享模块
-不包含 CSS、商家标识、支付传输或数据库实现。
+`buyna-inventory-core`、`buyna-coupon-core`、`buyna-merchant-catalog-core`、
+`buyna-merchant-dashboard-core`、`buyna-checkout-flow-core` 与
+`buyna-commerce-settlement-core` 提供固定的 inventory、coupon、catalog、Dashboard、
+checkout 和 settlement 状态行为；这些模块在 `website-builder` profile 中声明。完整安装器
+通过 `repository-manifest.json` 的 `manifest.packages` 安装全部固定模块，不另设 profile
+安装命令。适用项目按 inventory → coupon → catalog/checkout → settlement 调用。UI、
+表单展示、provider Adapter 和 database Adapter 均由项目生成；项目负责 API、身份和
+基础设施连接。共享模块不包含 CSS、商家标识、凭据、支付传输、SQL/ORM 或 AWS 资源操作。
 
 ## 5. 第一次安装
 
