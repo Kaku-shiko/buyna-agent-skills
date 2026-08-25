@@ -8,9 +8,10 @@ function createReviewStateAdapter(records=new Map()){
     records,
     async create({scope,review}){records.set(key({...scope,reviewToken:review.reviewToken}),structuredClone(review));return structuredClone(review)},
     async get({scope,reviewToken}){const review=records.get(key({...scope,reviewToken}));return review&&structuredClone(review)},
-    async update({scope,reviewToken,patch}){
+    async update({scope,reviewToken,expectedState,patch}){
       const record=records.get(key({...scope,reviewToken}));
       if(!record)return null;
+      if(expectedState&&record.state!==expectedState)return null;
       Object.assign(record,structuredClone(patch));
       return structuredClone(record);
     },
@@ -81,6 +82,36 @@ test('a durable review binds server-owned submission identity across core instan
   assert.equal(review.idempotencyKey,undefined);
   assert.notEqual(stored.submissionId,'caller-controlled');
   assert.equal(orderCalls[0].idempotencyKey,stored.submissionId);
+});
+
+test('redirect handoff requires a durable locked review and ignores caller-supplied state',async()=>{
+  const reviews=createReviewStateAdapter();
+  const options={
+    projectId:'project-1',sellerId:'seller-1',reviewState:reviews,
+    cart:{async createCheckoutSnapshot(){return{total:1200,currency:'JPY'}}},
+    orders:{async createPendingOrder(){return{id:'order-1',status:'pending_payment'}}},
+    submissions:{async acquire(){return{status:'acquired',attemptToken:'attempt-1'}},async complete(){},async release(){}},
+    policy:{minimumFields:['buyer_name'],paymentMethods:['wechat'],supportedCurrencies:['JPY']},
+  };
+  const first=createCheckoutFlow(options);
+  const second=createCheckoutFlow(options);
+  const review=await first.createReview({fields:{buyer_name:'Ada'},paymentMethod:'wechat'});
+
+  await assert.rejects(
+    ()=>second.beginRedirect({reviewToken:review.reviewToken,state:'redirecting'}),
+    error=>error.code==='CHECKOUT_REDIRECT_NOT_ALLOWED',
+  );
+  await first.submit({reviewToken:review.reviewToken});
+  const handoff=await second.beginRedirect({reviewToken:review.reviewToken,state:'failed',providerRequest:{amount:1,currency:'USD'}});
+
+  assert.deepEqual(handoff,{
+    state:'redirecting',
+    projectId:'project-1',
+    sellerId:'seller-1',
+    order:{id:'order-1',status:'pending_payment'},
+    providerRequest:{orderId:'order-1',paymentMethod:'wechat',amount:1200,currency:'JPY'},
+  });
+  assert.equal((await second.getReviewState({reviewToken:review.reviewToken})).state,'redirecting');
 });
 
 test('submit requires a current review token and preserves it after a failed attempt',async()=>{

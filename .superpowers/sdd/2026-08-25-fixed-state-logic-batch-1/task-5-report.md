@@ -22,11 +22,11 @@ Get-ChildItem packages -Directory | Sort-Object Name | ForEach-Object {
 }
 ```
 
-Result: 14/14 package scripts passed; 195 tests passed; 0 failed; 0 cancelled;
+Result: 14/14 package scripts passed; 196 tests passed; 0 failed; 0 cancelled;
 0 skipped.
 
 - `buyna-cart-core`: 6 passed
-- `buyna-checkout-flow-core`: 8 passed (final-review rerun)
+- `buyna-checkout-flow-core`: 9 passed (final-review lifecycle rerun)
 - `buyna-commerce-settlement-core`: 102 passed
 - `buyna-gmv-core`: 4 passed
 - `buyna-integration-receipt-core`: 2 passed

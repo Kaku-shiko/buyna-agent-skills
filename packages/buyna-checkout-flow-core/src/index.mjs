@@ -93,15 +93,29 @@ export function createCheckoutFlow({projectId,sellerId,cart,orders,submissions,r
     return{state:review.state,reviewToken:review.reviewToken};
   }
 
+  async function beginRedirect({reviewToken}={}){
+    method(reviewState,'get');
+    method(reviewState,'update');
+    const token=required(reviewToken,'CHECKOUT_REVIEW_REQUIRED');
+    const review=await reviewState.get({scope:{...scope},reviewToken:token});
+    if(!review||review.state!==CHECKOUT_STATES.ORDER_LOCKED)fail('CHECKOUT_REDIRECT_NOT_ALLOWED');
+    const result=review.pendingResult;
+    if(!result?.order?.id||!result?.providerRequest)fail('CHECKOUT_SUBMISSION_RESULT_MISSING');
+    const updated=await reviewState.update({scope:{...scope},reviewToken:token,expectedState:CHECKOUT_STATES.ORDER_LOCKED,patch:{state:CHECKOUT_STATES.REDIRECTING}});
+    if(!updated)fail('CHECKOUT_REDIRECT_NOT_ALLOWED');
+    return{state:CHECKOUT_STATES.REDIRECTING,...scope,order:result.order,providerRequest:result.providerRequest};
+  }
+
   return{
     validateDraft,
     createReview,
     getReviewState,
+    beginRedirect,
     /**
      * reviewState.create/get/update are durable server-side operations scoped
      * by projectId, sellerId, and reviewToken. create must persist the server
-     * generated submissionId atomically; update must atomically persist state
-     * and safe pending results. The core rejects card/CVV/token fields before
+     * generated submissionId atomically; update must compare-and-set state and
+     * persist safe pending results. The core rejects card/CVV/token fields before
      * create, so such raw values never enter this Adapter.
      *
      * submissions.acquire returns either {status:'acquired',attemptToken},

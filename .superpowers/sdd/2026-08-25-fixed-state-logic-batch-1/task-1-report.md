@@ -150,6 +150,40 @@ transport, or live-system action occurred.
 Round-2 commit: `3dcd75da743547b2a7b7d3307603d807a6135af8`
 (`fix: persist checkout review identity`).
 
+## Final-review lifecycle handoff repair
+
+Added `beginRedirect({reviewToken})`, the only executable handoff from
+`order_locked` to `redirecting`. It reloads the durable scoped review, requires
+the locked state and the persisted safe order/provider-request result, then
+uses a compare-and-set durable update. Caller-supplied state and provider
+request values are neither accepted nor used. The method returns only the
+server-owned order identity and provider-request inputs; it does not call a
+provider or render UI.
+
+RED command after adding the lifecycle test:
+
+```powershell
+node --test packages/buyna-checkout-flow-core/test/checkout-flow.test.mjs
+```
+
+Observed expected RED: `second.beginRedirect is not a function`; 8 passed, 1
+failed. After the minimum durable handoff implementation, the same test command
+was GREEN: 9 passed, 0 failed. The test proves an unlocked review is rejected
+with `CHECKOUT_REDIRECT_NOT_ALLOWED`, a second core can hand off the locked
+durable review, and malicious caller state/request values are ignored.
+
+Final verification:
+
+```powershell
+npm test --prefix packages/buyna-checkout-flow-core
+$testFiles = Get-ChildItem tests -Filter '*.test.mjs' | ForEach-Object FullName; node --test $testFiles
+powershell -ExecutionPolicy Bypass -File .\scripts\validate.ps1
+git diff --check
+```
+
+Results: checkout 9 passed/0 failed; root 21 passed/0 failed; repository
+validation and diff check passed.
+
 ## Self-review
 
 - `CHECKOUT_STATES` is frozen and exposes all specified lifecycle values.
