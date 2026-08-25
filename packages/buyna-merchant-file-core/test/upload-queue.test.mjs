@@ -468,3 +468,207 @@ test('effect executor rejects scope mismatches before claiming external work', a
     error => error.code === 'UPLOAD_EFFECT_SCOPE_MISMATCH');
   assert.equal(effectStore.calls.length, 0);
 });
+
+test('effect executor canonicalizes and freezes an exact safe effect before its first await', async () => {
+  let releaseAcquire;
+  const acquireBarrier = new Promise(resolve => { releaseAcquire = resolve; });
+  let handledEffect;
+  const effectStore = {
+    async acquireEffect() {
+      await acquireBarrier;
+      return { outcome: 'acquired' };
+    },
+    async completeEffect() {},
+    async failEffect() {},
+  };
+  const executor = createUploadEffectExecutor({
+    projectId: 'project_alpha', sellerId: 'seller_alpha', effectStore,
+    handlers: {
+      async validate_file(effect) {
+        handledEffect = effect;
+        assert.throws(() => { effect.payload.name = 'handler-mutated.webp'; }, TypeError);
+        return { valid: true };
+      },
+    },
+  });
+  const source = validationEffect();
+  const mutableEffect = { ...source, payload: { ...source.payload } };
+  const execution = executor.execute(mutableEffect);
+
+  mutableEffect.projectId = 'project_other';
+  mutableEffect.itemId = 'file_other';
+  mutableEffect.payload.name = 'caller-mutated.webp';
+  mutableEffect.payload.credential = 'unsafe';
+  releaseAcquire();
+
+  assert.deepEqual(await execution, { valid: true });
+  assert.notEqual(handledEffect, mutableEffect);
+  assert.notEqual(handledEffect.payload, mutableEffect.payload);
+  assert.ok(Object.isFrozen(handledEffect));
+  assert.ok(Object.isFrozen(handledEffect.payload));
+  assert.equal(handledEffect.projectId, 'project_alpha');
+  assert.equal(handledEffect.itemId, 'file_1');
+  assert.deepEqual(handledEffect.payload, { name: 'item.webp', size: 1, type: 'image/webp' });
+});
+
+test('effect executor rejects accessors, symbols, extra fields, and unsafe payload before acquiring', async () => {
+  const effectStore = createEffectStore();
+  const executor = createUploadEffectExecutor({
+    projectId: 'project_alpha', sellerId: 'seller_alpha', effectStore,
+    handlers: { async validate_file() { return { valid: true }; } },
+  });
+  const source = validationEffect();
+  const symbol = Symbol('unsafe');
+  const accessorEffect = { ...source, payload: { ...source.payload } };
+  Object.defineProperty(accessorEffect.payload, 'name', {
+    enumerable: true,
+    get() { return 'item.webp'; },
+  });
+  const cases = [
+    { ...source, payload: { ...source.payload, credential: 'unsafe' } },
+    { ...source, payload: { ...source.payload }, credential: 'unsafe' },
+    Object.assign({ ...source, payload: { ...source.payload } }, { [symbol]: 'unsafe' }),
+    accessorEffect,
+  ];
+  for (const effect of cases) {
+    await assert.rejects(() => executor.execute(effect),
+      error => error.code === 'UPLOAD_EFFECT_INVALID');
+  }
+  assert.equal(effectStore.calls.length, 0);
+});
+
+test('completion persistence failure leaves the claim in progress and never repeats the external handler', async () => {
+  let handlerCalls = 0;
+  let failCalls = 0;
+  let status = 'new';
+  const effectStore = {
+    async acquireEffect() {
+      if (status === 'new') {
+        status = 'in_progress';
+        return { outcome: 'acquired' };
+      }
+      return { outcome: 'in_progress' };
+    },
+    async completeEffect() { throw new Error('persistence unavailable'); },
+    async failEffect() { failCalls += 1; status = 'failed'; },
+  };
+  const executor = createUploadEffectExecutor({
+    projectId: 'project_alpha', sellerId: 'seller_alpha', effectStore,
+    handlers: { async validate_file() { handlerCalls += 1; return { valid: true }; } },
+  });
+  const effect = validationEffect();
+
+  await assert.rejects(() => executor.execute(effect),
+    error => error.code === 'UPLOAD_EFFECT_COMPLETION_PERSISTENCE_FAILED');
+  assert.equal(handlerCalls, 1);
+  assert.equal(failCalls, 0);
+  assert.equal(status, 'in_progress');
+  await assert.rejects(() => executor.execute(effect),
+    error => error.code === 'UPLOAD_EFFECT_IN_PROGRESS');
+  assert.equal(handlerCalls, 1);
+  assert.equal(failCalls, 0);
+});
+
+test('effect executor validates exact acquire envelopes before handler dispatch', async () => {
+  const invalidClaims = [
+    null,
+    {},
+    { outcome: 'unknown' },
+    { outcome: 'acquired', result: {} },
+    { outcome: 'in_progress', result: {} },
+    { outcome: 'completed' },
+    { outcome: 'completed', result: { ok: true }, extra: true },
+  ];
+  for (const claim of invalidClaims) {
+    let handlerCalls = 0;
+    const executor = createUploadEffectExecutor({
+      projectId: 'project_alpha', sellerId: 'seller_alpha',
+      effectStore: {
+        async acquireEffect() { return claim; },
+        async completeEffect() {},
+        async failEffect() {},
+      },
+      handlers: { async validate_file() { handlerCalls += 1; return { valid: true }; } },
+    });
+    await assert.rejects(() => executor.execute(validationEffect()),
+      error => error.code === 'UPLOAD_EFFECT_CLAIM_INVALID');
+    assert.equal(handlerCalls, 0);
+  }
+});
+
+test('completed acquire replay requires and returns a canonical JSON-safe result without a handler call', async () => {
+  const stored = { ok: true, nested: ['safe', 1, null] };
+  let handlerCalls = 0;
+  const executor = createUploadEffectExecutor({
+    projectId: 'project_alpha', sellerId: 'seller_alpha',
+    effectStore: {
+      async acquireEffect() { return { outcome: 'completed', result: stored }; },
+      async completeEffect() {},
+      async failEffect() {},
+    },
+    handlers: { async validate_file() { handlerCalls += 1; return { valid: false }; } },
+  });
+  const result = await executor.execute(validationEffect());
+  stored.ok = false;
+  stored.nested[0] = 'changed';
+  assert.deepEqual(result, { ok: true, nested: ['safe', 1, null] });
+  assert.ok(Object.isFrozen(result));
+  assert.ok(Object.isFrozen(result.nested));
+  assert.equal(handlerCalls, 0);
+});
+
+test('completed acquire rejects non JSON-safe persisted results', async () => {
+  const circular = {};
+  circular.self = circular;
+  const invalidResults = [
+    undefined,
+    { nested: undefined },
+    { nested: () => true },
+    { nested: 1n },
+    { nested: Symbol('unsafe') },
+    circular,
+  ];
+  for (const result of invalidResults) {
+    const executor = createUploadEffectExecutor({
+      projectId: 'project_alpha', sellerId: 'seller_alpha',
+      effectStore: {
+        async acquireEffect() { return { outcome: 'completed', result }; },
+        async completeEffect() {},
+        async failEffect() {},
+      },
+      handlers: { async validate_file() { return { valid: true }; } },
+    });
+    await assert.rejects(() => executor.execute(validationEffect()),
+      error => error.code === 'UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+  }
+});
+
+test('handler result must be JSON-safe before completion is recorded', async () => {
+  const circular = {};
+  circular.self = circular;
+  const invalidResults = [
+    undefined,
+    { nested: undefined },
+    { nested: () => true },
+    { nested: 1n },
+    { nested: Symbol('unsafe') },
+    circular,
+  ];
+  for (const result of invalidResults) {
+    let completed = 0;
+    let failed = 0;
+    const executor = createUploadEffectExecutor({
+      projectId: 'project_alpha', sellerId: 'seller_alpha',
+      effectStore: {
+        async acquireEffect() { return { outcome: 'acquired' }; },
+        async completeEffect() { completed += 1; },
+        async failEffect() { failed += 1; },
+      },
+      handlers: { async validate_file() { return result; } },
+    });
+    await assert.rejects(() => executor.execute(validationEffect()),
+      error => error.code === 'UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+    assert.equal(completed, 0);
+    assert.equal(failed, 0);
+  }
+});

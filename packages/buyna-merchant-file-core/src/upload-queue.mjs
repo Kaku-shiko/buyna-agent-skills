@@ -363,34 +363,144 @@ function requireAdapterMethod(owner, methodName) {
   }
 }
 
-function validateEffect(effect, scope) {
-  if (!effect || typeof effect !== 'object') fail('UPLOAD_EFFECT_INVALID');
-  if (effect.projectId !== scope.projectId || effect.sellerId !== scope.sellerId) {
-    fail('UPLOAD_EFFECT_SCOPE_MISMATCH');
+function exactDataValues(value, expectedKeys, code) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail(code);
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) fail(code);
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const keys = Reflect.ownKeys(descriptors);
+  if (
+    keys.length !== expectedKeys.length
+    || keys.some(key => typeof key !== 'string' || !expectedKeys.includes(key))
+  ) fail(code);
+  const values = {};
+  for (const key of expectedKeys) {
+    const descriptor = descriptors[key];
+    if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) fail(code);
+    values[key] = descriptor.value;
   }
-  if (!EFFECT_TYPES.includes(effect.type)) fail('UPLOAD_EFFECT_TYPE_UNSUPPORTED');
-  const itemId = parseId(effect.itemId, 'UPLOAD_EFFECT_INVALID');
-  const attemptId = parseId(effect.attemptId, 'UPLOAD_EFFECT_INVALID');
-  const expected = `upload:${scope.projectId}:${scope.sellerId}:${itemId}:${attemptId}:${effect.type}`;
-  if (effect.effectId !== expected || effect.idempotencyKey !== expected) fail('UPLOAD_EFFECT_ID_INVALID');
-  if (!effect.payload || typeof effect.payload !== 'object' || Array.isArray(effect.payload)) {
-    fail('UPLOAD_EFFECT_INVALID');
-  }
-  const effectKeys = Object.keys(effect);
-  const expectedEffectKeys = [
+  return values;
+}
+
+function canonicalizeEffect(effect, scope) {
+  const values = exactDataValues(effect, [
     'effectId', 'idempotencyKey', 'type', 'projectId', 'sellerId',
     'itemId', 'attemptId', 'payload',
-  ];
-  if (
-    effectKeys.length !== expectedEffectKeys.length
-    || expectedEffectKeys.some(key => !Object.hasOwn(effect, key))
-  ) fail('UPLOAD_EFFECT_INVALID');
-  const payloadKeys = Object.keys(effect.payload);
-  if (
-    payloadKeys.length !== 3
-    || !['name', 'size', 'type'].every(key => Object.hasOwn(effect.payload, key))
-  ) fail('UPLOAD_EFFECT_INVALID');
-  safeMetadata(effect.payload);
+  ], 'UPLOAD_EFFECT_INVALID');
+  if (values.projectId !== scope.projectId || values.sellerId !== scope.sellerId) {
+    fail('UPLOAD_EFFECT_SCOPE_MISMATCH');
+  }
+  if (!EFFECT_TYPES.includes(values.type)) fail('UPLOAD_EFFECT_TYPE_UNSUPPORTED');
+  const itemId = parseId(values.itemId, 'UPLOAD_EFFECT_INVALID');
+  const attemptId = parseId(values.attemptId, 'UPLOAD_EFFECT_INVALID');
+  const expected = `upload:${scope.projectId}:${scope.sellerId}:${itemId}:${attemptId}:${values.type}`;
+  if (values.effectId !== expected || values.idempotencyKey !== expected) fail('UPLOAD_EFFECT_ID_INVALID');
+  const payloadValues = exactDataValues(values.payload, ['name', 'size', 'type'], 'UPLOAD_EFFECT_INVALID');
+  const payload = safeMetadata(payloadValues);
+  return deepFreeze({
+    effectId: expected,
+    idempotencyKey: expected,
+    type: values.type,
+    projectId: scope.projectId,
+    sellerId: scope.sellerId,
+    itemId,
+    attemptId,
+    payload,
+  });
+}
+
+function canonicalizeJsonSafe(value) {
+  const stack = new WeakSet();
+  let nodes = 0;
+
+  function visit(current, depth) {
+    nodes += 1;
+    if (nodes > 10_000) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
+    if (depth > 32) fail('UPLOAD_EFFECT_RESULT_TOO_DEEP');
+    if (current === null || typeof current === 'string' || typeof current === 'boolean') return current;
+    if (typeof current === 'number') {
+      if (!Number.isFinite(current)) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+      return current;
+    }
+    if (typeof current !== 'object') fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+    if (stack.has(current)) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+    stack.add(current);
+    try {
+      if (Array.isArray(current)) {
+        const descriptors = Object.getOwnPropertyDescriptors(current);
+        const keys = Reflect.ownKeys(descriptors);
+        if (keys.some(key => typeof key !== 'string')) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        const length = current.length;
+        const expectedKeys = ['length', ...Array.from({ length }, (_, index) => String(index))];
+        if (
+          keys.length !== expectedKeys.length
+          || keys.some(key => !expectedKeys.includes(key))
+        ) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        return Array.from({ length }, (_, index) => {
+          const descriptor = descriptors[index];
+          if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+            fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+          }
+          return visit(descriptor.value, depth + 1);
+        });
+      }
+      const prototype = Object.getPrototypeOf(current);
+      if (prototype !== Object.prototype && prototype !== null) {
+        fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+      }
+      const descriptors = Object.getOwnPropertyDescriptors(current);
+      const keys = Reflect.ownKeys(descriptors);
+      if (keys.some(key => typeof key !== 'string')) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+      const clone = {};
+      for (const key of keys) {
+        const descriptor = descriptors[key];
+        if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+          fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+        }
+        Object.defineProperty(clone, key, {
+          value: visit(descriptor.value, depth + 1),
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+      }
+      return clone;
+    } finally {
+      stack.delete(current);
+    }
+  }
+
+  const canonical = visit(value, 0);
+  let serialized;
+  try {
+    serialized = JSON.stringify(canonical);
+  } catch {
+    fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+  }
+  if (serialized === undefined) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
+  if (Buffer.byteLength(serialized, 'utf8') > 256 * 1024) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
+  return deepFreeze(canonical);
+}
+
+function canonicalizeClaim(claim) {
+  if (!claim || typeof claim !== 'object' || Array.isArray(claim)) {
+    fail('UPLOAD_EFFECT_CLAIM_INVALID');
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(claim);
+  const outcomeDescriptor = descriptors.outcome;
+  if (!outcomeDescriptor?.enumerable || !Object.hasOwn(outcomeDescriptor, 'value')) {
+    fail('UPLOAD_EFFECT_CLAIM_INVALID');
+  }
+  const outcome = outcomeDescriptor.value;
+  if (outcome === 'acquired' || outcome === 'in_progress') {
+    exactDataValues(claim, ['outcome'], 'UPLOAD_EFFECT_CLAIM_INVALID');
+    return deepFreeze({ outcome });
+  }
+  if (outcome === 'completed') {
+    const values = exactDataValues(claim, ['outcome', 'result'], 'UPLOAD_EFFECT_CLAIM_INVALID');
+    return deepFreeze({ outcome, result: canonicalizeJsonSafe(values.result) });
+  }
+  fail('UPLOAD_EFFECT_CLAIM_INVALID');
 }
 
 export function createUploadEffectExecutor({ projectId, sellerId, effectStore, handlers } = {}) {
@@ -405,32 +515,39 @@ export function createUploadEffectExecutor({ projectId, sellerId, effectStore, h
 
   return Object.freeze({
     async execute(effect) {
-      validateEffect(effect, scope);
-      const handler = handlers[effect.type];
+      const canonicalEffect = canonicalizeEffect(effect, scope);
+      const handler = handlers[canonicalEffect.type];
       if (typeof handler !== 'function') fail('UPLOAD_EFFECT_HANDLER_MISSING');
-      const identity = {
+      const identity = deepFreeze({
         projectId: scope.projectId,
         sellerId: scope.sellerId,
-        effectId: effect.effectId,
-        idempotencyKey: effect.idempotencyKey,
-      };
-      const claim = await effectStore.acquireEffect(identity);
+        effectId: canonicalEffect.effectId,
+        idempotencyKey: canonicalEffect.idempotencyKey,
+      });
+      const claim = canonicalizeClaim(await effectStore.acquireEffect(identity));
       if (claim?.outcome === 'completed') return claim.result;
       if (claim?.outcome === 'in_progress') fail('UPLOAD_EFFECT_IN_PROGRESS');
-      if (claim?.outcome !== 'acquired') fail('UPLOAD_EFFECT_CLAIM_INVALID');
+      let rawResult;
       try {
-        const result = await handler(effect);
-        await effectStore.completeEffect({ ...identity, result });
-        return result;
+        rawResult = await handler(canonicalEffect);
       } catch (caught) {
         const error = caught instanceof Error ? caught : new Error('UPLOAD_EFFECT_HANDLER_FAILED');
         const errorCode = typeof error.code === 'string' && /^[A-Z][A-Z0-9_]{2,127}$/.test(error.code)
           ? error.code
           : 'UPLOAD_EFFECT_HANDLER_FAILED';
         error.code = errorCode;
-        await effectStore.failEffect({ ...identity, errorCode });
+        await effectStore.failEffect(deepFreeze({ ...identity, errorCode }));
         throw error;
       }
+      const result = canonicalizeJsonSafe(rawResult);
+      try {
+        await effectStore.completeEffect(deepFreeze({ ...identity, result }));
+      } catch (cause) {
+        const error = new Error('UPLOAD_EFFECT_COMPLETION_PERSISTENCE_FAILED', { cause });
+        error.code = 'UPLOAD_EFFECT_COMPLETION_PERSISTENCE_FAILED';
+        throw error;
+      }
+      return result;
     },
   });
 }
