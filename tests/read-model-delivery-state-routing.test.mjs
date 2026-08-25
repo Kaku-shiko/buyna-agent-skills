@@ -157,6 +157,45 @@ test("dependency closure preserves exact-once fixed module selection", () => {
   }), /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/);
 });
 
+test("dependency closure rejects forged read-model scope", () => {
+  const orders = route({ slices: ["orders"], slice: "orders" });
+  assert.throws(() => resolveRouteDependencyClosure({
+    ...orders,
+    fixedModules: [...orders.fixedModules, "buyna-commerce-read-model-core"],
+  }), /COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE/);
+
+  const overview = route({ slices: ["dashboard"], slice: "dashboard" });
+  assert.throws(() => resolveRouteDependencyClosure({
+    ...overview,
+    targetGate: "checkout_payment",
+  }), /COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE/);
+});
+
+test("dependency closure rejects forged delivery operation, slice, and domain dependencies", () => {
+  const order = route({
+    slices: ["orders"], slice: "orders",
+    operations: ["order_notification"], operation: "order_notification",
+  });
+  for (const mutation of [
+    { notificationOperation: null },
+    { notificationOperation: "booking_notification" },
+    { dashboardSlices: ["bookings"] },
+    { targetGate: "checkout_payment" },
+    { skills: order.skills.filter((name) => name !== "buyai-product-merchant-backend") },
+  ]) {
+    assert.throws(() => resolveRouteDependencyClosure({ ...order, ...mutation }), /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/);
+  }
+
+  const appointment = route({
+    capabilities: booking, slices: ["bookings"], slice: "bookings",
+    operations: ["booking_notification"], operation: "booking_notification",
+  });
+  assert.throws(() => resolveRouteDependencyClosure({
+    ...appointment,
+    skills: appointment.skills.filter((name) => name !== "buyai-booking-service-backend"),
+  }), /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/);
+});
+
 test("notification operation approval is provenance-backed and bounded before frontend work", () => {
   let state = workflow.createWorkflow({ projectId: "approval" });
   assert.throws(() => workflow.setApprovedNotificationOperations({ state, operations: ["order_notification"], approvedBy: "user" }), /NOTIFICATION_OPERATION_DESIGN_APPROVAL_REQUIRED/);

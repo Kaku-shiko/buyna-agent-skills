@@ -97,6 +97,33 @@ function addUnique(target, values) {
 function assertSelectedDependencyContract(selected) {
   const skills = new Set(selected.skills);
   const modules = new Set(selected.fixedModules);
+  if (modules.has("buyna-commerce-read-model-core")
+    && (selected.targetGate !== "dashboard_integration"
+      || !Array.isArray(selected.dashboardSlices)
+      || !selected.dashboardSlices.includes("dashboard")
+      || !skills.has("buyai-dashboard-data-interaction")
+      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
+    throw new Error("COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE");
+  }
+  if (modules.has("buyna-delivery-state-core")
+    && (selected.targetGate !== "dashboard_integration"
+      || !Object.prototype.hasOwnProperty.call(notificationOperationSlices, selected.notificationOperation)
+      || !Array.isArray(selected.dashboardSlices)
+      || !selected.dashboardSlices.includes(notificationOperationSlices[selected.notificationOperation])
+      || !skills.has("buyai-dashboard-data-interaction")
+      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
+    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
+  }
+  if (modules.has("buyna-delivery-state-core")
+    && selected.notificationOperation === "order_notification"
+    && (!skills.has("buyai-product-merchant-backend") || !modules.has("buyna-order-core"))) {
+    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
+  }
+  if (modules.has("buyna-delivery-state-core")
+    && selected.notificationOperation === "booking_notification"
+    && !skills.has("buyai-booking-service-backend")) {
+    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
+  }
   if (skills.has("buyai-product-merchant-backend")) {
     if (["frontend_code", "dashboard_integration"].includes(selected.targetGate)
       && !["buyna-merchant-catalog-core", "buyna-inventory-core"].some((name) => modules.has(name))) {
@@ -116,21 +143,6 @@ function assertSelectedDependencyContract(selected) {
   if (skills.has("buyai-dashboard-data-interaction")
     && !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name))) {
     throw new Error("DASHBOARD_SECURITY_DEPENDENCY_INCOMPLETE");
-  }
-  if (modules.has("buyna-commerce-read-model-core")
-    && (!skills.has("buyai-dashboard-data-interaction")
-      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
-    throw new Error("COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE");
-  }
-  if (modules.has("buyna-delivery-state-core")
-    && (!skills.has("buyai-dashboard-data-interaction")
-      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
-    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
-  }
-  if (modules.has("buyna-delivery-state-core")
-    && selected.notificationOperation === "order_notification"
-    && !modules.has("buyna-order-core")) {
-    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
   }
   if (skills.has("buyai-checkout-address-ux")
     && selected.commerceArchitecture !== "legacy-globepay-service"

@@ -54,3 +54,18 @@ selection and missing provenance-backed notification-operation authorization.
   Task 4 focused routing/contracts 12/12, and repository root 103/103 passed.
   Repository validation, all six Skill validators, `git diff --check`, and all
   six canonical Builder/`.agents` byte-identity checks passed.
+
+## CLOSURE_FAIL_CLOSED_EVIDENCE
+
+- RED: dependency closure accepted a read-model injected into an `orders`
+  route and accepted delivery with null/swapped operations, mismatched slices,
+  a non-Dashboard target, or a missing product/booking domain Skill.
+- GREEN: read-model closure now requires `dashboard_integration` plus the
+  persisted `dashboard` slice. Delivery closure requires the Dashboard target,
+  one known operation, its matching `orders`/`bookings` slice, fresh
+  Dashboard auth/context dependencies, and the matching domain Skill; order
+  delivery also requires `buyna-order-core`.
+- Final regression: Task 4 focused routing/contracts 14/14 and repository root
+  105/105 passed. Workflow, read-model, delivery, repository validation, all
+  six Skill validators, `git diff --check`, and all canonical Builder sync
+  checks passed.
