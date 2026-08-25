@@ -537,32 +537,54 @@ complete branch and runs full verification.
   - failure allowlist rejecting raw exception/stack/message content;
   - every Store, Template, Recipient, and Provider call receiving the exact same
     frozen scope, with mutation/cross-seller fixtures failing before effects;
+  - Recipient/Template/Provider business errors transitioning the current
+    sending attempt to failed, while Store transaction, lock, OCC/version, read,
+    `saveDelivered`, and `saveFailed` errors propagate by object identity and
+    never cause a second state write;
   - one stable provider request key across attempts, same attempt on lease
     recovery, and a new attempt ID only after a persisted failed-state retry.
 
 - [ ] **Step 5: Implement dispatch through template/provider Adapters**
 
-  `dispatch` claims or recovers the leased attempt, calls RecipientAdapter,
-  exactly one approved TemplateAdapter, then the provider matching the
-  persisted channel. Every call includes the same frozen scope. It passes only
-  transient recipient output, immutable intent payload, and stable request key.
-  On success it normalizes and saves the safe receipt. On a project Adapter
-  error shaped
-  `{ code: <stable string>, retryable: <boolean> }`, it saves the normalized
-  failure and returns the failed state. Unknown thrown values become
-  `DELIVERY_PROVIDER_ERROR` with `retryable: false`; the fixed core never logs
-  or persists their text. A missing provider/template method fails before any
-  state transition with `DELIVERY_RECIPIENT_ADAPTER_REQUIRED`,
+  `dispatch` preflights the Recipient/Template/Provider methods, then claims or
+  recovers the leased attempt. Store/transaction/lock/OCC/version calls are
+  outside every business-Adapter catch boundary. It then calls
+  RecipientAdapter, exactly one approved TemplateAdapter, and the provider
+  matching the persisted channel. Every call includes the same frozen scope.
+  It passes only transient recipient output, immutable intent payload, and the
+  stable request key.
+
+  Catch only errors thrown by those three business calls. A business error
+  shaped `{ code: <stable string>, retryable: <boolean> }` is normalized and
+  passed to `markFailed`; unknown recipient/template/provider values become
+  `DELIVERY_RECIPIENT_ERROR`, `DELIVERY_TEMPLATE_ERROR`, or
+  `DELIVERY_PROVIDER_ERROR` with `retryable: false`. The fixed core never logs
+  or persists thrown text. The `markFailed` Store call itself is outside that
+  catch: if it fails, propagate the exact Store error and leave the persisted
+  record at `sending`.
+
+  On provider success, normalize the receipt and call `markDelivered` outside
+  the provider catch. Any Store/transaction/OCC/save error from claim,
+  recovery, `markFailed`, or `markDelivered` propagates unchanged; `dispatch`
+  must never reinterpret it as a business failure, call `markFailed`, or write
+  another version. A missing provider/template/recipient method fails before
+  claim/state transition with `DELIVERY_RECIPIENT_ADAPTER_REQUIRED`,
   `DELIVERY_TEMPLATE_ADAPTER_REQUIRED`, or
   `DELIVERY_PROVIDER_ADAPTER_REQUIRED`.
 
 - [ ] **Step 6: Add provider crash/replay behavior tests**
 
-  Simulate provider acceptance followed by a store failure. On the next
-  dispatch, assert the Adapter receives the same `requestKey`; its fake
-  idempotency store returns the same receipt and the delivery reaches
-  `delivered` without a second external effect. Also assert template rendering
-  is project-owned and may differ by locale without changing state semantics.
+  Simulate provider acceptance followed by `saveDelivered` throwing one exact
+  OCC/Store error object. Assert `dispatch` rejects with that same object,
+  `saveFailed` is never called, no failed/version write exists, and the
+  persisted record remains the prior `sending` version. Before lease expiry,
+  another worker is rejected. After expiry, recover the same
+  `attemptId + requestKey`; the fake provider idempotency store returns the same
+  receipt and the record reaches `delivered` with one external effect. Mutation
+  tests repeat this for claim/read/transaction/OCC/save errors shaped like
+  `{ code, retryable }` to prove shape alone cannot cross the Store/business
+  boundary. Also assert template rendering is project-owned and may differ by
+  locale without changing state semantics.
 
   Add a domain-transaction recovery test: commit one order/booking plus its
   immutable notification source event, crash before reconciliation, restart the
@@ -899,6 +921,9 @@ complete branch and runs full verification.
   - server-side transient recipient resolution from `recipientRef`;
   - a queue/worker that calls `dispatch`, persists lease/retry timestamps, and
     resumes the same expired sending attempt after process restart;
+  - the exact business-error catch boundary: recipient/template/provider errors
+    may mark failed, while Store/transaction/OCC/save errors propagate and leave
+    the sending record for lease recovery;
   - stable provider request-key handling and receipt redaction;
   - no browser authority, frontend provider call, provider secret in a message
     record, or customer payment data in templates.
@@ -994,9 +1019,13 @@ complete branch and runs full verification.
   Use a second notification whose SMS Adapter fails once with a retryable error.
   Advance the injected clock to `nextRetryAt`, retry with a new attempt ID and
   the same provider request key, and assert one final delivered receipt. Then
-  simulate a provider-accepted send followed by store failure, expire the
-  sending lease, restart with a new worker, and assert recovery uses the same
-  attempt ID/request key and the provider fake records one external effect.
+  simulate a provider-accepted send followed by `saveDelivered`/OCC failure.
+  Assert the exact Store error propagates, `saveFailed` is not called, no
+  failed/version write occurs, and persisted state remains the prior `sending`
+  record. Expire its lease, restart with a new worker, and assert recovery uses
+  the same attempt ID/request key, reaches delivered, and the provider fake
+  records one external effect. Inject a Store error shaped like a retryable
+  provider error and prove it still follows this Store path.
   Run a period containing only the refund of an older capture and assert
   negative net is preserved, not clamped. Then
   execute the same read/delivery calls for a second seller and assert every
@@ -1101,6 +1130,9 @@ complete branch and runs full verification.
 - [ ] Provider acceptance/store-crash replay is tested without promising
   impossible exactly-once I/O: production ProviderAdapters must honor the fixed
   request key through provider idempotency/query before claiming this guarantee.
+- [ ] Only Recipient/Template/Provider call errors enter the business-failure
+  transition. Store/transaction/OCC/save errors retain object identity, never
+  call `markFailed`, and recover the same sending attempt after lease expiry.
 - [ ] Template/provider/recipient errors cannot leak raw PII, message bodies,
   exception stacks, credentials, or provider responses into state.
 - [ ] Builder selects read model only for overview and delivery only for an
