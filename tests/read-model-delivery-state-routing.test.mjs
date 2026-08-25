@@ -69,6 +69,7 @@ test("list and detail Dashboard slices do not acquire the overview read model or
     const result = route({ capabilities, slices: [slice], slice });
     assert.ok(!result.fixedModules.includes("buyna-commerce-read-model-core"), slice);
     assert.ok(!result.fixedModules.includes("buyna-delivery-state-core"), slice);
+    if (slice === "orders") assert.equal(result.fixedModules.filter((x) => x === "buyna-order-core").length, 1);
     assertStable(result, slice, [slice]);
   }
 });
@@ -76,6 +77,7 @@ test("list and detail Dashboard slices do not acquire the overview read model or
 test("only explicit persisted matching notification operations select delivery once", () => {
   const order = route({ slices: ["orders"], slice: "orders", operations: ["order_notification"], operation: "order_notification" });
   assert.equal(order.fixedModules.filter((x) => x === "buyna-delivery-state-core").length, 1);
+  assert.equal(order.fixedModules.filter((x) => x === "buyna-order-core").length, 1);
   assertStable(order, "orders", ["orders"], "order_notification");
 
   const appointment = route({ capabilities: booking, slices: ["bookings"], slice: "bookings", operations: ["booking_notification"], operation: "booking_notification" });
@@ -149,6 +151,10 @@ test("dependency closure preserves exact-once fixed module selection", () => {
   assert.equal(closure.fixedModules.filter((x) => x === "buyna-delivery-state-core").length, 1);
   assert.equal(closure.fixedModules.filter((x) => x === "buyna-commerce-read-model-core").length, 0);
   assert.equal(selected.manifestVerification.verified, true);
+  assert.throws(() => resolveRouteDependencyClosure({
+    ...selected,
+    fixedModules: selected.fixedModules.filter((x) => x !== "buyna-order-core"),
+  }), /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/);
 });
 
 test("notification operation approval is provenance-backed and bounded before frontend work", () => {

@@ -284,6 +284,7 @@ export function createVerifiedWorkflowStore({projectRoot,pinnedAuthority,authori
       transitionProof:transition?.transitionProof,parentState:loadedState,state:transition?.state,
       event:transition?.event,events:transition?.events,
     });
+    validateWorkflowReadinessEvidence(transition.state);
     const latestHead=await queryLatestHead(loadedState.projectId);
     if(!same(latestHead,loaded.head))throw new Error('WORKFLOW_PERSISTED_STATE_STALE');
     const current=await verifyCandidate(latestHead);

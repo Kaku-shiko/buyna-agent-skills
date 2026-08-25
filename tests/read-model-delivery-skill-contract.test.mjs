@@ -49,6 +49,8 @@ test("child Skills call fixed state while frontend generates all visual design",
     assert.match(skill, /(reconciler|reconciliation)[\s\S]*(dispatch|delivery)/i);
     assert.match(skill, /notification failure[\s\S]*(does not|never)[\s\S]*(order|booking|payment)[\s\S]*(success|status)/i);
   }
+  assert.match(booking, /only when[\s\S]*authoritative[\s\S]*persisted[\s\S]*`booking_notification`[\s\S]*route/i);
+  assert.doesNotMatch(booking, /approved inquiry or/i);
   for (const item of ["chart", "component", "message copy", "label", "color", "font", "spacing", "responsive", "CSS"]) assert.match(frontend, new RegExp(item, "i"));
   assert.match(frontend, /(generate|project-owned)[\s\S]*(chart|component|CSS)/i);
   assert.match(operations, /buyna-commerce-read-model-core/);

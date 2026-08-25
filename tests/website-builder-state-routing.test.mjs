@@ -28,6 +28,8 @@ const normalizeRouteResult = (route) => {
   // Batch 3 validates these additive stable fields in its focused routing suite.
   delete route.dashboardSlice;
   delete route.dashboardSlices;
+  // Batch 4 validates notification routing in its focused routing suite.
+  delete route.notificationOperation;
   return route;
 };
 

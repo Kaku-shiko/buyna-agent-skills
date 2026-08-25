@@ -245,6 +245,13 @@ export function setApprovedDashboardSlices({state,slices,approvedBy,now=new Date
   const selected=slices.map(value=>requiredText(value,'DASHBOARD_SLICE_INVALID'));
   if(new Set(selected).size!==selected.length||selected.some(value=>!dashboardSliceValues.includes(value)))throw new Error('DASHBOARD_SLICE_INVALID');
   const actor=requiredText(approvedBy,'APPROVER_REQUIRED');
+  const approvedOperations=next.configuration?.notificationOperations??[];
+  if(approvedOperations.length){
+    validateNotificationOperationApproval(next);
+    const invalidatesNotification=approvedOperations.some(operation=>!selected.includes(notificationOperationSlices[operation]))
+      ||actor!==next.configuration.notificationOperationApproval.approvedBy;
+    if(invalidatesNotification)throw new Error('NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED');
+  }
   if(!validTimestamp(now))throw new Error('DASHBOARD_SLICE_APPROVAL_EVIDENCE_INVALID');
   next.configuration.dashboardSlices=[...selected];
   next.configuration.dashboardSliceApproval={

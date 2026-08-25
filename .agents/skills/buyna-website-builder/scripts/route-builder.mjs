@@ -127,6 +127,11 @@ function assertSelectedDependencyContract(selected) {
       || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
     throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
   }
+  if (modules.has("buyna-delivery-state-core")
+    && selected.notificationOperation === "order_notification"
+    && !modules.has("buyna-order-core")) {
+    throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
+  }
   if (skills.has("buyai-checkout-address-ux")
     && selected.commerceArchitecture !== "legacy-globepay-service"
     && !modules.has("buyna-checkout-flow-core")) {
@@ -315,6 +320,7 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboard
     if (dashboardSelection.dashboardSlices.some((slice) => fileCapableDashboardSlices.includes(slice))) {
       addUnique(fixedModules, ["buyna-merchant-file-core"]);
     }
+    if (dashboardSelection.dashboardSlices.includes("orders")) addUnique(fixedModules, ["buyna-order-core"]);
     if (dashboardSelection.dashboardSlices.some((slice) => readModelDashboardSlices.includes(slice))) {
       addUnique(fixedModules, ["buyna-commerce-read-model-core"]);
     }

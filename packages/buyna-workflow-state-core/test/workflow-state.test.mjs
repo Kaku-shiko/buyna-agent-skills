@@ -304,6 +304,15 @@ test('notification operation approval persists exact provenance and rejects late
     approvedBy:'user',at:'2026-08-26T04:30:00.000Z',
   });
   assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(transition.state));
+  const approvedSnapshot=structuredClone(transition.state);
+  assert.throws(()=>workflowCore.setApprovedDashboardSlices({
+    state:transition.state,slices:['dashboard'],approvedBy:'user',
+  }),/NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED/);
+  assert.deepEqual(transition.state,approvedSnapshot);
+  assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(transition.state));
+  assert.throws(()=>workflowCore.setApprovedDashboardSlices({
+    state:transition.state,slices:['orders'],approvedBy:'different-approver',
+  }),/NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED/);
   assert.throws(()=>workflowCore.setApprovedNotificationOperations({
     state:transition.state,operations:['order_notification','booking_notification'],approvedBy:'user',
   }),/NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED/);

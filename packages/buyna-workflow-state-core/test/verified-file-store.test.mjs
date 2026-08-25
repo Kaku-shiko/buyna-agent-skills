@@ -138,11 +138,25 @@ test('verified store preserves notification operation approval evidence across s
     await apply(state=>workflowCore.setApprovedDashboardSlices({state,slices:['orders'],approvedBy:'user'}));
     await apply(state=>workflowCore.setApprovedNotificationOperations({state,operations:['order_notification'],approvedBy:'user'}));
 
-    const resumed=await createVerifiedWorkflowStore(storeArgs).loadVerifiedWorkflow();
+    const resumedStore=createVerifiedWorkflowStore(storeArgs);
+    const resumed=await resumedStore.loadVerifiedWorkflow();
     assert.deepEqual(resumed.configuration.notificationOperations,['order_notification']);
     assert.equal(resumed.configuration.notificationOperationApproval.authorizationEvidence.event,'notification_operations_approved');
     assert.equal(isTrustedWorkflowState(resumed),true);
     assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(resumed));
+
+    const before=structuredClone(resumed);
+    assert.throws(()=>workflowCore.setApprovedDashboardSlices({
+      state:resumed,slices:['dashboard'],approvedBy:'user',
+    }),/NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED/);
+    assert.deepEqual(resumed,before);
+    const safe=workflowCore.setInteractionMode({state:resumed,mode:'developer',selectedBy:'user'});
+    await resumedStore.saveWorkflow({loadedState:resumed,transition:safe});
+    const after=await createVerifiedWorkflowStore(storeArgs).loadVerifiedWorkflow();
+    assert.deepEqual(after.configuration.notificationOperations,['order_notification']);
+    assert.equal(after.configuration.dashboardSliceApproval.approvedBy,'user');
+    assert.equal(after.configuration.interactionMode,'developer');
+    assert.doesNotThrow(()=>workflowCore.validateWorkflowReadinessEvidence(after));
   }finally{await rm(projectRoot,{recursive:true,force:true})}
 });
 

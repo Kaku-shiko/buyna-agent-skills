@@ -170,6 +170,7 @@ test("stock and SKU Dashboard selects catalog, inventory, and operation state ex
     "buyna-merchant-dashboard-core",
     "buyna-auth-session-core",
     "buyna-merchant-context-core",
+    "buyna-order-core",
   ]);
   assert.equal(new Set(route.skills).size, route.skills.length);
   assert.equal(new Set(route.fixedModules).size, route.fixedModules.length);
@@ -337,7 +338,7 @@ test("dependency closure preserves exactly one selected lifecycle dependency", (
   assert.deepEqual(closure.fixedModules, route.fixedModules);
   assert.ok(!closure.skills.includes("buyai-checkout-address-ux"));
   assert.ok(!closure.fixedModules.includes("buyna-cart-core"));
-  assert.ok(!closure.fixedModules.includes("buyna-order-core"));
+  assert.equal(closure.fixedModules.filter((name) => name === "buyna-order-core").length, 1);
 });
 
 test("checkout dependency closure does not reinvoke already selected children", () => {

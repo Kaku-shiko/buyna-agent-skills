@@ -32,3 +32,25 @@ selection and missing provenance-backed notification-operation authorization.
 - Repository validation and all six requested Skill validators passed.
 - No UI, SQL/ORM implementation, provider selection, live AWS, payment, Git
   publication, or merchant-specific value was introduced.
+
+## REVIEW_FIX_EVIDENCE
+
+- RED: orders/order-notification routes omitted `buyna-order-core`; dependency
+  closure accepted delivery without it.
+- RED: Dashboard slices could be changed after notification approval, leaving
+  the persisted operation/evidence invalid; the verified-store preservation
+  scenario therefore did not reach its safe follow-up transition.
+- RED: booking guidance treated inquiry wording as independent authority.
+- GREEN: matching order routes now include order core exactly once and closure
+  fails closed when it is removed.
+- GREEN: slice changes that remove an approved operation's slice or change its
+  approver return `NOTIFICATION_OPERATION_SCOPE_CHANGE_REQUIRED` without
+  mutating state. Verified-store save validates every candidate, and a rejected
+  change can be followed by a valid transition without losing notification
+  evidence or entering a provenance loop.
+- GREEN: booking delivery is available only through the authoritative persisted
+  `booking_notification` route; inquiry mode alone grants no authority.
+- Final regression: workflow 63/63, read model 26/26, delivery 20/20,
+  Task 4 focused routing/contracts 12/12, and repository root 103/103 passed.
+  Repository validation, all six Skill validators, `git diff --check`, and all
+  six canonical Builder/`.agents` byte-identity checks passed.
