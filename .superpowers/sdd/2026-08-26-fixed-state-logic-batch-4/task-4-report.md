@@ -69,3 +69,18 @@ selection and missing provenance-backed notification-operation authorization.
   105/105 passed. Workflow, read-model, delivery, repository validation, all
   six Skill validators, `git diff --check`, and all canonical Builder sync
   checks passed.
+
+## REVERSE_DEPENDENCY_EVIDENCE
+
+- RED: closure accepted an overview/notification route with both fixed modules
+  removed, with either required module removed alone, and with duplicate read
+  or delivery modules.
+- GREEN: a Dashboard overview now requires exactly one
+  `buyna-commerce-read-model-core`; a nonempty approved notification operation
+  requires exactly one `buyna-delivery-state-core`; all selected fixed modules
+  must be unique. Existing target, slice, operation, auth/context, and domain
+  dependency checks remain fail closed.
+- Final regression: Task 4 focused routing/contracts 15/15 and repository root
+  109/109 passed. Workflow, read-model, delivery, repository validation, all
+  six Skill validators, `git diff --check`, and canonical Builder sync checks
+  passed.

@@ -196,6 +196,35 @@ test("dependency closure rejects forged delivery operation, slice, and domain de
   }), /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/);
 });
 
+test("dependency closure requires overview read-model and approved delivery exactly once", () => {
+  let state = stateAtDashboard(product, ["dashboard", "orders"], ["order_notification"]);
+  state = workflow.authorizeWorkPackage({
+    state, gates: ["dashboard_integration"], scope: "approved dashboard work", authorizedBy: "user",
+  }).state;
+  const selected = planWebsiteRoute({
+    capabilities: product, workflowState: state, requestedSlice: "dashboard_integration",
+    dashboardSlice: "all", notificationOperation: "order_notification",
+  });
+  const without = (...removed) => ({
+    ...selected,
+    fixedModules: selected.fixedModules.filter((name) => !removed.includes(name)),
+  });
+
+  assert.throws(() => resolveRouteDependencyClosure(without(
+    "buyna-commerce-read-model-core", "buyna-delivery-state-core",
+  )), /COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE/);
+  assert.throws(() => resolveRouteDependencyClosure(without("buyna-commerce-read-model-core")), /COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE/);
+  assert.throws(() => resolveRouteDependencyClosure(without("buyna-delivery-state-core")), /DELIVERY_STATE_DEPENDENCY_INCOMPLETE/);
+  assert.throws(() => resolveRouteDependencyClosure({
+    ...selected,
+    fixedModules: [...selected.fixedModules, "buyna-commerce-read-model-core"],
+  }), /ROUTE_DEPENDENCY_DUPLICATE/);
+  assert.throws(() => resolveRouteDependencyClosure({
+    ...selected,
+    fixedModules: [...selected.fixedModules, "buyna-delivery-state-core"],
+  }), /ROUTE_DEPENDENCY_DUPLICATE/);
+});
+
 test("notification operation approval is provenance-backed and bounded before frontend work", () => {
   let state = workflow.createWorkflow({ projectId: "approval" });
   assert.throws(() => workflow.setApprovedNotificationOperations({ state, operations: ["order_notification"], approvedBy: "user" }), /NOTIFICATION_OPERATION_DESIGN_APPROVAL_REQUIRED/);

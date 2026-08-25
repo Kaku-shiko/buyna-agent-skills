@@ -97,21 +97,33 @@ function addUnique(target, values) {
 function assertSelectedDependencyContract(selected) {
   const skills = new Set(selected.skills);
   const modules = new Set(selected.fixedModules);
-  if (modules.has("buyna-commerce-read-model-core")
-    && (selected.targetGate !== "dashboard_integration"
+  if (modules.size !== selected.fixedModules.length) throw new Error("ROUTE_DEPENDENCY_DUPLICATE");
+  const readModelCount = selected.fixedModules.filter((name) => name === "buyna-commerce-read-model-core").length;
+  const overviewRequiresReadModel = selected.targetGate === "dashboard_integration"
+    && Array.isArray(selected.dashboardSlices)
+    && selected.dashboardSlices.includes("dashboard");
+  if ((overviewRequiresReadModel && readModelCount !== 1)
+    || (!overviewRequiresReadModel && readModelCount !== 0)
+    || (readModelCount === 1
+      && (selected.targetGate !== "dashboard_integration"
       || !Array.isArray(selected.dashboardSlices)
       || !selected.dashboardSlices.includes("dashboard")
       || !skills.has("buyai-dashboard-data-interaction")
-      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
+      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name))))) {
     throw new Error("COMMERCE_READ_MODEL_DEPENDENCY_INCOMPLETE");
   }
-  if (modules.has("buyna-delivery-state-core")
-    && (selected.targetGate !== "dashboard_integration"
+  const deliveryCount = selected.fixedModules.filter((name) => name === "buyna-delivery-state-core").length;
+  const hasNotificationOperation = typeof selected.notificationOperation === "string"
+    && selected.notificationOperation.length > 0;
+  if ((hasNotificationOperation && deliveryCount !== 1)
+    || (!hasNotificationOperation && deliveryCount !== 0)
+    || (deliveryCount === 1
+      && (selected.targetGate !== "dashboard_integration"
       || !Object.prototype.hasOwnProperty.call(notificationOperationSlices, selected.notificationOperation)
       || !Array.isArray(selected.dashboardSlices)
       || !selected.dashboardSlices.includes(notificationOperationSlices[selected.notificationOperation])
       || !skills.has("buyai-dashboard-data-interaction")
-      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name)))) {
+      || !["buyna-auth-session-core", "buyna-merchant-context-core"].every((name) => modules.has(name))))) {
     throw new Error("DELIVERY_STATE_DEPENDENCY_INCOMPLETE");
   }
   if (modules.has("buyna-delivery-state-core")
