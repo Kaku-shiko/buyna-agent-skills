@@ -15,6 +15,10 @@ Generate the complete record without a separate section-by-section confirmation.
 | --- | --- | --- | --- | --- | --- | --- |
 参考图可见区块总数：
 拟采用区块总数：
+设计板模式：REFERENCE_FAITHFUL / CUSTOM_DIRECTION
+参考图输入方式：referenced_image_paths / num_last_images_to_include / 无参考图
+参考图视觉映射：色彩、字体、密度、组件几何、区块顺序、版式和响应式关系
+参考图匹配检查：通过 / 已重新生成一次 / 待重新附加参考图
 
 前端框架：
 选择理由：
