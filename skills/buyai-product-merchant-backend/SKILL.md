@@ -36,6 +36,16 @@ filter/sort rules, stock/visibility/archive operations, or transactional
 ordering. Generate only the project route and database Adapter required by the
 approved API contract.
 
+For product creation/editing with images, read
+`references/product-media-fixed-core.md` and construct
+`createProductMediaService` from the same catalog package with
+`buyna-merchant-file-core`. Use the fixed API sequence:
+`createDraftWithImage` -> `attachUploadedImage` -> `setMainImage` /
+`reorderImages` / `replaceUploadedImage` / `removeImage`, returning the complete
+product after each success. Do not write `mainImageId` directly or improvise a
+project-specific product/file join. Generate only the scoped media Store,
+storage Adapter, signed-URL mapping, routes, and project-owned UI.
+
 When persisted `requiresInventory=true`, call
 `packages/buyna-inventory-core` for reserve/commit/release and generate only
 the transaction-safe project Store Adapter. When persisted

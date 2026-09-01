@@ -48,6 +48,13 @@ implement `getFileById` and `replaceFile`.
 
 Every method must apply the fixed `projectId + sellerId` scope through
 `buyna-postgres-merchant-core`. Store object metadata only, never file bytes.
+
+`confirmUpload` receives the server-generated stable `requestKey`. Enforce a
+unique `(project_id, seller_id, request_key)` metadata claim atomically and
+return `{ id, created: true }` only for the winning insert. A replay returns the
+same file with `created: false`; never create a second file row for the same
+request key. Product-media compensation is allowed to soft-delete only a file
+whose current request returned `created: true` and which is still unreferenced.
 Use statuses such as `confirmed`, `active`, `deletion_pending`, `deleted`, and
 `cleanup_failed` consistently.
 

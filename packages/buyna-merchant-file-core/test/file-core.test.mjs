@@ -29,14 +29,15 @@ test('project scaffolder creates the fixed merchant layers without secrets or ov
 test('upload confirmation verifies the owned S3 object before saving metadata',async()=>{
   const calls=[];
   const storage={async headObject({key}){calls.push(['head',key]);return{size:1200,contentType:'image/webp',etag:'etag-1'}}};
-  const metadata={async confirmUpload(input){calls.push(['metadata',input.scope]);return{id:'file-1',...input}}};
+  const metadata={async confirmUpload(input){calls.push(['metadata',input.scope,input.requestKey]);return{id:'file-1',created:true,...input}}};
   const service=createMerchantFileService({storage,metadata,projectId:'shop-a',sellerId:'seller-a',policy:{allowedMimeTypes:['image/webp'],maxBytes:5000}});
   const objectKey='projects/shop-a/sellers/seller-a/products/product-1/original/file-1.webp';
 
-  const file=await service.confirmUpload({objectKey,entityType:'products',entityId:'product-1',variant:'original',originalFilename:'photo.webp'});
+  const file=await service.confirmUpload({objectKey,requestKey:'upload-request-1',entityType:'products',entityId:'product-1',variant:'original',originalFilename:'photo.webp'});
 
-  assert.deepEqual(calls,[['head',objectKey],['metadata',{projectId:'shop-a',sellerId:'seller-a'}]]);
+  assert.deepEqual(calls,[['head',objectKey],['metadata',{projectId:'shop-a',sellerId:'seller-a'},'upload-request-1']]);
   assert.equal(file.size,1200);
+  assert.equal(file.created,true);
   await assert.rejects(()=>service.confirmUpload({...file,objectKey:'projects/shop-a/sellers/seller-b/products/product-1/original/file-2.webp'}),/OBJECT_KEY_OUTSIDE_MERCHANT_SCOPE/);
 });
 
