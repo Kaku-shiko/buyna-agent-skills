@@ -10,6 +10,7 @@ const phase = read('skills/buyna-website-builder/references/phase-07-testing.md'
 const thresholds = read('skills/buyna-website-builder/references/elastic-thresholds.md');
 const workflow = read('skills/buyna-website-builder/references/workflow-state-contract.md');
 const readme = read('README.md');
+const validationWorkflow = read('.github/workflows/validate-skills.yml');
 
 test('normal releases default to a small fast-release gate', () => {
   for (const contract of [quality, release, phase, thresholds]) {
@@ -51,4 +52,10 @@ test('full verification is opt-in while the canonical gate id remains compatible
   assert.match(contract, /explicitly requests|明确要求|要完整验证/i);
   assert.match(workflow, /`testing_upload_gate` \| FAST_RELEASE essential checks PASS/);
   assert.match(read('repository-manifest.json'), /"testing_upload_gate"/);
+});
+
+test('repository CI runs declared package tests and keeps root contract coverage', () => {
+  assert.match(validationWorkflow, /scripts\.test/);
+  assert.match(validationWorkflow, /node --test tests/);
+  assert.doesNotMatch(validationWorkflow, /Get-ChildItem packages -Directory \| ForEach-Object \{\s*npm test/s);
 });
