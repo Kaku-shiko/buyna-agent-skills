@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -7,13 +7,13 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const quality = read('skills/buyna-testing-quality/SKILL.md');
 const release = read('skills/buyna-aws-release/SKILL.md');
 const phase = read('skills/buyna-website-builder/references/phase-07-testing.md');
-const thresholds = read('skills/buyna-website-builder/references/elastic-thresholds.md');
+const policy = read('skills/buyna-website-builder/references/execution-check-policy.md');
 const workflow = read('skills/buyna-website-builder/references/workflow-state-contract.md');
 const readme = read('README.md');
 const validationWorkflow = read('.github/workflows/validate-skills.yml');
 
 test('normal releases default to a small fast-release gate', () => {
-  for (const contract of [quality, release, phase, thresholds]) {
+  for (const contract of [quality, release, phase]) {
     assert.match(contract, /FAST_RELEASE/);
     assert.match(contract, /FULL_VERIFICATION/);
   }
@@ -41,17 +41,24 @@ test('fast release keeps only essential safety and operability checks', () => {
 });
 
 test('manual payment verification does not block the website release or become a false live claim', () => {
-  const contract = `${quality}\n${release}\n${phase}\n${thresholds}`;
+  const contract = `${quality}\n${release}\n${phase}\n${policy}`;
   assert.match(contract, /PAYMENT_VERIFICATION:\s*USER_OWNED_PENDING/);
   assert.match(contract, /does not block|不阻断/i);
   assert.match(contract, /must not.*payment.*live|不得.*支付.*上线|不能.*支付.*上线/is);
 });
 
 test('full verification is opt-in while the canonical gate id remains compatible', () => {
-  const contract = `${quality}\n${release}\n${phase}\n${thresholds}`;
+  const contract = `${quality}\n${release}\n${phase}\n${policy}`;
   assert.match(contract, /explicitly requests|明确要求|要完整验证/i);
   assert.match(workflow, /`testing_upload_gate` \| FAST_RELEASE essential checks PASS/);
   assert.match(read('repository-manifest.json'), /"testing_upload_gate"/);
+});
+
+test('fast release has one policy source and deferred work never creates another confirmation', () => {
+  assert.equal(existsSync(new URL('../skills/buyna-website-builder/references/elastic-thresholds.md', import.meta.url)), false);
+  assert.equal(existsSync(new URL('../.agents/skills/buyna-website-builder/references/elastic-thresholds.md', import.meta.url)), false);
+  assert.match(policy, /DEFERRED[^]*(?:does not|never)[^]*(?:confirmation|approval|stop)/i);
+  assert.doesNotMatch(policy, /DEFERRED[^]*(?:得到确认|requires? confirmation)/i);
 });
 
 test('repository CI runs declared package tests and keeps root contract coverage', () => {

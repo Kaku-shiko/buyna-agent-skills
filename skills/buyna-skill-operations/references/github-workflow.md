@@ -2,13 +2,16 @@
 
 ## Change a Skill
 
-1. Open a GitHub Issue describing the problem, desired trigger, and expected output.
-2. Create branch `agent/<short-description>` or `skill/<short-description>`.
-3. Change only the relevant Skill and repository documentation.
-4. Run `scripts/validate.ps1`.
-5. Inspect the diff for secrets, customer-specific values, duplication, and broken relative links.
-6. Open a Pull Request using the repository template.
-7. Require review before merging to `main`.
+1. Fetch cloud `main` and create a branch from `origin/main`.
+2. Change only the relevant Skill, fixed Module contract, tests, and directly
+   affected repository documentation.
+3. Run focused tests, `scripts/validate.ps1`, and the official Skill validator.
+4. Inspect the diff for secrets, customer-specific values, duplication, and broken relative links.
+5. Open a Pull Request and require its cloud checks before merging to `main`.
+
+An Issue is optional for a normal bounded fix. Use one when the problem needs
+team discussion, spans multiple releases, or should remain independently
+tracked after the Pull Request.
 
 ## Create a Skill
 
@@ -39,10 +42,13 @@ Keep `SKILL.md` concise. Put trigger conditions in the frontmatter description a
 
 ## Release
 
-After approved changes merge:
+For a versioned or breaking Skill release after approved changes merge:
 
 1. Create a semantic tag such as `v0.1.0`.
 2. Publish a GitHub Release summarizing added, changed, and removed Skills.
 3. Tell teammates to pull and reinstall with `-Force`.
 4. Keep breaking trigger or folder-name changes for a major version.
+
+Routine compatible fixes require the merged Pull Request and passing cloud
+checks; they do not require a tag or GitHub Release.
 

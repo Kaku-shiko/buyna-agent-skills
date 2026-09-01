@@ -1,25 +1,38 @@
 ---
 name: buyna-gmv-commerce
-description: "Connect Buyna.ai merchant payment and completed-refund events to admin.buyna.ai CRM GMV. Use when adding GMV to an existing merchant, onboarding GMV for a new merchant, building the CRM ingestion/read path, repairing GMV sync, or validating merchant/project GMV without regenerating payment, idempotency, signing, retry, or aggregation logic."
+description: "Connect Buyna.ai merchant payment and completed-refund events to the trusted Buyna CRM GMV service. Use when adding GMV to an existing merchant, onboarding GMV for a new merchant, building the CRM ingestion/read path, repairing GMV sync, or validating merchant/project GMV without regenerating payment, idempotency, signing, retry, or aggregation logic."
 ---
 
 # Buyna GMV Commerce
 
-Connect every Buyna merchant identity to CRM and make GMV event delivery mandatory
-for every merchant with checkout or paid booking capability. GMV is an internal
-Buyna.ai metric and must never be shown or exposed to a merchant.
+Connect every payment-capable Buyna merchant identity to CRM and make GMV event
+delivery mandatory only for trusted paid/refund transitions. A checkout flow
+without a provider payment capability does not activate or block on GMV. GMV is
+an internal Buyna.ai metric and must never be shown or exposed to a merchant.
+
+When invoked by the Website Builder, consume `executionCheckReceipt`. Reuse
+matching identity, resource, payment architecture, fixed Module, and
+package-test evidence for the same package source digest; do not repeat static
+payment or resource checks. Every new paid/refund event still receives fresh
+provider, amount, currency, seller, idempotency, outbox, and transaction
+verification. Standalone invocation performs the applicable checks once.
 
 ## Gate
 
 1. Inspect the real merchant order, payment, refund, PostgreSQL transaction, worker, CRM customer record, and deployment architecture.
-2. Confirm server-owned `project_id`, `seller_id`, merchant name, JPY currency, provider event ids, and the existing CRM endpoint.
+2. Confirm server-owned `project_id`, `seller_id`, merchant name, JPY currency,
+   provider event ids, and the trusted CRM endpoint. Reconcile exact amount and
+   currency for every event.
 3. Resolve `packages/buyna-gmv-core` from the project or user installation. Stop with `BLOCKED: FIXED_GMV_MODULE_NOT_INSTALLED` when absent; never regenerate it.
 4. Read [references/integration-contract.md](references/integration-contract.md). For CRM APIs or identity binding also read [references/crm-contract.md](references/crm-contract.md).
 5. Stop with `BLOCKED: EXISTING_RESOURCES_NOT_CONFIRMED` rather than creating a database, table service, queue, port, server, bucket, or CRM replacement.
 
 ## Workflow
 
-Complete one step and return validated evidence. When invoked by `buyna-website-builder` inside an approved work package, continue to the next included step without another confirmation; standalone use stops for approval.
+Complete every GMV step included in the current request or approved work
+package and return validated evidence without another confirmation. Standalone
+use completes its explicitly requested scope and stops only for a real authority
+expansion or blocker.
 
 1. **Identity binding** — Add `project_id + seller_id` to every CRM merchant record. Payment-capable merchants receive an active server credential; merchants without payment remain registered with GMV disabled until payment is enabled. Prefer per-merchant HMAC; allow bearer only for an explicitly approved transition.
 2. **Outbox migration** — Generate only the project migration and Adapter described in the integration contract. Insert immutable events with a unique provider event key.
@@ -27,7 +40,10 @@ Complete one step and return validated evidence. When invoked by `buyna-website-
 4. **Refund writer** — After provider-confirmed refund completion, update the refund and insert `refundCompleted(...)` in the same transaction. Reject cumulative refunds above the paid amount.
 5. **Sync worker** — Call fixed `sendPendingGmvEvents(...)`; generate only the Adapter, schedule, and environment wiring. Checkout success must not depend on CRM availability.
 6. **CRM ingestion** — Verify HMAC identity binding, event idempotency, immutable storage, and merchant/project aggregation. Never accept browser authority for merchant identity, amount, paid status, or refund status.
-7. **CRM-only read integration** — Expose GMV summary, trends, and events only inside authenticated `admin.buyna.ai` CRM administrator routes. Do not create merchant-facing GMV routes, queries, dashboard cards, navigation, labels, exports, or public APIs.
+7. **CRM-only read integration** — Resolve the trusted Buyna CRM administrator
+   route from server configuration and expose GMV summary, trends, and events
+   only there. Do not create merchant-facing GMV routes, queries, dashboard
+   cards, navigation, labels, exports, or public APIs.
 8. **Verification** — Test paid, coupon-adjusted amount, duplicate notify, partial/full refund, CRM outage and retry, wrong seller denial, signature replay, CRM totals, and absence of GMV from merchant storefront/admin/API bundles.
 
 A payment-capable merchant cannot pass onboarding, Phase 6, or production release

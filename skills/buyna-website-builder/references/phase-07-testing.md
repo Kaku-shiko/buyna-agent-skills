@@ -9,6 +9,8 @@ This phase keeps the compatible `testing_upload_gate` state ID but defaults to
 - 上线后立即确认：首页或主入口、一个关键 API/路由、HTTPS 和运行日志健康。
 - 通过后记录 `FAST_RELEASE: PASS`。包体排行、图片阈值、重复素材、未使用依赖、全量 UI/移动端/跨浏览器/性能与长链路均记为 `DEFERRED`，不阻断本次上线。
 - 用户自己测试支付时记录 `PAYMENT_VERIFICATION: USER_OWNED_PENDING`；这不阻断网站上线，但不得宣称支付已上线或已验证。
+- 按登记架构检查零新增：共享 EC2 项目保持新 EC2/数据库/Bucket/端口为 0；Serverless/Static 项目检查各自登记的分发、函数、表和存储，不强行套用 EC2 指标。
+- 所有低风险未执行项只记录一次 `DEFERRED` 和后续计划，不要求再次确认，也不暂停已批准上线。
 
 ### FULL_VERIFICATION（仅明确要求）
 

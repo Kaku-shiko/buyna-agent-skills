@@ -6,7 +6,7 @@
     "\\.(?:tsx|jsx|vue|svelte)$"
   ],
   "merchantIdentifierPatterns": [
-    "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
+    "\\bmerchant_live_fixture\\b"
   ],
   "productionIdentifierPatterns": [
     "\\bhttps?:\\/\\/[^\\s\\\"']+",
@@ -20,7 +20,7 @@
   ],
   "sharedSourceProhibitedPatterns": {
     "merchantIdentifiers": [
-      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b",
+      "\\bmerchant_live_fixture\\b",
       "\\bseller_[a-z0-9_]+\\b",
       "\\b(?:[a-z0-9-]+\\.)+(?:com|net|org|io|ai|jp|life|co|dev|app)\\b"
     ],
@@ -80,7 +80,7 @@
       ]
     },
     "merchantIdentifierPatterns": [
-      "\\b(?:medinance|asuka|sanwa|tuyipaiban|bluesequoia)\\b"
+      "\\bmerchant_live_fixture\\b"
     ],
     "productionIdentifierPatterns": [
       "\\bhttps?:\\/\\/[^\\s\"']+",
@@ -120,8 +120,8 @@
       "projectRouteImport": ["(?:^|/)routes?(?:/|$)"]
     },
     "merchantIdentifierPatterns": [
-      "\\b(?:medinance|asuka|sanwa|sanwashoji|tuyipaiban|bluesequoia|ectecshop|chameleon|xinghe|edupay|nicepeople|shop_sanwa_life)\\b",
-      "\\bseller_(?:medinance|asuka|sanwa|sanwashoji|tuyipaiban|bluesequoia|ectecshop|chameleon|xinghe|edupay|nicepeople|shop_sanwa_life)\\b"
+      "\\bmerchant_live_fixture\\b",
+      "\\bseller_live_fixture\\b"
     ],
     "productionIdentifierPatterns": [
       "\\bhttps?:\\/\\/[^\\s\"']+",

@@ -25,9 +25,14 @@ project persistence or API work.
   components, and styles only.
 
 When the Website Builder invokes this Skill, inherit its persisted capability,
-interaction mode, and bounded work package. Return evidence to the Builder;
+interaction mode, bounded work package, and `executionCheckReceipt`. Reuse
+module and package-test evidence for the same package source digest; do not
+rerun unchanged `buyna-coupon-core` tests. Return evidence to the Builder;
 do not reopen approved design, ask the same implementation confirmation, or
 reinvoke sibling Skills already present in the Builder route.
+
+Standalone invocation performs the required capability/module checks once and
+creates equivalent local evidence without claiming Builder authorization.
 
 ## Visual Boundary
 
@@ -38,6 +43,7 @@ treatment, and CSS. There is no shared coupon or Dashboard skin.
 
 ## Verify
 
-Run `npm test --prefix packages/buyna-coupon-core`, then the project Adapter,
+Run `npm test --prefix packages/buyna-coupon-core` only when the receipt has no
+PASS for the current package source digest. Always run the changed project Adapter,
 checkout, settlement, refresh, permission, and retry tests. A visible discount
 alone is not proof of a saved reservation or trusted redemption.

@@ -14,6 +14,11 @@ new confirmation. If scope or evidence changed, return one structured
 missing-evidence result to the Builder. Standalone work performs the applicable
 checks below once and records equivalent evidence.
 
+During release, also consume `releaseCheckReceipt`. A matching
+`resourceRecordDigest` reuses database/storage identity evidence; changed
+`artifactDigest` or `releasePlanDigest` does not force an unrelated database
+inspection. Standalone data work records equivalent evidence once.
+
 ## Steps
 
 1. Reuse the registered resource record in `executionCheckReceipt`; standalone
@@ -56,7 +61,7 @@ storage:
   allow_create_bucket: false
 deployment:
   instance_id: confirmed-existing-instance-id
-  instance_ip: 203.0.113.10
+  instance_ip: <aws-verified-current-ip>
   allow_create_instance: false
   allow_create_port: false
 release_limits:
@@ -66,9 +71,9 @@ release_limits:
   new_ports: 0
 ```
 
-The address above is an IANA documentation example. Record the current IPv4
-returned for the registered `instance_id` by AWS inspection; never copy the
-example or treat any public IP as a global Buyna identity.
+Record the current address returned for the registered `instance_id` by AWS
+inspection; never copy a template value or treat any public IP as a global
+Buyna identity.
 
 ## Code Delivery
 

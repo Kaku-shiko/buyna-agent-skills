@@ -8,17 +8,26 @@ description: "Use when buyer or customer checkout forms need address fields, Jap
 Use for buyer/customer forms, shipping UX, Japan postal auto-fill, mobile input, and form persistence after validation/payment errors. Do not use for catalog, capacity, GlobePay, or seller dashboard.
 
 When invoked by `buyna-website-builder`, inherit its persisted capabilities,
-payment architecture, interaction mode, and bounded work package. Its returned
-Skills and fixed modules are authoritative; do not independently invoke
+payment architecture, interaction mode, bounded work package, and
+`executionCheckReceipt`. Its returned Skills and fixed modules are
+authoritative; reuse matching frontend/API, capability, Module, and package
+test evidence for the same package source digest. Do not rerun those checks or independently invoke
 sibling product, booking, or payment Skills.
+
+Standalone invocation collects the required form/capability/Module evidence
+once and does not imply Builder or production authorization.
 
 ## First Move
 
-Confirm buyer language, admin language, seller country, shipping/service country, flow type, and required fields. Inspect form state, validation, checkout/payment actions, order schema, order detail, and CSV.
+Use already approved language, country, flow, and field values from the receipt.
+Ask one grouped question only for missing values that change the requested
+form. Inspect form state, validation, checkout/payment actions, order schema,
+order detail, and CSV.
 
 Read the saved workflow capabilities and payment architecture. Product commerce
 resolves `buyna-cart-core` and `buyna-order-core`; paid booking uses its booking
-Adapter and does not require cart. Resolve selected modules from the project
+Adapter and does not require cart. Resolve selected modules from the receipt,
+then the project
 `packages/` or `$env:USERPROFILE/.codex/packages/`. Return
 `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when a selected core is missing.
 
@@ -86,6 +95,8 @@ Check mobile usability, project-required fields, payment-method selection,
 disabled-button behavior, selection persistence after errors, email nullability
 only when explicitly allowed, postal fallback, server revalidation, seller
 order-detail display of every saved customer answer, CSV, and email prefill.
+Run fixed package tests only when no matching PASS exists for the current
+package source digest; always run changed project form and server tests.
 
 ## Code Delivery
 

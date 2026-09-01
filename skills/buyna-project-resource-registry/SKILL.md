@@ -28,8 +28,10 @@ classification, or automatic-inspection rules in prose.
 5. Save identifiers and secret *sources*, never credentials or complete connection URLs.
 6. Run `node scripts/validate-resource-record.mjs --resource projects/<project_id>/resources.yaml` and stop unless it returns `pass`.
 7. Create and assess the fixed evidence receipt. Report verified, candidate,
-   conflicting, expired, and blocked fields. Stop after registration; route
-   later work separately.
+   conflicting, expired, and blocked fields. For a registration-only request,
+   stop after registration. When the same request already includes a next
+   action and evidence passes, return the matching Skill and continue that
+   authorized action without asking for registration approval again.
 
 ## Boundaries
 

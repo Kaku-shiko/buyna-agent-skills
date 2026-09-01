@@ -68,8 +68,9 @@ Only these classes interrupt an already approved implementation slice:
 - `DESTRUCTIVE_CHANGE_WITHOUT_ROLLBACK`
 - `UNVERIFIED_PAYMENT_LIVE_CLAIM`
 
-All other checks are automatic evidence collection or `DEFERRED`; they do not
-create another confirmation or stop an otherwise executable slice.
+All other checks are automatic evidence collection or `DEFERRED`. `DEFERRED`
+work does not create another confirmation, approval, or stop an otherwise
+executable slice. Record it once and continue the authorized work.
 
 ## Standalone Invocation
 

@@ -43,17 +43,20 @@ Give one Skill one responsibility. Route to other Skills instead of copying thei
 
 Every workflow or coordinator Skill must explicitly require:
 
-- execute only the user's current requested step;
+- execute all connected steps explicitly included in the user's current request
+  or approved bounded work package;
 - do not add or recommend unrequested functionality;
-- use the minimum Skill and tool set needed for that step;
-- stop after the requested step is validated and reported;
-- require a later explicit instruction before continuing;
-- allow an exception only for an immediate security, data-loss, payment, or
-  execution blocker, and report only the minimum required warning.
+- use the minimum Skill and tool set needed for that authorized scope;
+- continue automatically through unchanged, already approved steps and reuse
+  their evidence instead of asking again;
+- stop only at a real user decision, authority or scope expansion, external
+  production mutation not already approved, or an immediate security,
+  data-loss, payment, or execution blocker;
+- report only the minimum action required to resolve a stop.
 
-Capability lists describe what a Skill can do. They are not permission to
-execute every listed capability. Do not turn remaining possibilities into
-suggestions at the end of a response.
+Capability lists describe what a Skill can do. They are not permission to add
+unrequested work. The current request and bounded work package are the
+authorization; do not turn remaining possibilities into suggestions.
 
 ## Test before review
 

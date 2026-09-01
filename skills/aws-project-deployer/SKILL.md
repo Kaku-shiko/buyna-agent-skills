@@ -7,11 +7,17 @@ description: Connect Codex projects to AWS through the local codex-deploy profil
 
 Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` unless the project explicitly requires another region.
 
+When called by `buyna-aws-release`, consume its `releaseCheckReceipt`. Reuse
+matching `resourceRecordDigest`, `artifactDigest`, and `releasePlanDigest`
+evidence instead of repeating registry, data-layer, build, or unchanged test
+work. Standalone deployment creates equivalent evidence once.
+
 ## Safety contract
 
 - Never ask the user to paste Access Key IDs, Secret Access Keys, database passwords, or payment credentials into chat, source files, frontend variables, logs, or screenshots.
 - Never read or print credential file contents. It is acceptable to report masked metadata, lengths, profile names, and `sts get-caller-identity` results.
-- Treat successful STS identity verification as the connection gate. Do not claim AWS is connected or a deployment is live without verification.
+- Treat successful STS identity verification as the connection gate. Run STS
+  fresh for every release; do not claim AWS is connected or live from a receipt.
 - Show the resources to be created and obtain confirmation immediately before creating paid or persistent resources such as RDS, Aurora, NAT Gateway, EC2, ECS, or provisioned capacity.
 - Prefer infrastructure as code and reversible updates. Do not delete production resources, databases, buckets, domains, certificates, or secrets without explicit confirmation and a backup/retention check.
 
@@ -47,9 +53,12 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 
 ## Workflow
 
-1. Inspect the real project: framework, build command, output directory, API/runtime needs, database use, uploads, domains, and environment variables.
+1. Consume matching static project/artifact evidence from the receipt; inspect
+   only fields whose digest changed. For standalone work, inspect the real
+   project once.
 2. Run `scripts/verify-connection.ps1`. If it fails, diagnose the exact credential/profile/permission cause without exposing secrets.
-3. Match the live architecture to the validated resource record. For
+3. Match the live architecture to the validated resource record. Verify target
+   ownership fresh for every release. For
    `shared_ec2_postgresql`, resolve the registered `instance_id` and verify it
    through AWS. Record the account, instance id, region, state, current network
    addresses, tags/environment ownership, and existing runtime layout. Refresh
@@ -58,7 +67,8 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 4. Preserve the inspected runtime stack. For shared merchants, deploy only to the verified existing EC2 and use the approved PostgreSQL/S3 resources. For registered serverless/static projects, update only their recorded existing resources. Do not force Django, EC2, RDS, or a specific Node version across architectures.
 5. Create a unique normalized project slug. Isolate application directories, processes, assigned ports, Nginx routes, database schema/ownership, S3 prefixes, secrets, logs, and deployment records inside the approved shared resources. Do not create per-project buckets or databases.
 6. Generate or update the deployment manifest and infrastructure template in the project. Keep environment-specific values parameterized.
-7. Build and test locally. For responsive sites, validate a real mobile viewport and no horizontal overflow.
+7. Build only when `artifactDigest` is absent or changed. Reuse matching
+   `FAST_RELEASE` build evidence; still run project tests changed by this release.
 8. Present the deployment preview and require:
 
    ```text
@@ -70,8 +80,12 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
    ```
 
    Stop if a CloudFormation change set, CDK diff, Terraform plan, shell script, or SDK call proposes a non-zero value.
-9. After required confirmation, deploy using `--profile codex-deploy --region ap-northeast-1`.
-10. Verify the live URL, HTTPS, client-side routes, API health, database migrations, uploads, logs, target instance identity, and rollback state. Report exact verified outcomes; distinguish created resources from planned ones.
+9. Consume the Builder's recorded release/traffic-switch approval. Ask again
+   only when target, resource mode, release plan, cost, destructive scope, or
+   traffic plan changed; then deploy using the verified profile and region.
+10. Run post-deploy health exactly once: live URL, HTTPS, client-side routes,
+    critical API, logs, current target identity, and rollback state. Return the
+    evidence to `buyna-aws-release`; do not make the coordinator repeat it.
 
 ## Database and secrets
 

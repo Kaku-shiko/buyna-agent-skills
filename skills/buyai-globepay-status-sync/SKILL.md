@@ -7,6 +7,14 @@ description: "Use when an existing GlobePay order needs notify, return, or query
 
 Use after a provider order exists. Owns notify/webhook, return query fallback, paid/refunded transitions, idempotent writers, seller visibility, and refresh/repair logic.
 
+When invoked by the Website Builder, consume `executionCheckReceipt`. Reuse
+unchanged payment architecture, server-config boundary, selected Module, and
+package-test evidence for the same package source digest; do not repeat the
+static payment checks already performed by the payment Skill. Each notify/query
+event still receives fresh authenticity, local order, amount, currency,
+idempotency, and transaction verification. Standalone invocation performs the
+applicable static checks once without claiming Builder authorization.
+
 ## Gold
 
 Never mark paid from redirect, opened payment page, or provider order creation. Mark paid only after verified notify/query returns provider success, such as `result_code=PAY_SUCCESS`. Refunded orders remain auditable.

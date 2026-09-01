@@ -64,15 +64,22 @@ print a plaintext password, password hash, AWS key, database URL, or payment
 credential. Require secret entry through an approved local prompt or server-side
 secret store.
 
-Return the completed intake record and stop for approval. Do not register the
-merchant during the intake step.
+Return the completed intake record as one grouped scope/onboarding-plan
+decision. Do not register the merchant during intake. When that plan is
+approved, do not ask again for its unchanged fields.
 
 ## Workflow
 
-Complete exactly one numbered step, validate it, report its evidence, and stop
-for explicit approval before continuing. If the user explicitly approves the
-complete bounded onboarding plan, continue only after each automated gate
-passes and stop immediately on the first failed gate.
+Run classification, identity lookup, resource discovery, and other read-only
+preflight checks in sequence and continue automatically without confirmation.
+After the onboarding plan is approved, present one grouped write approval for
+the exact backup, reversible migration, project-owned Schema/runtime/route
+changes, and zero-new-resource counters. Consume that one write approval for
+the unchanged bounded mutation plan and continue through provisioning,
+configuration, and validation without per-step pauses. Ask again only when the
+target, cost, destructive scope, traffic plan, payment activation, or approved
+mutation digest changes. Production activation/traffic switching remains the
+separate release decision.
 
 1. **Preflight** — Run the Existing Resource Gate; verify the fixed existing resources, current release, backup method, unique identifiers, and exact host. Require `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`. When only Schema availability remains unknown, use the server's existing secret source for a read-only `pg_namespace`, database-name, current-role-permission, and target-owner query. Do not read secret values, create a backup, run Migration, or request approval for a writable migration merely to perform this read-only check.
 2. **Approval** — Call `approveCandidate` only with explicit approval, a backup
@@ -147,5 +154,6 @@ Require all applicable evidence in the contract reference. Any cross-merchant
 read/write, wrong S3 prefix, inherited payment configuration, missing rollback,
 or existing-merchant regression is a failed onboarding.
 
-Report the current step, status, changed paths/resources, executed checks,
-rollback location, and the single next approval required. Then stop.
+Report the current step, status, changed paths/resources, executed checks, and
+rollback location. Show a next approval only when an actual remaining decision
+exists; otherwise continue or report completion.

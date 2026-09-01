@@ -7,24 +7,38 @@ description: "Prepare and verify Buyna.ai website releases on the approved AWS e
 
 Coordinate release work without guessing infrastructure or claiming unverified success.
 
+Own one `releaseCheckReceipt` for the release. It binds
+`resourceRecordDigest`, `artifactDigest`, and `releasePlanDigest` plus the
+`FAST_RELEASE` evidence. Pass it to `buyna-aws-data-layer`,
+`aws-project-deployer`, and `buyna-testing-quality`; unchanged static evidence
+is consumed, not rerun. A changed digest invalidates only that field.
+
 ## Steps
 
-1. Run `buyna-project-resource-registry` on the approved `projects/<project_id>/resources.yaml`. Run `buyna-aws-data-layer` only for a registered PostgreSQL project; inspect the registered runtime, build/start commands, deployment files, data store, S3, domain, and environment sources.
+1. Validate `projects/<project_id>/resources.yaml` once and record its digest in
+   `releaseCheckReceipt`. Run `buyna-aws-data-layer` only for registered
+   PostgreSQL work not already covered by the same resource digest.
 2. Verify the exact registered target through `aws-project-deployer`. For
    `shared_ec2_postgresql`, resolve the registered EC2 `instance_id` and verify
    its current account, region, state, ownership, and network addresses through
    AWS. For `aws_serverless` or `aws_static`, require the recorded
    distributions/functions/tables/buckets and do not introduce EC2. Stop on
    stable identity or ownership mismatch and never create a replacement resource.
-3. Run `buyna-testing-quality` in default `FAST_RELEASE` mode. Verify the
+3. Run `buyna-testing-quality` in default `FAST_RELEASE` mode, or consume its
+   matching artifact evidence. Verify the
    runtime artifact, secrets boundary, registered target, tenant write
    isolation, and rollback before mutation; do not expand this into the full
    package/test audit unless the user explicitly requests `FULL_VERIFICATION`.
 4. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path. State `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
-5. Use `aws-project-deployer` for live AWS inspection or deployment operations on the verified existing instance.
-6. Deploy to the verified registered target, then run minimum verification for
+5. Use `aws-project-deployer` with the same receipt for live AWS inspection or
+   deployment operations. Every release still performs fresh STS, current
+   target ownership/network/runtime allocation checks, and never reuses those
+   live observations from an older release.
+6. Deploy to the verified registered target, then let the deployer run the one
+   minimum post-deploy health verification for
    HTTPS, the primary route, one critical API/route, logs, target identity, and
-   rollback readiness. Run `FULL_VERIFICATION` only when explicitly requested.
+   rollback readiness. Consume that evidence instead of running a second copy.
+   Run `FULL_VERIFICATION` only when explicitly requested.
 
 ## Rules
 

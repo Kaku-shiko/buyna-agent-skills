@@ -584,7 +584,7 @@ test("supporting source boundary catches executable mutations but permits valida
     ["sibling-fetch.mjs", "function left(){ function fetch(value){ return value; } fetch('/local'); } function right(){ fetch('/provider'); }", "providerTransport"],
     ["sql-call.mjs", "export const load = client => client.query('SELECT * FROM sessions');", "sqlOrOrm"],
     ["aws-call.mjs", "export const command = new PutObjectCommand({});", "awsSdkCall"],
-    ["merchant.mjs", "export const merchant = 'medinance';", "merchantIdentifier"],
+    ["merchant.mjs", "export const merchant = 'merchant_live_fixture';", "merchantIdentifier"],
     ["production-ip.mjs", "export const target = '18.178.1.2';", "productionIdentifier"],
     ["production-arn.mjs", "export const target = 'arn:aws:s3:::merchant-files';", "productionIdentifier"],
     ["production-instance.mjs", "export const target = 'i-0123456789abcdef0';", "productionIdentifier"],

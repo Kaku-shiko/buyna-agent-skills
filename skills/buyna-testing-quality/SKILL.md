@@ -7,6 +7,12 @@ description: "Run Buyna.ai fast-release or explicitly requested full verificatio
 
 Check the real system and report evidence, not assumptions.
 
+When invoked for release, return a `releaseCheckReceipt` containing the exact
+`resourceRecordDigest`, `artifactDigest`, `releasePlanDigest`, mode, passed
+checks, and deferred checks. Reuse matching static evidence; do not rebuild or
+rerun unchanged package checks. Standalone quality work creates the same
+receipt once for its requested scope.
+
 ## Verification Modes
 
 Use `FAST_RELEASE` by default. Use `FULL_VERIFICATION` only when the user
@@ -28,6 +34,11 @@ Run only the checks needed to publish safely and prove basic operability:
    results after deployment.
 5. A concrete rollback version, command, or path exists before traffic changes.
 
+Keep architecture-specific resource checks narrow: shared EC2 releases retain
+zero new EC2/database/Bucket/port counters; serverless/static releases verify
+their registered distribution, compute/data, and storage identities without
+inventing EC2 requirements.
+
 Record `FAST_RELEASE: PASS` when those checks pass. Do not require a clean
 dependency reinstall, exhaustive package size report, top-20 listing, image
 size review, duplicate assets scan, unused font/template/package audit, full
@@ -40,6 +51,10 @@ When the user will test payment, record
 release, but the result must not call payment live, verified, or usable. Keep
 payment disabled or visibly unverified until trusted notify/query and exact
 amount/currency evidence is available.
+
+`DEFERRED` work is recorded once and never creates another confirmation or
+stop. Only a changed target/plan, new cost, destructive work, traffic switch,
+or an essential failed safety check requires a decision.
 
 ### FULL_VERIFICATION (explicit only)
 
