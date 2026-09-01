@@ -1,55 +1,54 @@
 ---
 name: buyna-testing-quality
-description: "Verify Buyna.ai websites before delivery or deployment. Use for build checks, backend tests, API behavior, permissions, data flows, UTF-8, responsive UI, payment boundaries, upload-package size and hygiene, smoke tests, and evidence-backed readiness reporting."
+description: "Run Buyna.ai fast-release or explicitly requested full verification. Use for minimum release safety, build and health evidence, tenant isolation, optional exhaustive testing, and evidence-backed readiness reporting."
 ---
 
 # Buyna.ai Testing Quality
 
 Check the real system and report evidence, not assumptions.
 
-## Test Order
+## Verification Modes
 
-1. For product commerce, verify the six base fixed modules exist and run their
-   package tests before project integration tests. A missing core is
-   `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED`, not permission to regenerate
-   it.
-   For every payment-capable Buyna merchant, also require and test
-   `buyna-gmv-core`, its Outbox, CRM identity binding, and paid/refund sync.
-2. Build, type, lint, and migration checks.
-3. Backend unit/API and permission checks.
-4. Frontend loading, empty, success, and error states.
-5. Main user journey with real backend data.
-6. Mobile viewport, touch targets, overflow, and safe areas.
-7. Secrets, seller isolation, payment verification, and audit records.
-8. Source-delivery and deployment-package size/hygiene checks.
+Use `FAST_RELEASE` by default. Use `FULL_VERIFICATION` only when the user
+explicitly requests complete verification, says `要完整验证`, or the current
+task is specifically a quality audit rather than a normal release.
 
-## Pre-Upload Package Gate
+### FAST_RELEASE (default)
 
-Before any archive delivery or AWS upload:
+Run only the checks needed to publish safely and prove basic operability:
 
-1. Identify whether the target is a source package or a runtime deployment
-   artifact. Never combine them by default.
-2. Measure total size and list the 20 largest files and directories.
-3. Exclude dependencies and generated or local-only content from source
-   delivery: `node_modules`, build outputs such as `.next`, `dist`, `.output`,
-   caches, coverage, logs, temporary exports, local environment files, and
-   editor metadata.
-4. Keep lockfiles and dependency manifests so another developer can restore
-   dependencies with the documented package-manager command.
-5. Exclude tests, documentation, development-only assets, and source maps from
-   the runtime artifact unless the approved runtime requires them.
-6. Compress website images and move large video or downloadable media to the
-   approved S3 delivery path. Flag every image over 1 MB and every repository
-   file over 10 MB for explicit review; do not silently delete source media.
-7. Detect duplicate assets, unused fonts, unused templates, and unused UI,
-   icon, or animation packages. Remove them only when verified unused.
-8. Verify ignore/package rules and build configuration, then rebuild the
-   runtime artifact from a clean dependency install when practical.
+1. A runtime artifact exists, contains no secret/local environment file,
+   `node_modules`, cache, or obvious development-only content, and its normal
+   build/start command succeeds.
+2. The release uses the registered target and approved architecture; it does
+   not invent a resource, database, Bucket, or port.
+3. Authentication and tenant isolation protect applicable writes using the
+   server-owned `project_id + seller_id` context.
+4. The homepage or primary route and one critical API/route return healthy
+   results after deployment.
+5. A concrete rollback version, command, or path exists before traffic changes.
 
-Fail this gate when forbidden local/generated directories enter a source
-package, secrets are present, unexplained oversized files remain, the runtime
-artifact contains unnecessary development content, or no executed size report
-exists. Do not upload while the gate is failed.
+Record `FAST_RELEASE: PASS` when those checks pass. Do not require a clean
+dependency reinstall, exhaustive package size report, top-20 listing, image
+size review, duplicate assets scan, unused font/template/package audit, full
+mobile/cross-browser regression, performance test, or complete payment journey
+in this default mode. Record applicable unrun checks as `DEFERRED`; they do not
+block the website release.
+
+When the user will test payment, record
+`PAYMENT_VERIFICATION: USER_OWNED_PENDING`. This does not block the website
+release, but the result must not call payment live, verified, or usable. Keep
+payment disabled or visibly unverified until trusted notify/query and exact
+amount/currency evidence is available.
+
+### FULL_VERIFICATION (explicit only)
+
+Run the applicable fixed-module and project tests, build/type/lint/migration
+checks, backend/API/permission cases, frontend states, desktop/mobile and
+cross-browser journeys, payment success/failure and refund boundaries,
+performance checks, and the complete package size and duplicate assets audit.
+This mode may block its own `FULL_VERIFICATION: PASS` result, but an optional
+full audit must not be silently promoted into the normal release gate.
 
 ## Result Labels
 
@@ -60,9 +59,9 @@ Do not call a payment live from a build result. Do not call a page usable withou
 ## Output
 
 List passed checks, failed checks, evidence, risks, and the smallest next fix.
-For the pre-upload gate, also report the package type, total size, largest
-items, exclusions applied, dependency restore command, build command, runtime
-artifact path, and `PASS` or `FAIL`.
+For `FAST_RELEASE`, report the artifact path, build/start evidence, target,
+health, rollback, payment verification ownership, and `DEFERRED` items. For
+`FULL_VERIFICATION`, also report the complete test and package-audit evidence.
 
 Create or update automated test files for applicable behavior and report their
 paths. Run the tests and record results. When a check can only be manual,

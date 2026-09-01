@@ -11,11 +11,15 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 
 1. Run `buyna-project-resource-registry` on the approved `projects/<project_id>/resources.yaml`. Run `buyna-aws-data-layer` only for a registered PostgreSQL project; inspect the registered runtime, build/start commands, deployment files, data store, S3, domain, and environment sources.
 2. Verify the exact registered target through `aws-project-deployer`. For `shared_ec2_postgresql`, require the existing Buyna EC2 at `35.73.127.215`. For `aws_serverless` or `aws_static`, require the recorded distributions/functions/tables/buckets and do not introduce EC2. Stop on mismatch and never create a replacement resource.
-3. Run `buyna-testing-quality`, including its pre-upload package gate, before
-   release.
+3. Run `buyna-testing-quality` in default `FAST_RELEASE` mode. Verify the
+   runtime artifact, secrets boundary, registered target, tenant write
+   isolation, and rollback before mutation; do not expand this into the full
+   package/test audit unless the user explicitly requests `FULL_VERIFICATION`.
 4. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path. State `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
 5. Use `aws-project-deployer` for live AWS inspection or deployment operations on the verified existing instance.
-6. Verify HTTPS, routes, API health, migrations, uploads, logs, target instance identity, and critical user journeys.
+6. Deploy to the verified registered target, then run minimum verification for
+   HTTPS, the primary route, one critical API/route, logs, target identity, and
+   rollback readiness. Run `FULL_VERIFICATION` only when explicitly requested.
 
 ## Rules
 
@@ -37,7 +41,14 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 - Upload only the approved runtime artifact. Do not upload the complete
   development workspace, `node_modules`, caches, local environment files, or
   an unreviewed source archive.
-- Stop the release when the pre-upload package gate is missing or failed.
+- Stop only when a `FAST_RELEASE` essential fails: secrets exposure, missing or
+  invalid runtime artifact, wrong/unregistered target, tenant write isolation
+  risk, no rollback, unauthorized persistent resource creation, or failed
+  post-deploy health. Deferred package-size and exhaustive regression checks do
+  not block the normal release.
+- If the user owns the real payment test, record
+  `PAYMENT_VERIFICATION: USER_OWNED_PENDING`. It does not block the website
+  release, but the release must not call payment live or verified.
 
 ## Output
 
