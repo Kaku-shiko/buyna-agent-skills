@@ -7,6 +7,6 @@
     "./file-store": "./src/file-store.mjs"
   },
   "scripts": {
-    "test": "node --test test"
+    "test": "node --test test/pinned-authority.test.mjs test/verified-file-store.test.mjs test/workflow-state.test.mjs"
   }
 }
