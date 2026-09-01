@@ -92,10 +92,15 @@ evidence. Read [interaction modes](references/interaction-modes.md).
 4. Treat the script output as routing authority. Read
    [routing-map.md](references/routing-map.md), the selected phase reference,
    and only the returned child Skills.
-5. Verify every returned fixed module in the manifest and installed package
-   root. Generate only project Adapters, configuration, framework wiring,
-   presentation, and missing project code.
-6. Run the returned fixed-module tests and minimum applicable project tests.
+5. Read [execution-check-policy.md](references/execution-check-policy.md).
+   Verify the approved frontend/API contract, selected fixed modules, and any
+   applicable registered resource evidence once, then derive one
+   `executionCheckReceipt` for the current gate and slice. Pass that receipt to
+   every returned child. Children return missing evidence to this Builder and
+   must not rerun the same static gate or ask for another confirmation.
+6. Run a selected fixed-module test only when the receipt has no passing
+   `testEvidence` for the same package source digest. Add the result to the
+   receipt, then run only the minimum project tests changed by this slice.
 7. Persist delivery evidence through the workflow core. If
    an `activeRepair` is ready, validate and close it through
    `completeRepairSlice`; canonical completed gates remain unchanged. Otherwise, if
@@ -168,10 +173,12 @@ Call `authorizeWorkPackage`; do not hand-build `configuration.workPackage`.
 Completed repair authorization likewise comes only from `openRepairSlice`.
 
 Every returned child inherits `configuration.workPackage`, the approved
-fixed-module selection, and the approved Adapter contract. It must not repeat
-onboarding or reopen confirmation inside that approved slice. Runtime identity
-is never inherited: every protected request obtains fresh trusted auth and
-resolves the current server-observed host through the merchant-context core.
+fixed-module selection, approved Adapter contract, and
+`executionCheckReceipt`. It must not repeat onboarding, frontend/API approval,
+module discovery, resource inspection, unchanged package tests, or confirmation
+inside that approved slice. Runtime identity is never inherited: every
+protected request obtains fresh trusted auth and resolves the current
+server-observed host through the merchant-context core.
 
 Local preview runs in the current checkout/project. GitHub is selected only for
 an approved repository publication/contribution request. AWS is selected only

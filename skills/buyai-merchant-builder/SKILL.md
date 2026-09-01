@@ -9,6 +9,14 @@ Act only as a narrow router for one merchant and one primary merchant administra
 
 ## Entry
 
+When invoked by `buyna-website-builder`, consume its
+`executionCheckReceipt`, routed fixed modules, frontend/API evidence, and
+resource evidence. Do not repeat those checks or confirmations. Return one
+structured missing-evidence result to the Builder when the receipt is absent or
+does not cover the requested slice.
+
+For standalone invocation, perform the minimum applicable checks below once:
+
 1. Classify the request before loading a database or migration Skill. Resolve
    `buyna-merchant-onboarding/scripts/classify-merchant-scope.mjs` from the
    project installation, then the user installation, and run it with the
@@ -20,13 +28,21 @@ Act only as a narrow router for one merchant and one primary merchant administra
    After routing, run the onboarding identity resolver: reuse an exact
    registered identity or generate and validate a new pair before resource
    registration.
-2. Inspect the real repository and environment.
+2. Inspect the real repository and environment once.
    Resolve fixed modules from project `packages/` or
    `$env:USERPROFILE/.codex/packages/`; never regenerate a missing fixed core.
-3. Confirm product, booking/service, or mixed scope; languages; currency; runtime; and existing data.
+3. Reuse persisted product, booking/service, or mixed scope, languages,
+   currency, runtime, and existing-data choices. Standalone work asks once only
+   for a missing choice that changes implementation.
 4. For adding one merchant to an already verified multi-tenant backend, route directly to `buyna-merchant-onboarding`; do not require a new frontend before its intake and preflight steps.
-5. Before other backend work, require the approved Phase 4 frontend/Dashboard code record and API contract. Otherwise route only to `buyna-frontend-builder`.
-6. Before persistence/storage, run `buyna-project-resource-registry`; route `shared_ec2_postgresql` to `buyna-aws-data-layer` and preserve registered serverless/static/external architecture unless a separate migration is approved. Stop rather than create replacements.
+5. For standalone backend work, require the approved Phase 4 frontend/Dashboard
+   code record and API contract once. Otherwise route only to
+   `buyna-frontend-builder`.
+6. For standalone persistence/storage work without reusable resource evidence,
+   run `buyna-project-resource-registry` once; route
+   `shared_ec2_postgresql` to `buyna-aws-data-layer` and preserve registered
+   serverless/static/external architecture unless a separate migration is
+   approved. Stop rather than create replacements.
 7. Route only the user's current function and stop after its validation.
 
 ## Routing

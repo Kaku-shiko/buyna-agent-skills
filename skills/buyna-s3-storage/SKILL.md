@@ -7,10 +7,21 @@ description: "Build or repair Buyna.ai image and file storage in an existing Ama
 
 Own files and images; keep business records in the database.
 
+When invoked through `buyna-website-builder`, consume its
+`executionCheckReceipt`. Reuse matching resource inspection, file-core, and
+package-test evidence. Do not rerun or repeat those checks and do not request a
+new confirmation. If the storage target or scope changed, return one structured
+missing-evidence result to the Builder. Standalone work performs each
+applicable check once.
+
 ## Steps
 
-1. Run the `buyna-aws-data-layer` Existing Resource Gate and read the approved project resource record.
-2. Inspect the existing bucket, region, project prefix, access model, object keys, and database metadata.
+1. Reuse the approved project resource record from `executionCheckReceipt`;
+   run the `buyna-aws-data-layer` Existing Resource Gate only for standalone
+   work or missing/changed resource evidence.
+2. Inspect the existing bucket, region, project prefix, access model, object
+   keys, and database metadata only when no matching resource-evidence digest
+   exists or the target changed.
 3. Use `packages/buyna-merchant-file-core`; do not regenerate project/seller key construction or lifecycle ordering.
 4. Read `references/merchant-file-adapter-contract.md` and implement only the approved S3 and PostgreSQL metadata adapters.
 5. For interactive uploads, call `createUploadQueue` and
@@ -18,7 +29,9 @@ Own files and images; keep business records in the database.
    Adapter handlers. Continue to call the fixed `confirmUpload`,
    `replaceObject`, `softDelete`, and `cleanupOrphans` interfaces from project
    routes or jobs.
-6. Run `npm test --prefix packages/buyna-merchant-file-core` before project integration.
+6. Run `npm test --prefix packages/buyna-merchant-file-core` only when no
+   passing `executionCheckReceipt.testEvidence` entry matches the current
+   package source digest.
 7. Verify ownership, rollback, and failure behavior.
 
 ## Rules

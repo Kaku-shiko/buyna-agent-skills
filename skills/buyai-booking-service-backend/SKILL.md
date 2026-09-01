@@ -9,19 +9,27 @@ Use for reservation sites: tours, lessons, salons, consulting, courses, travel, 
 
 ## First Move
 
-Read the approved Phase 4 frontend code completion record and API contract.
-Inspect the actual public service frontend and merchant Dashboard source and
-confirm that the applicable frontend build/type checks passed. If the record,
-source code, API contract, verification, or user approval is missing, stop and
-return to `buyna-frontend-builder` Phase 4. Do not create database models,
-migrations, storage rules, APIs, or backend business logic.
+When invoked by `buyna-website-builder`, consume its
+`executionCheckReceipt`. Reuse the approved frontend/API contract,
+fixed-module selection, resource evidence, and matching package-test evidence.
+Do not repeat frontend inspection, module discovery, resource inspection,
+unchanged package tests, onboarding, or confirmation. Return one structured
+missing-evidence result to the Builder when the receipt does not cover this
+booking slice.
 
-After the gate passes, read `references/booking-service-rules.md`. Confirm languages, currency, location/timezone, booking type, package rules, capacity model, and payment mode.
+For standalone invocation, inspect the approved frontend/API contract and its
+applicable checks once. Resolve only the fixed modules required by the current
+booking operation. Do not regenerate a missing fixed core.
+
+After the evidence is ready, read `references/booking-service-rules.md` and use
+the persisted languages, currency, location/timezone, booking type, package
+rules, capacity model, and payment mode. Do not reconfirm them.
 
 When invoked by `buyna-website-builder`, inherit
 `configuration.workPackage`, the approved fixed-module selection, and the
-approved Adapter contract. Do not repeat onboarding or reopen confirmation in
-the approved slice. Runtime identity must never inherit from the Builder: for
+approved Adapter contract, plus `executionCheckReceipt`. Do not repeat onboarding
+or reopen confirmation in the approved slice. Runtime identity must
+never inherit from the Builder: for
 each protected request obtain fresh trusted auth and resolve the current server-observed host into one request-local immutable merchant context before
 calling booking, service, capacity, or file Adapters. Resolve anew for every
 request and host; browser owner IDs are never authority.
@@ -35,7 +43,11 @@ create and dispatch delivery after commit/restart. Direct best-effort enqueue
 after commit is forbidden. Notification failure never changes booking or
 payment success.
 
-Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
+Before models, migrations, uploads, or persistence code, reuse matching
+resource evidence from `executionCheckReceipt`. Run the
+`buyna-aws-data-layer` Existing Resource Gate only for standalone work or when
+the Builder reports missing/changed resource evidence. Reuse the recorded
+database and S3 bucket through `buyna-s3-storage`; never create a replacement.
 
 ## Dashboard Contract Boundary
 
@@ -70,7 +82,15 @@ Create the booking with the complete safe customer submission snapshot defined b
 
 ## Validate
 
-Check build, UTF-8, login, mandatory `project_id + seller_id` ownership on every record/query/constraint/index, cross-merchant denial, service CRUD sync, capacity editor, complete customer snapshot storage and booking-detail rendering, reserve/release, verified paid/deposit once, paid booking visibility, CSV, email, and mobile backend.
+For the behavior changed by the current slice, check build, UTF-8, login,
+mandatory `project_id + seller_id` ownership, cross-merchant denial, and the
+applicable service/capacity/booking synchronization. Do not rerun unrelated
+email, CSV, payment, or mobile checks.
+
+Reuse a passing fixed-package entry from
+`executionCheckReceipt.testEvidence` when its package source digest is
+unchanged. Otherwise run that package test once and record the result. Always
+run the minimum project tests changed by the current booking slice.
 
 ## Code Delivery
 

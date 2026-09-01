@@ -7,14 +7,26 @@ description: "Design or repair Buyna.ai structured data on AWS. Use for existing
 
 Own structured business data and its safe evolution without forcing a backend framework.
 
+When invoked through `buyna-website-builder`, consume its
+`executionCheckReceipt`. Reuse matching resource inspection, fixed-module, and
+package-test evidence. Do not rerun or repeat those checks and do not request a
+new confirmation. If scope or evidence changed, return one structured
+missing-evidence result to the Builder. Standalone work performs the applicable
+checks below once and records equivalent evidence.
+
 ## Steps
 
-1. Require `buyna-project-resource-registry` to classify and validate `projects/<project_id>/resources.yaml` first. This Skill accepts only a registered `shared_ec2_postgresql` project.
-2. Run `node scripts/inspect-existing-resources.mjs --resource <path>` and stop unless it returns `pass`.
+1. Reuse the registered resource record in `executionCheckReceipt`; standalone
+   work classifies and validates `projects/<project_id>/resources.yaml` once
+   through `buyna-project-resource-registry`. This Skill accepts only a
+   registered `shared_ec2_postgresql` project.
+2. Run `node scripts/inspect-existing-resources.mjs --resource <path>` only
+   when no matching resource-evidence digest exists or the target changed.
 3. Report the existing database engine, connection source, database/schema name, framework, migration system, S3 bucket, region, and project prefix.
 4. Use `packages/buyna-postgres-merchant-core`; select its existing `node-postgres` adapter when the project uses `pg`. For an approved new independent merchant Schema, keep execution in `buyna-merchant-onboarding`. Route to `buyna-unified-merchant-architecture` only when existing source data or a live consumer must be migrated.
 5. Read `references/orm-adapter-contract.md` and generate only an adapter when the approved ORM is not already supported.
-6. Run `node scripts/validate-migration.mjs --up <path> --down <path>` before any migration execution and stop unless it returns `pass`.
+6. Run `node scripts/validate-migration.mjs --up <path> --down <path>` for every
+   changed migration before execution and stop unless it returns `pass`.
 7. Validate project/seller isolation on development or staging.
 
 ## Existing Resource Gate
@@ -63,7 +75,8 @@ Do not complete this Skill with a schema description alone.
 Do not regenerate merchant scoping, pagination, transaction, or idempotency
 orchestration already supplied by `buyna-postgres-merchant-core`. Configure an
 entity allowlist and call the fixed module. Run its package tests before
-project integration.
+project integration only when no passing `executionCheckReceipt.testEvidence`
+entry matches the current package source digest.
 
 ## Rules
 
