@@ -75,6 +75,8 @@ routing:
   runtime_source: verified-systemd-or-static-root
 ```
 
+`deployment.instance_id` is the stable EC2 identity. `deployment.instance_ip` is mutable network evidence, not project identity: resolve it from AWS for the registered account, region, and instance ID, then refresh this secret-free record when the same verified instance receives a different address. An IP change on that same instance does not authorize new infrastructure and is not an ownership mismatch. Block only when the account, region, instance ID, tags/environment ownership, or required evidence conflicts or cannot be verified.
+
 `allow_create_schema: true` is valid only in an already approved onboarding/migration candidate record. It does not authorize execution and must include `schema_change_mode: approved_reversible_migration`.
 
 The same existing EC2 instance, RDS instance, PostgreSQL database, and approved

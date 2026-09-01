@@ -8,7 +8,7 @@ test('resource inspection accepts only confirmed existing PostgreSQL and blocks 
     project:{id:'shop-a',seller_id:'seller-a'},
     database:{mode:'existing',engine:'postgresql',instance_identifier:'shared-prod-postgres',connection_source:'DATABASE_URL',name:'shared',schema:'shop_a',allow_create_rds:false,allow_create_database:false,allow_create_schema:false},
     storage:{mode:'existing',bucket_source:'AWS_STORAGE_BUCKET_NAME',region:'ap-northeast-1',prefix:'projects/shop-a/',allow_create_bucket:false},
-    deployment:{instance_id:'i-existing',instance_ip:'35.73.127.215',allow_create_instance:false,allow_create_port:false},
+    deployment:{instance_id:'i-existing',instance_ip:'203.0.113.10',allow_create_instance:false,allow_create_port:false},
     release_limits:{new_ec2_instances:0,new_databases:0,new_buckets:0,new_ports:0},
   });
   assert.equal(valid.status,'pass');
@@ -39,7 +39,7 @@ storage:
   allow_create_bucket: false
 deployment:
   instance_id: i-existing
-  instance_ip: 35.73.127.215
+  instance_ip: 203.0.113.10
   allow_create_instance: false
   allow_create_port: false
 release_limits:
@@ -51,7 +51,7 @@ release_limits:
 });
 
 test('resource inspection blocks placeholders and infrastructure creation',()=>{
-  const result=validateResourceRecord({project:{id:'placeholder',seller_id:'seller'},database:{mode:'existing',engine:'postgresql',instance_identifier:'unknown',connection_source:'DATABASE_URL',name:'shared',schema:'shop',allow_create_rds:false,allow_create_database:false,allow_create_schema:false},storage:{mode:'existing',bucket_source:'AWS_STORAGE_BUCKET_NAME',region:'ap-northeast-1',prefix:'projects/shop/',allow_create_bucket:false},deployment:{instance_id:'i-existing',instance_ip:'35.73.127.215',allow_create_instance:false,allow_create_port:true},release_limits:{new_ec2_instances:1,new_databases:0,new_buckets:0,new_ports:1}});
+  const result=validateResourceRecord({project:{id:'placeholder',seller_id:'seller'},database:{mode:'existing',engine:'postgresql',instance_identifier:'unknown',connection_source:'DATABASE_URL',name:'shared',schema:'shop',allow_create_rds:false,allow_create_database:false,allow_create_schema:false},storage:{mode:'existing',bucket_source:'AWS_STORAGE_BUCKET_NAME',region:'ap-northeast-1',prefix:'projects/shop/',allow_create_bucket:false},deployment:{instance_id:'i-existing',instance_ip:'203.0.113.10',allow_create_instance:false,allow_create_port:true},release_limits:{new_ec2_instances:1,new_databases:0,new_buckets:0,new_ports:1}});
   assert.equal(result.status,'blocked');
   assert.ok(result.errors.includes('PROJECT_ID_MISSING_OR_UNCONFIRMED'));
   assert.ok(result.errors.includes('PORT_CREATION_NOT_DISABLED'));

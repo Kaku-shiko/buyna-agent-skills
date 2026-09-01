@@ -10,7 +10,12 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 ## Steps
 
 1. Run `buyna-project-resource-registry` on the approved `projects/<project_id>/resources.yaml`. Run `buyna-aws-data-layer` only for a registered PostgreSQL project; inspect the registered runtime, build/start commands, deployment files, data store, S3, domain, and environment sources.
-2. Verify the exact registered target through `aws-project-deployer`. For `shared_ec2_postgresql`, require the existing Buyna EC2 at `35.73.127.215`. For `aws_serverless` or `aws_static`, require the recorded distributions/functions/tables/buckets and do not introduce EC2. Stop on mismatch and never create a replacement resource.
+2. Verify the exact registered target through `aws-project-deployer`. For
+   `shared_ec2_postgresql`, resolve the registered EC2 `instance_id` and verify
+   its current account, region, state, ownership, and network addresses through
+   AWS. For `aws_serverless` or `aws_static`, require the recorded
+   distributions/functions/tables/buckets and do not introduce EC2. Stop on
+   stable identity or ownership mismatch and never create a replacement resource.
 3. Run `buyna-testing-quality` in default `FAST_RELEASE` mode. Verify the
    runtime artifact, secrets boundary, registered target, tenant write
    isolation, and rollback before mutation; do not expand this into the full
@@ -29,7 +34,10 @@ Coordinate release work without guessing infrastructure or claiming unverified s
 - Require `aws-project-deployer` mode `existing_buyna_resources`; stop if it proposes `new_infrastructure`, changes architecture type, or introduces any unrecorded persistent resource.
 - Treat missing, placeholder, `unknown`, `unverified`, `pending`, or `tbd` evidence as a blocker. Stop before applying any plan that creates an EC2 instance, database, bucket, permanent application port, NAT Gateway, or load balancer.
 - Never create paid persistent AWS resources without confirmation.
-- Never create, clone, replace, or terminate an EC2 instance during a release. Shared EC2 projects use only `35.73.127.215`; registered serverless/static projects use no EC2 target.
+- Never create, clone, replace, or terminate an EC2 instance during a release.
+  Shared EC2 projects use only their registered, AWS-verified `instance_id`;
+  registered serverless/static projects use no EC2 target. Refresh a changed IP
+  for the same verified instance as evidence rather than treating it as a new host.
 - For shared-EC2 projects, keep each website isolated by application directory,
   approved shared process/port routing, Nginx route, logs, and environment file.
   For serverless/static projects, preserve their registered distribution,

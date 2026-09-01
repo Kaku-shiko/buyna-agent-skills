@@ -25,19 +25,22 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 - Enter `new_infrastructure` only when the user explicitly requests new infrastructure, names the required resource class, and approves the cost/risk preview. This mode is outside `buyna-website-builder` and `buyna-aws-release`.
 - Require a separate confirmation immediately before an approved `new_infrastructure` mutation. A website-build or deployment approval is not infrastructure approval.
 
-## Fixed Buyna server
+## Registered Buyna server
 
-- Deploy new shared Buyna merchant websites and long-running Buyna backends only to the existing
-  Buyna EC2 instance whose public IPv4 address is `35.73.127.215`.
+- Deploy shared Buyna merchant websites and long-running backends only to the
+  EC2 `instance_id` recorded for that project and verified in the current AWS
+  account and region. A public IPv4 address is mutable evidence, never the
+  stable resource identity.
 - Never create, clone, replace, terminate, or automatically provision
   another EC2 instance for a Buyna deployment. Do not substitute ECS, App
   Runner, Lightsail, or another compute host without a later explicit change
   to this policy from the user.
-- After STS succeeds, identify the EC2 instance by AWS API and verify that its
-  current public IPv4 address is exactly `35.73.127.215`, it is running, and it
-  belongs to the expected Buyna environment before connecting or deploying.
-- Stop and report the mismatch when the address is absent, reassigned, points
-  to multiple resources, or cannot be verified. Do not create a replacement.
+- After STS succeeds, query the registered `instance_id` through AWS and verify
+  its account, region, state, tags/environment ownership, and current network
+  addresses before connecting or deploying. When the same verified instance
+  has a changed address, refresh the secret-free resource evidence instead of
+  blocking on the retired address. Stop on instance/account/region/ownership
+  conflict or missing evidence; never create a replacement.
 - Reuse the existing server through isolated application directories,
   processes, ports, Nginx routes, logs, and environment files. Inspect current
   allocations before choosing any of them; never overwrite another site.
@@ -46,9 +49,12 @@ Use the local AWS CLI profile `codex-deploy`; default to Tokyo `ap-northeast-1` 
 
 1. Inspect the real project: framework, build command, output directory, API/runtime needs, database use, uploads, domains, and environment variables.
 2. Run `scripts/verify-connection.ps1`. If it fails, diagnose the exact credential/profile/permission cause without exposing secrets.
-3. Match the live architecture to the validated resource record. For `shared_ec2_postgresql`, resolve and verify the fixed Buyna EC2 target at `35.73.127.215`. Record the
-   verified instance id, region, state, public IPv4 address, and existing
-   runtime layout. Stop on any mismatch; never provision another instance.
+3. Match the live architecture to the validated resource record. For
+   `shared_ec2_postgresql`, resolve the registered `instance_id` and verify it
+   through AWS. Record the account, instance id, region, state, current network
+   addresses, tags/environment ownership, and existing runtime layout. Refresh
+   changed address evidence for the same verified instance. Stop on stable
+   identity or ownership mismatch; never provision another instance.
 4. Preserve the inspected runtime stack. For shared merchants, deploy only to the verified existing EC2 and use the approved PostgreSQL/S3 resources. For registered serverless/static projects, update only their recorded existing resources. Do not force Django, EC2, RDS, or a specific Node version across architectures.
 5. Create a unique normalized project slug. Isolate application directories, processes, assigned ports, Nginx routes, database schema/ownership, S3 prefixes, secrets, logs, and deployment records inside the approved shared resources. Do not create per-project buckets or databases.
 6. Generate or update the deployment manifest and infrastructure template in the project. Keep environment-specific values parameterized.
