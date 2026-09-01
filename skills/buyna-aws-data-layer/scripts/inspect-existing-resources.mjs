@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import {isIP} from 'node:net';
 import {pathToFileURL} from 'node:url';
 
 function valueOf(raw){
@@ -48,7 +49,7 @@ export function validateResourceRecord(record={}){
   if(!confirmed(storage.prefix))errors.push('STORAGE_PREFIX_MISSING_OR_UNCONFIRMED');
   if(storage.allow_create_bucket!==false)errors.push('BUCKET_CREATION_NOT_DISABLED');
   if(!confirmed(deployment.instance_id))errors.push('INSTANCE_ID_MISSING_OR_UNCONFIRMED');
-  if(deployment.instance_ip!=='35.73.127.215')errors.push('APPROVED_INSTANCE_IP_REQUIRED');
+  if(!confirmed(deployment.instance_ip)||isIP(deployment.instance_ip)!==4)errors.push('INSTANCE_IP_MISSING_OR_INVALID');
   if(deployment.allow_create_instance!==false)errors.push('INSTANCE_CREATION_NOT_DISABLED');
   if(deployment.allow_create_port!==false)errors.push('PORT_CREATION_NOT_DISABLED');
   for(const [key,code] of Object.entries({new_ec2_instances:'NEW_EC2_INSTANCES_NOT_ZERO',new_databases:'NEW_DATABASES_NOT_ZERO',new_buckets:'NEW_BUCKETS_NOT_ZERO',new_ports:'NEW_PORTS_NOT_ZERO'})){if(limits[key]!==0)errors.push(code)}

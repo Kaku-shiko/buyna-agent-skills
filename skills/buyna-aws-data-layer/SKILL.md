@@ -56,7 +56,7 @@ storage:
   allow_create_bucket: false
 deployment:
   instance_id: confirmed-existing-instance-id
-  instance_ip: 35.73.127.215
+  instance_ip: 203.0.113.10
   allow_create_instance: false
   allow_create_port: false
 release_limits:
@@ -65,6 +65,10 @@ release_limits:
   new_buckets: 0
   new_ports: 0
 ```
+
+The address above is an IANA documentation example. Record the current IPv4
+returned for the registered `instance_id` by AWS inspection; never copy the
+example or treat any public IP as a global Buyna identity.
 
 ## Code Delivery
 
