@@ -9,19 +9,20 @@ Use for product ecommerce: jewelry, apparel, goods, SKU catalogs, and shippable 
 
 ## First Move
 
-Resolve the fixed-module root before implementation. In a repository/project
-installation it is `packages/`; in a user installation it is
-`$env:USERPROFILE/.codex/packages/`. For every payment-capable Buyna merchant,
-also require `buyna-gmv-core`. Stop with
-`BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when Dashboard, catalog, cart,
-order, PostgreSQL, or file core is missing. Do not regenerate a missing core.
+When invoked by `buyna-website-builder`, consume its
+`executionCheckReceipt`. Use its approved frontend/API contract, fixed-module
+selection, resource evidence, and matching package-test evidence directly. Do
+not repeat Phase 4 inspection, module discovery, resource inspection, unchanged
+package tests, onboarding, or confirmation. Return one structured
+missing-evidence result to the Builder if the receipt does not cover this
+product slice.
 
-Read the approved Phase 4 frontend code completion record and API contract.
-Inspect the actual public product frontend and merchant Dashboard source and
-confirm that the applicable frontend build/type checks passed. If the record,
-source code, API contract, verification, or user approval is missing, stop and
-return to `buyna-frontend-builder` Phase 4. Do not create database models,
-migrations, storage rules, APIs, or backend business logic.
+For standalone invocation, inspect the approved frontend/API contract and
+resolve the fixed-module root once. In a repository/project installation it is
+`packages/`; in a user installation it is
+`$env:USERPROFILE/.codex/packages/`. Require only modules needed by the
+requested product operation; payment-only modules are irrelevant until payment
+is in scope. Do not regenerate a missing fixed core.
 
 After the gate passes, read `references/product-commerce-rules.md` and use the
 persisted languages, currency, product source, variants/SKUs, image limit, and
@@ -80,7 +81,7 @@ share the selected checkout/payment cores and project Adapters.
 
 When invoked by `buyna-website-builder`, inherit the saved
 `configuration.workPackage` authorization, approved fixed-module selection,
-approved Adapter contract, and `interactionMode`. An included
+approved Adapter contract, `executionCheckReceipt`, and `interactionMode`. An included
 `dashboard_integration` or `checkout_payment` slice returns evidence to the
 Builder and continues without another approval question. Standalone work uses
 its ordinary current-step approval. The Builder's returned `skills` and
@@ -91,7 +92,11 @@ for each protected request obtain fresh trusted auth and resolve the current ser
 calling product, inventory, order, or file Adapters. Resolve anew for every
 request and host; browser owner IDs are never authority.
 
-Before models, migrations, uploads, or persistence code, run the `buyna-aws-data-layer` Existing Resource Gate. Reuse the recorded database and S3 bucket through `buyna-s3-storage`. Stop instead of creating a database, SQLite file, DynamoDB table, bucket, or replacement AWS resource.
+Before models, migrations, uploads, or persistence code, reuse matching
+resource evidence from `executionCheckReceipt`. Run the
+`buyna-aws-data-layer` Existing Resource Gate only for standalone work or when
+the Builder reports missing/changed resource evidence. Reuse the recorded
+database and S3 bucket through `buyna-s3-storage`; never create a replacement.
 
 ## Dashboard Contract Boundary
 
@@ -136,15 +141,15 @@ Create the pending order with the complete safe customer submission snapshot def
 
 ## Validate
 
-Check build, UTF-8, login, mandatory `project_id + seller_id` ownership on every record/query/constraint/index, cross-merchant denial, product/category/stock/SKU/image/sort sync, complete customer snapshot storage and order-detail rendering, verified paid once, refund sync, CSV, cleanup, and mobile backend.
+For the behavior changed by the current slice, check build, UTF-8, login,
+mandatory `project_id + seller_id` ownership, cross-merchant denial, and the
+applicable product/category/stock/SKU/image/order synchronization. Do not rerun
+unrelated payment, refund, CSV, cleanup, or mobile checks.
 
-When catalog behavior is in scope, run
-`npm test --prefix packages/buyna-merchant-catalog-core` before project tests.
-When stock/SKU or coupons are in scope, also run
-`npm test --prefix packages/buyna-inventory-core` or
-`npm test --prefix packages/buyna-coupon-core` respectively.
-When cart or order behavior is in scope, also run the matching fixed-package
-tests before project integration tests.
+Run a fixed-package test only when `executionCheckReceipt.testEvidence` has no
+passing entry for that package source digest. Standalone work records the same
+evidence after its first run. Always run the minimum project tests changed by
+the current product slice.
 
 ## Code Delivery
 

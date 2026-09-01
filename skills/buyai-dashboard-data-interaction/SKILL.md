@@ -10,7 +10,11 @@ Complete one approved Dashboard page or closely related interaction slice at a t
 When invoked by `buyna-website-builder`, inherit its persisted capabilities,
 interaction mode, and bounded work package. Its returned `skills` and
 `fixedModules` are authoritative; references below reuse an already returned
-child and never trigger a second sibling invocation.
+child and never trigger a second sibling invocation. Consume its
+`executionCheckReceipt`; do not repeat frontend/API approval, module discovery,
+resource inspection, unchanged package tests, onboarding, or confirmation.
+Return one structured missing-evidence result to the Builder if the receipt no
+longer covers this slice.
 
 For every protected request, first interpret a fresh trusted result through
 `buyna-auth-session-core`, then call `buyna-merchant-context-core` with the
@@ -40,12 +44,12 @@ Only when the route carries an explicit persisted approved
 order is fresh auth, fresh merchant context, fixed read-model or delivery
 service, then the project presentation or provider Adapter.
 
-## Entry Gate
+## Standalone Entry Evidence
 
-Require runnable Dashboard source, desktop/mobile states, marked mock adapter,
-API contract, and passing frontend checks. Standalone work also requires its
-ordinary approval; Builder-invoked work inherits the bounded approval above.
-Otherwise stop and return to `buyna-frontend-builder` Phase 4.
+Standalone work checks runnable Dashboard source, desktop/mobile states, the
+marked mock adapter, API contract, and applicable frontend checks once.
+Builder-invoked work reuses the receipt and bounded approval above instead of
+running this entry check again.
 
 Read `references/dashboard-data-interaction.md`. Read `references/approved-stack.md` only when no working/approved backend stack exists.
 
@@ -56,7 +60,11 @@ For the current page only:
 1. Preserve the working stack; establish or extend the executable server/API boundary and environment-safe endpoint configuration.
 2. Bind project login/session verification to the fixed request-local auth and
    merchant-context sequence above; never accept browser ownership.
-3. Run `buyna-project-resource-registry`, then run `buyna-aws-data-layer` only for a registered PostgreSQL architecture. Preserve a registered serverless/static architecture rather than generating RDS. For a newly approved
+3. Reuse the resource evidence in `executionCheckReceipt`. Only for standalone
+   work, missing evidence, or changed scope, run
+   `buyna-project-resource-registry`, then run `buyna-aws-data-layer` for a
+   registered PostgreSQL architecture. Preserve a registered serverless/static
+   architecture rather than generating RDS. For a newly approved
    merchant project, require the `buyna-merchant-onboarding` scaffold result.
    For approved file actions, call `buyna-s3-storage`; it must use
    `packages/buyna-merchant-file-core` rather than regenerate keys or lifecycle
@@ -80,7 +88,9 @@ For the current page only:
    credentials, other merchants, GMV, billing internals, or a browser-direct
    CRM connection.
 6. Use `buyna-frontend-builder` integration mode to replace only the matching mock adapter.
-7. Verify persistence, refresh, permission, error, mobile, and public-site synchronization.
+7. Reuse matching package-test evidence by source digest. Verify only the
+   changed slice's persistence, refresh, permission, error, mobile, and
+   public-site synchronization.
 8. Return the delivery record to `buyna-website-builder`. Continue automatically when the next slice is inside the approved work package and its dependencies are ready; otherwise stop for approval.
 
 Use the approved canonical Dashboard contract from `buyna-frontend-builder`; do not maintain a competing page order in this Skill.
