@@ -56,6 +56,6 @@ test('full verification is opt-in while the canonical gate id remains compatible
 
 test('repository CI runs declared package tests and keeps root contract coverage', () => {
   assert.match(validationWorkflow, /scripts\.test/);
-  assert.match(validationWorkflow, /node --test tests/);
+  assert.match(validationWorkflow, /Get-ChildItem tests[^]*node --test \$testFiles/);
   assert.doesNotMatch(validationWorkflow, /Get-ChildItem packages -Directory \| ForEach-Object \{\s*npm test/s);
 });
