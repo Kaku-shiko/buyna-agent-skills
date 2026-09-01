@@ -12,18 +12,23 @@ matching `resourceRecordDigest`, `artifactDigest`, and `releasePlanDigest`
 evidence instead of repeating registry, data-layer, build, or unchanged test
 work. Standalone deployment creates equivalent evidence once.
 
+Load the confirmed `projectDeploymentBaseline` from the project resource
+record. It is project evidence, not a per-release gate: reuse it across later AI
+tasks and subsequent releases while its stable resource identity and policy
+digest remain unchanged.
+
 ## Safety contract
 
 - Never ask the user to paste Access Key IDs, Secret Access Keys, database passwords, or payment credentials into chat, source files, frontend variables, logs, or screenshots.
 - Never read or print credential file contents. It is acceptable to report masked metadata, lengths, profile names, and `sts get-caller-identity` results.
-- Treat successful STS identity verification as the connection gate. Run STS
-  fresh for every release; do not claim AWS is connected or live from a receipt.
+- Treat successful STS identity verification as part of creating or repairing
+  `projectDeploymentBaseline`. Do not rerun it for every unchanged release.
 - Show the resources to be created and obtain confirmation immediately before creating paid or persistent resources such as RDS, Aurora, NAT Gateway, EC2, ECS, or provisioned capacity.
 - Prefer infrastructure as code and reversible updates. Do not delete production resources, databases, buckets, domains, certificates, or secrets without explicit confirmation and a backup/retention check.
 
 ## Resource Mode
 
-- Run `buyna-project-resource-registry` first. Default every task to `existing_buyna_resources` and preserve its registered architecture: shared EC2/PostgreSQL, AWS serverless, AWS static, or external legacy.
+- Load and machine-validate the registered resource record and confirmed baseline first. Invoke the full `buyna-project-resource-registry` inspection only when either is missing or its stable digest is invalid; an unchanged project must not repeat registration. Default every task to `existing_buyna_resources` and preserve its registered architecture: shared EC2/PostgreSQL, AWS serverless, AWS static, or external legacy.
 - Treat a request to build, publish, migrate, onboard, upload, or connect a new website as authorization to add only logical project/seller records, exact host mappings, approved storage prefixes, and application configuration. It is never authorization to create AWS infrastructure.
 - For a new shared merchant, reuse the verified EC2 instance, approved PostgreSQL connection, approved S3 bucket, project prefix, and existing network/domain boundary. For a registered serverless/static project, reuse its recorded CloudFront, Lambda/API, DynamoDB, and S3 resources; do not force it onto EC2/RDS.
 - Never infer permission to create a bucket, database, RDS/Aurora/DynamoDB resource, CloudFront distribution, Lambda/API stack, compute host, or extra port from a normal build, publish, storage, or database request.
@@ -41,7 +46,8 @@ work. Standalone deployment creates equivalent evidence once.
   another EC2 instance for a Buyna deployment. Do not substitute ECS, App
   Runner, Lightsail, or another compute host without a later explicit change
   to this policy from the user.
-- After STS succeeds, query the registered `instance_id` through AWS and verify
+- When creating or invalidating `projectDeploymentBaseline`, query the
+  registered `instance_id` through AWS and verify
   its account, region, state, tags/environment ownership, and current network
   addresses before connecting or deploying. When the same verified instance
   has a changed address, refresh the secret-free resource evidence instead of
@@ -53,23 +59,32 @@ work. Standalone deployment creates equivalent evidence once.
 
 ## Workflow
 
-1. Consume matching static project/artifact evidence from the receipt; inspect
-   only fields whose digest changed. For standalone work, inspect the real
-   project once.
-2. Run `scripts/verify-connection.ps1`. If it fails, diagnose the exact credential/profile/permission cause without exposing secrets.
-3. Match the live architecture to the validated resource record. Verify target
-   ownership fresh for every release. For
-   `shared_ec2_postgresql`, resolve the registered `instance_id` and verify it
-   through AWS. Record the account, instance id, region, state, current network
-   addresses, tags/environment ownership, and existing runtime layout. Refresh
-   changed address evidence for the same verified instance. Stop on stable
-   identity or ownership mismatch; never provision another instance.
+1. Load `projectDeploymentBaseline` and consume matching static
+   project/artifact evidence from the release receipt. An unchanged application
+   files or runtime artifact update reuses the baseline and inspects only the
+   changed artifact/release fields.
+2. Only when the baseline is missing or invalidated, run
+   `scripts/verify-connection.ps1`, query the registered target, and record the
+   AWS account, region, architecture, stable target identity, ownership,
+   approved runtime identity, SSM evidence, and zero-create policy. Do this once, then persist
+   the confirmed baseline without secrets.
+3. For a valid baseline, do not repeat STS/account, EC2 ownership, current-IP,
+   SSM-online, database/storage, or zero-create discovery. Connect using the
+   recorded target. If SSM is unavailable, return the current release
+   execution/connection error; it does not invalidate the baseline or trigger
+   the full gate. Immediately before writing, run one low-cost read-only
+   runtime-slot check for this project's directory, process/service, Socket or
+   assigned port, Nginx host route, environment source, and log path. Stop with
+   `RUNTIME_SLOT_CONFLICT` if another project owns any target; do not replace
+   files first.
 4. Preserve the inspected runtime stack. For shared merchants, deploy only to the verified existing EC2 and use the approved PostgreSQL/S3 resources. For registered serverless/static projects, update only their recorded existing resources. Do not force Django, EC2, RDS, or a specific Node version across architectures.
 5. Create a unique normalized project slug. Isolate application directories, processes, assigned ports, Nginx routes, database schema/ownership, S3 prefixes, secrets, logs, and deployment records inside the approved shared resources. Do not create per-project buckets or databases.
 6. Generate or update the deployment manifest and infrastructure template in the project. Keep environment-specific values parameterized.
 7. Build only when `artifactDigest` is absent or changed. Reuse matching
    `FAST_RELEASE` build evidence; still run project tests changed by this release.
-8. Present the deployment preview and require:
+8. Reuse the confirmed zero-create policy and counters from the baseline. Do
+   not present or approve them again for an unchanged release. Inspect only the
+   current release diff and stop if it proposes a new persistent resource:
 
    ```text
    RESOURCE_MODE: existing_buyna_resources
@@ -83,7 +98,8 @@ work. Standalone deployment creates equivalent evidence once.
 9. Consume the Builder's recorded release/traffic-switch approval. Ask again
    only when target, resource mode, release plan, cost, destructive scope, or
    traffic plan changed; then deploy using the verified profile and region.
-10. Run post-deploy health exactly once: live URL, HTTPS, client-side routes,
+10. Run post-deploy health exactly once for every current release: live URL,
+    HTTPS, client-side routes,
     critical API, logs, current target identity, and rollback state. Return the
     evidence to `buyna-aws-release`; do not make the coordinator repeat it.
 

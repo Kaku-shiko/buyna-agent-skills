@@ -33,11 +33,13 @@ function rejectManagedWrites(input={}){
   if(own(input,'status'))fail('CATALOG_STATUS_WRITE_FORBIDDEN');
   if(deletionFields.some(field=>own(input,field)))fail('CATALOG_DELETION_WRITE_FORBIDDEN');
   if(own(input,'featured'))fail('CATALOG_FEATURED_WRITE_FORBIDDEN');
+  if(own(input,'mainImageId')||own(input,'main_image_id'))fail('CATALOG_PRODUCT_MEDIA_WRITE_FORBIDDEN');
 }
 
 function rejectCreateManagedWrites(input={}){
   if(deletionFields.some(field=>own(input,field)))fail('CATALOG_DELETION_WRITE_FORBIDDEN');
   if(own(input,'featured'))fail('CATALOG_FEATURED_WRITE_FORBIDDEN');
+  if(own(input,'mainImageId')||own(input,'main_image_id'))fail('CATALOG_PRODUCT_MEDIA_WRITE_FORBIDDEN');
 }
 
 function createStatus(value,fallback){
@@ -100,7 +102,7 @@ const productPolicy=Object.freeze({
   entity:'products',
   allowedFilters:['search','status','category_id','featured'],
   allowedSort:['sort_order','updated_at','created_at','name','price','stock'],
-  allowedWrite:['name','description','short_description','price','currency','stock','category_id','main_image_id','sort_order','featured',...lifecycleWrites],
+  allowedWrite:['name','description','short_description','price','currency','stock','category_id','sort_order','featured',...lifecycleWrites],
 });
 const categoryPolicy=Object.freeze({
   entity:'categories',
@@ -234,7 +236,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
         stock:stockQuantity(input.stock??0,'INVALID_PRODUCT_STOCK'),
         currency:required(input.currency??'JPY','MISSING_CURRENCY').toUpperCase(),
         status:createStatus(input.status,CATALOG_STATES.DRAFT),
-        ...compact({category_id:input.categoryId}),
+        ...compact({description:input.description,short_description:input.shortDescription,category_id:input.categoryId,sort_order:input.sortOrder===undefined?undefined:stockQuantity(input.sortOrder,'CATALOG_SORT_ORDER_INVALID')}),
       };
       if(data.status!==CATALOG_STATES.ACTIVE)return products.create(data);
       return withLocks(async transactionCore=>{
@@ -368,3 +370,4 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
 }
 
 export {productPolicy as PRODUCT_POLICY,categoryPolicy as CATEGORY_POLICY,variantPolicy as VARIANT_POLICY};
+export {createProductMediaService} from './product-media-core.mjs';

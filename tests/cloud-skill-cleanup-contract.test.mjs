@@ -50,7 +50,7 @@ test('all commerce children reuse the Builder receipt and unchanged package test
   }
 });
 
-test('release chain reuses static evidence while identity ownership and health stay fresh', () => {
+test('release chain reuses the project deployment baseline while current release health stays fresh', () => {
   const paths = [
     'skills/buyna-aws-release/SKILL.md',
     'skills/aws-project-deployer/SKILL.md',
@@ -60,8 +60,8 @@ test('release chain reuses static evidence while identity ownership and health s
   const content = paths.map(read).join('\n');
   for (const path of paths) assert.match(read(path), /releaseCheckReceipt/, path);
   for (const field of ['resourceRecordDigest', 'artifactDigest', 'releasePlanDigest']) assert.match(content, new RegExp(field));
-  assert.match(content, /STS[^]*(?:fresh|every release)|(?:fresh|every release)[^]*STS/i);
-  assert.match(content, /ownership[^]*(?:fresh|every release)|(?:fresh|every release)[^]*ownership/i);
+  assert.match(content, /projectDeploymentBaseline/);
+  assert.doesNotMatch(content, /STS[^]*fresh for every release|ownership fresh for every release/i);
   assert.match(content, /post-deploy[^]*health|health[^]*post-deploy/i);
 });
 

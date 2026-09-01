@@ -7,9 +7,11 @@ Before backend integration, require existing-resource evidence matching the proj
 - `aws_serverless`/`aws_static` 时：按架构检查相应指标，不额外固定实例/端口指标。
 Missing or placeholder resource evidence blocks the slice; never provision a replacement to continue.
 
-Create one foundation receipt with `packages/buyna-integration-receipt-core`.
-Later Dashboard slices reuse it while its resource evidence and expiry remain
-valid; do not repeat the complete foundation inspection for every page.
+Create one foundation receipt with `packages/buyna-integration-receipt-core`
+and bind it to the machine-valid `projectDeploymentBaseline`. Later Dashboard
+slices reuse it while the stable resource digest remains unchanged; do not
+repeat the complete foundation inspection for every page and do not expire it
+only because time, a new AI task, or an application release passed.
 
 When the current slice creates a new merchant project directory, route its file
 layout to `buyna-merchant-onboarding`, which must call
@@ -21,6 +23,9 @@ Never regenerate the layout for an existing project.
 For 商品管理/分类管理 use `buyna-merchant-catalog-core`. For seller Orders,
 order detail, and CSV use `buyna-order-core`. The current project generates only
 Adapters and API wiring.
+For 商品管理 image creation/editing, call `createProductMediaService` from the
+catalog package with `buyna-merchant-file-core`; generate the scoped media
+Store and UI, not another product/image state machine.
 
 For the approved Dashboard overview only, call
 `buyna-commerce-read-model-core` through the Dashboard Skill Adapter contract.

@@ -107,6 +107,15 @@ test('product writes normalize money, stock, visibility, and soft deletion',asyn
   ]);
 });
 
+test('product creation preserves editable copy and explicit sort order',async()=>{
+  const {core,calls}=fakeCore();
+  const service=createMerchantCatalogService({dataCore:core});
+  await service.createProduct({name:' Tea ',description:'Long copy',shortDescription:'Short copy',price:1200,stock:3,currency:'jpy',sortOrder:7});
+  assert.deepEqual(calls.at(-1),['create','products',{name:'Tea',description:'Long copy',short_description:'Short copy',price:1200,stock:3,currency:'JPY',status:'draft',sort_order:7}]);
+  await assert.rejects(()=>service.createProduct({name:'Tea',price:100,mainImageId:'file-1'}),error=>error.code==='CATALOG_PRODUCT_MEDIA_WRITE_FORBIDDEN');
+  await assert.rejects(()=>service.updateProduct({productId:'p1',mainImageId:'file-1'}),error=>error.code==='CATALOG_PRODUCT_MEDIA_WRITE_FORBIDDEN');
+});
+
 test('reordering is atomic and rejects duplicate product ids',async()=>{
   const {core,calls}=fakeCore({products:[{id:'p1'},{id:'p2'}]});
   const service=createMerchantCatalogService({dataCore:core});

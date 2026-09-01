@@ -13,29 +13,41 @@ Own one `releaseCheckReceipt` for the release. It binds
 `aws-project-deployer`, and `buyna-testing-quality`; unchanged static evidence
 is consumed, not rerun. A changed digest invalidates only that field.
 
+Also consume the project's confirmed `projectDeploymentBaseline`. That baseline
+owns AWS account, region, architecture, stable target identity, ownership,
+approved runtime identity, SSM evidence, and the zero-create policy. Reuse it across
+later AI tasks and subsequent releases; do not turn it into a per-release gate.
+
 ## Steps
 
-1. Validate `projects/<project_id>/resources.yaml` once and record its digest in
-   `releaseCheckReceipt`. Run `buyna-aws-data-layer` only for registered
-   PostgreSQL work not already covered by the same resource digest.
-2. Verify the exact registered target through `aws-project-deployer`. For
-   `shared_ec2_postgresql`, resolve the registered EC2 `instance_id` and verify
-   its current account, region, state, ownership, and network addresses through
-   AWS. For `aws_serverless` or `aws_static`, require the recorded
-   distributions/functions/tables/buckets and do not introduce EC2. Stop on
-   stable identity or ownership mismatch and never create a replacement resource.
+1. Load `projects/<project_id>/resources.yaml` and its confirmed
+   `projectDeploymentBaseline`. Create or repair that baseline only when absent
+   or invalidated by a changed normalized resource record digest, AWS account,
+   region, `instance_id`/target, architecture, ownership boundary, zero-create
+   policy, or explicitly approved resource migration.
+2. With an unchanged baseline, skip the full deployment gate. Do not rerun STS,
+   target ownership, current IP, SSM-online, full runtime allocation, database/S3
+   identity, or zero-create discovery merely because a new AI task or release
+   began. A temporary SSM failure is a current execution/connection error and
+   does not invalidate the baseline. The deployer still performs one low-cost
+   read-only runtime-slot ownership check immediately before writing, so a
+   shared-host directory/process/Socket-or-port/Nginx route conflict stops
+   before replacement without reopening the full gate.
 3. Run `buyna-testing-quality` in default `FAST_RELEASE` mode, or consume its
    matching artifact evidence. Verify the
    runtime artifact, secrets boundary, registered target, tenant write
    isolation, and rollback before mutation; do not expand this into the full
    package/test audit unless the user explicitly requests `FULL_VERIFICATION`.
-4. Show the proposed resources, persistent-cost risks, migration plan, secrets plan, and rollback path. State `RESOURCE_MODE: existing_buyna_resources`, `NEW_EC2_INSTANCES: 0`, `NEW_DATABASES: 0`, `NEW_BUCKETS: 0`, and `NEW_PORTS: 0`.
-5. Use `aws-project-deployer` with the same receipt for live AWS inspection or
-   deployment operations. Every release still performs fresh STS, current
-   target ownership/network/runtime allocation checks, and never reuses those
-   live observations from an older release.
-6. Deploy to the verified registered target, then let the deployer run the one
-   minimum post-deploy health verification for
+4. Reuse the baseline's zero-create policy and counters. Inspect the current
+   release diff for a changed resource plan, cost, destructive action, migration,
+   secrets boundary, traffic switch, and rollback path; ask only for a real new
+   decision.
+5. Use `aws-project-deployer` with the same baseline and receipt for deployment.
+   An unchanged application files/runtime artifact replacement on the registered
+   target proceeds without another full AWS deployment gate and preserves the
+   recorded rollback snapshot, version, or path.
+6. Deploy to the registered baseline target, then let the deployer run the one
+   minimum post-deploy health verification for every current release:
    HTTPS, the primary route, one critical API/route, logs, target identity, and
    rollback readiness. Consume that evidence instead of running a second copy.
    Run `FULL_VERIFICATION` only when explicitly requested.

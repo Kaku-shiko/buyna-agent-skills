@@ -20,7 +20,62 @@ release_limits:
   new_databases: 0
   new_buckets: 0
   new_ports: 0
+projectDeploymentBaseline:
+  version: 1
+  status: confirmed
+  resourceRecordDigest: normalized-stable-resource-record-digest
+  account_id: confirmed-aws-account-id
+  region: confirmed-region
+  architecture_type: shared_ec2_postgresql
+  target_id: confirmed-instance-id
+  zero_create_policy_digest: confirmed-zero-create-policy-digest
+  inspection_authority_id: ed25519-sha256-of-pinned-public-key
+  inspection_receipt_path: resources.deployment-inspection.json
+  inspection_receipt_digest: sha256-of-external-inspection-receipt
+  verified_at: 2026-08-15T00:00:00Z
 ```
+
+`projectDeploymentBaseline` is created once by
+`buyna-project-resource-registry` after real AWS and runtime inspection. Reuse
+it across later AI tasks and every subsequent release; a new chat, new agent,
+application version, deployment date, mutable public IP, or temporary SSM
+availability change does not expire it. Do not rerun the full STS/account,
+instance ownership, current-IP, SSM-online, or zero-create gate merely because
+another release started.
+
+Compute `resourceRecordDigest` from stable resource identity and policy fields,
+excluding mutable evidence such as `checked_at`, public IP, current state, and
+SSM availability. Invalidate the baseline only when the normalized resource
+record digest changes the AWS account, region, `instance_id`/target,
+architecture, ownership boundary, or zero-create policy; also invalidate it
+when the operator explicitly approves a resource migration. Missing or
+conflicting baseline evidence fails closed. An SSM connection failure during a
+release is an execution/connection error for that release, not automatic
+baseline invalidation.
+
+The baseline is valid only with its separate secret-free, Ed25519-signed
+inspection receipt. The receipt must be produced by the trusted AWS/runtime
+inspection Adapter and verified with the operator-pinned public key from
+`BUYNA_DEPLOYMENT_INSPECTION_PUBLIC_KEY_FILE`; a caller cannot supply or switch
+that key through chat or CLI arguments. That exact receipt records the STS
+account, region, architecture, stable target, confirmed ownership evidence
+digest, confirmed runtime-inspection digest, inspection sources, observation
+time, authority ID, algorithm, and signature. The writer validates the complete
+candidate first, records a recovery journal, then replaces the receipt and
+resource record. Any write/validation failure restores both previous files; an
+interrupted prepared journal is rolled back on the next validator run. It then
+atomically commits the pair and reloads both files with
+`--require-deployment-baseline`. An unsigned local JSON,
+AI/chat value, or free-text account ID is never a receipt.
+
+The baseline may record the approved runtime identity, but mutable shared-host
+allocation is not cacheable. Immediately before any real write, perform one
+low-cost read-only runtime-slot check for the current project's application
+directory, process/service, Unix Socket or assigned port, Nginx host route,
+environment source, and log path. A temporary SSM failure is a connection
+error; a slot owned by another project is `BLOCKED: RUNTIME_SLOT_CONFLICT`
+before files are replaced. This check does not rerun STS, instance ownership,
+IP, database, Bucket, or zero-create discovery.
 
 Record both IDs exactly as verified; accept `^[a-z0-9][a-z0-9_-]{0,79}$` and never derive or copy them.
 

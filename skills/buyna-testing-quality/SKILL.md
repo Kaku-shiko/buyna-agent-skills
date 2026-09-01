@@ -13,6 +13,13 @@ checks, and deferred checks. Reuse matching static evidence; do not rebuild or
 rerun unchanged package checks. Standalone quality work creates the same
 receipt once for its requested scope.
 
+Consume the confirmed `projectDeploymentBaseline` for registered target,
+account/region, architecture, resource ownership, SSM, and zero-create policy
+evidence. Reuse it across later AI tasks and subsequent releases. Do not repeat
+the full STS, instance, IP, SSM, resource identity, or zero-create gate for an
+unchanged project; an SSM execution/connection failure does not invalidate the
+baseline.
+
 ## Verification Modes
 
 Use `FAST_RELEASE` by default. Use `FULL_VERIFICATION` only when the user
@@ -26,8 +33,9 @@ Run only the checks needed to publish safely and prove basic operability:
 1. A runtime artifact exists, contains no secret/local environment file,
    `node_modules`, cache, or obvious development-only content, and its normal
    build/start command succeeds.
-2. The release uses the registered target and approved architecture; it does
-   not invent a resource, database, Bucket, or port.
+2. The release uses the target and architecture in
+   `projectDeploymentBaseline`. Check only the current release diff for an
+   attempted resource, database, Bucket, or port change.
 3. Authentication and tenant isolation protect applicable writes using the
    server-owned `project_id + seller_id` context.
 4. The homepage or primary route and one critical API/route return healthy
@@ -35,9 +43,11 @@ Run only the checks needed to publish safely and prove basic operability:
 5. A concrete rollback version, command, or path exists before traffic changes.
 
 Keep architecture-specific resource checks narrow: shared EC2 releases retain
-zero new EC2/database/Bucket/port counters; serverless/static releases verify
-their registered distribution, compute/data, and storage identities without
-inventing EC2 requirements.
+the confirmed zero-create counters from `projectDeploymentBaseline` without
+rerunning discovery; serverless/static releases reuse their baseline resource
+identities. Invalidate only when the normalized resource record digest changes
+the account, region, `instance_id`/target, architecture, ownership boundary, or
+zero-create policy.
 
 Record `FAST_RELEASE: PASS` when those checks pass. Do not require a clean
 dependency reinstall, exhaustive package size report, top-20 listing, image

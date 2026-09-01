@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 
 export {createUploadEffectExecutor,createUploadQueue} from './upload-queue.mjs';
 
@@ -48,7 +49,8 @@ export function createMerchantFileService({storage,metadata,projectId,sellerId,p
       if(!object)fail('UPLOADED_OBJECT_NOT_FOUND');
       if(!allowedMimeTypes.includes(object.contentType))fail('FILE_TYPE_NOT_ALLOWED');
       if(!Number.isFinite(object.size)||object.size<=0||object.size>maxBytes)fail('FILE_SIZE_NOT_ALLOWED');
-      return metadata.confirmUpload({scope:{...scope},objectKey,entityType:segment(input.entityType,'INVALID_ENTITY_TYPE'),entityId:segment(input.entityId,'INVALID_ENTITY_ID'),variant:segment(input.variant??'original','INVALID_VARIANT'),originalFilename:String(input.originalFilename??''),contentType:object.contentType,size:object.size,etag:object.etag??null,status:'confirmed'});
+      const requestKey=segment(input.requestKey??`upload-${createHash('sha256').update(objectKey).digest('hex')}`,'INVALID_UPLOAD_REQUEST_KEY');
+      return metadata.confirmUpload({scope:{...scope},requestKey,objectKey,entityType:segment(input.entityType,'INVALID_ENTITY_TYPE'),entityId:segment(input.entityId,'INVALID_ENTITY_ID'),variant:segment(input.variant??'original','INVALID_VARIANT'),originalFilename:String(input.originalFilename??''),contentType:object.contentType,size:object.size,etag:object.etag??null,status:'confirmed'});
     },
     async replaceObject(input={}){
       method(metadata,'transaction');method(storage,'deleteObject');method(metadata,'markObjectDeleted');method(metadata,'markDeletionFailed');
