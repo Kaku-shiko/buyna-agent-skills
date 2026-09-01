@@ -18,6 +18,6 @@ interface GmvOutboxAdapter {
 
 Use `paymentCaptured(...)` or `refundCompleted(...)` to create the payload. Insert it inside the same transaction that commits the paid/refunded state. Run `sendPendingGmvEvents(...)` outside checkout.
 
-Keep `BUYNA_GMV_API_URL`, client identity/secret, project id, seller id, and merchant name server-side. For an approved transitional bearer endpoint use `GMV_INGESTION_SECRET`; never distribute one bearer secret across unrelated merchant backends.
+Keep `BUYNA_GMV_API_URL`, client identity/secret, project id, seller id, and merchant name server-side. Resolve the CRM base URL from that trusted configuration rather than a Skill-embedded host. For an approved transitional bearer endpoint use `GMV_INGESTION_SECRET`; never distribute one bearer secret across unrelated merchant backends.
 
 The Outbox and worker are server-only. Do not add GMV read routes to the merchant backend, and do not expose GMV data or credentials to the merchant storefront, merchant admin, public API, browser bundle, or exports. Merchant order/payment/refund screens may retain their ordinary operational records without GMV labels or GMV aggregation.

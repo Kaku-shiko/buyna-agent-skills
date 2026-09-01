@@ -2,6 +2,7 @@ param(
     [ValidateSet('User', 'Project')]
     [string]$Scope = 'User',
     [string]$ProjectPath = (Get-Location).Path,
+    [switch]$SkillsOnly,
     [switch]$Force
 )
 
@@ -31,10 +32,12 @@ if ((Test-Path -LiteralPath $manifestDestinationPath) -and -not $Force) {
 }
 
 New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $moduleDestinationRoot -Force | Out-Null
+if (-not $SkillsOnly) {
+    New-Item -ItemType Directory -Path $moduleDestinationRoot -Force | Out-Null
+}
 New-Item -ItemType Directory -Path $manifestDestinationRoot -Force | Out-Null
 
-$obsoleteSkills = @('buyna-project-framework')
+$obsoleteSkills = @($manifest.obsoleteSkills)
 foreach ($obsoleteSkill in $obsoleteSkills) {
     $obsoletePath = Join-Path $destinationRoot $obsoleteSkill
     if (Test-Path -LiteralPath $obsoletePath) {
@@ -76,32 +79,38 @@ foreach ($obsoleteSkill in $obsoleteSkills) {
     Write-Host "Installed: $skillName"
 }
 
-@($manifest.packages) | ForEach-Object {
-    $moduleName = [string]$_
-    $source = Join-Path $moduleSourceRoot $moduleName
-    $destination = Join-Path $moduleDestinationRoot $moduleName
+if (-not $SkillsOnly) {
+    @($manifest.packages) | ForEach-Object {
+        $moduleName = [string]$_
+        $source = Join-Path $moduleSourceRoot $moduleName
+        $destination = Join-Path $moduleDestinationRoot $moduleName
 
-    if (-not (Test-Path -LiteralPath (Join-Path $source 'package.json'))) {
-        throw "Invalid fixed module: $moduleName is missing package.json"
-    }
-    if ((Test-Path -LiteralPath $destination) -and -not $Force) {
-        throw "Fixed module already exists: $destination. Use -Force to update installed modules."
-    }
-    if ((Test-Path -LiteralPath $destination) -and $Force) {
-        $resolvedRoot = [IO.Path]::GetFullPath($moduleDestinationRoot).TrimEnd('\') + '\'
-        $resolvedDestination = [IO.Path]::GetFullPath($destination)
-        if (-not $resolvedDestination.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Refusing to replace a fixed module outside the module root: $resolvedDestination"
+        if (-not (Test-Path -LiteralPath (Join-Path $source 'package.json'))) {
+            throw "Invalid fixed module: $moduleName is missing package.json"
         }
-        Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
+        if ((Test-Path -LiteralPath $destination) -and -not $Force) {
+            throw "Fixed module already exists: $destination. Use -Force to update installed modules."
+        }
+        if ((Test-Path -LiteralPath $destination) -and $Force) {
+            $resolvedRoot = [IO.Path]::GetFullPath($moduleDestinationRoot).TrimEnd('\') + '\'
+            $resolvedDestination = [IO.Path]::GetFullPath($destination)
+            if (-not $resolvedDestination.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to replace a fixed module outside the module root: $resolvedDestination"
+            }
+            Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
+        }
+        Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+        Write-Host "Installed fixed module: $moduleName"
     }
-    Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
-    Write-Host "Installed fixed module: $moduleName"
 }
 
 Copy-Item -LiteralPath $manifestSourcePath -Destination $manifestDestinationPath -Force
 
 Write-Host ""
 Write-Host "Installation complete: $destinationRoot"
-Write-Host "Fixed modules: $moduleDestinationRoot"
+if ($SkillsOnly) {
+    Write-Host 'Fixed modules: unchanged (SkillsOnly)'
+} else {
+    Write-Host "Fixed modules: $moduleDestinationRoot"
+}
 Write-Host 'Restart Codex or open a new task, then invoke $buyna-website-builder.'

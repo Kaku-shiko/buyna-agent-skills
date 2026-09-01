@@ -7,6 +7,14 @@ description: "Use when a Buyna.ai request involves GlobePay configuration, one-t
 
 Use this as the GlobePay router. Do not implement detailed endpoint logic here; select the right payment subskill and combine it with product, booking, or checkout skills.
 
+When invoked by the Website Builder, consume `executionCheckReceipt`. Reuse
+unchanged payment architecture, server-config boundary, selected Module, and
+package-test evidence for the same package source digest; do not rerun those
+static checks in payment and status-sync siblings. Every live provider request
+still performs fresh signing/query and exact order, amount, currency, and
+idempotency verification. Standalone invocation collects its static evidence
+once without claiming Builder or production authorization.
+
 ## New Fixed-Core Path
 
 For new builds and fixed-state repairs, use this sequence:
@@ -27,7 +35,8 @@ configuration, routes, and presentation around those fixed cores.
 
 Locate this installed Skill directory and use `scripts/globepay-core.mjs` as the
 canonical program API. Use `scripts/globepay-cli.mjs --operation <name>` for
-JSON CLI execution. Run its tests before project integration:
+JSON CLI execution. Run its tests before project integration only when the
+receipt has no PASS for the current package source digest:
 
 ```text
 node --test scripts/globepay-core.test.mjs scripts/globepay-service.test.mjs

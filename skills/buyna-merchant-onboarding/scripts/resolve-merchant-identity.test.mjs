@@ -6,22 +6,22 @@ import path from 'node:path';
 import {resolveMerchantIdentity} from './resolve-merchant-identity.mjs';
 
 test('generates a deterministic new merchant identity from the approved host',()=>{
-  const result=resolveMerchantIdentity({primaryHost:'chameleon.buyna.ai'});
-  assert.deepEqual({...result},{status:'candidate',projectId:'chameleon',sellerId:'seller_chameleon',resourceFile:path.join('projects','chameleon','resources.yaml')});
+  const result=resolveMerchantIdentity({primaryHost:'demo-store.example.test'});
+  assert.deepEqual({...result},{status:'candidate',projectId:'demo-store',sellerId:'seller_demo_store',resourceFile:path.join('projects','demo-store','resources.yaml')});
 });
 
 test('accepts explicit canonical IDs including underscores',()=>{
-  const result=resolveMerchantIdentity({projectId:'chameleon_shop',sellerId:'seller_chameleon'});
-  assert.equal(result.sellerId,'seller_chameleon');
+  const result=resolveMerchantIdentity({projectId:'demo_store',sellerId:'seller_demo_store'});
+  assert.equal(result.sellerId,'seller_demo_store');
 });
 
 test('reuses an exact registry identity and blocks collisions',()=>{
   const root=mkdtempSync(path.join(tmpdir(),'merchant-registry-'));
   try{
-    const folder=path.join(root,'chameleon');mkdirSync(folder);
-    writeFileSync(path.join(folder,'resources.yaml'),'project: {id: chameleon, seller_id: seller_chameleon}\n');
-    assert.equal(resolveMerchantIdentity({primaryHost:'chameleon.buyna.ai',registryRoot:root}).status,'existing');
-    assert.throws(()=>resolveMerchantIdentity({projectId:'other',sellerId:'seller_chameleon',registryRoot:root}),/MERCHANT_IDENTITY_COLLISION/);
+    const folder=path.join(root,'demo-store');mkdirSync(folder);
+    writeFileSync(path.join(folder,'resources.yaml'),'project: {id: demo-store, seller_id: seller_demo_store}\n');
+    assert.equal(resolveMerchantIdentity({primaryHost:'demo-store.example.test',registryRoot:root}).status,'existing');
+    assert.throws(()=>resolveMerchantIdentity({projectId:'other',sellerId:'seller_demo_store',registryRoot:root}),/MERCHANT_IDENTITY_COLLISION/);
   }finally{rmSync(root,{recursive:true,force:true})}
 });
 
