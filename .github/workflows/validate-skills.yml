@@ -47,9 +47,21 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem packages -Directory | ForEach-Object {
-            npm test --prefix $_.FullName
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $package = Get-Content -Raw (Join-Path $_.FullName 'package.json') | ConvertFrom-Json
+            if ([string]::IsNullOrWhiteSpace([string]$package.scripts.test)) {
+              Write-Host "Skipping $($_.Name): no package-local test script"
+            } else {
+              npm test --prefix $_.FullName
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
           }
+      - name: Test repository contracts
+        shell: pwsh
+        run: |
+          $testFiles = @(Get-ChildItem tests -File -Filter '*.test.mjs' | Select-Object -ExpandProperty FullName)
+          if ($testFiles.Count -eq 0) { throw 'No repository contract tests found' }
+          node --test $testFiles
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test project resource registry
         shell: pwsh
         run: node --test skills/buyna-project-resource-registry/scripts/validate-resource-record.test.mjs

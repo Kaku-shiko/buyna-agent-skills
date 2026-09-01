@@ -116,7 +116,7 @@ After customer scope and combined design/structure are explicitly approved, a us
 | 4 | `frontend_code` | files, passing checks, interface contract |
 | 5 | `dashboard_integration` | configured slices only; each slice is `DONE`/`SKIP` |
 | 6 | `checkout_payment` | always: checkout-flow/local pending order and tests; when payment is enabled: trusted notify/query, exact amount/currency, idempotency, GMV Outbox |
-| 7 | `testing_upload_gate` | required checks PASS and soft checks can be `DEFERRED` |
+| 7 | `testing_upload_gate` | FAST_RELEASE essential checks PASS; FULL_VERIFICATION is optional and can be `DEFERRED` |
 | 8 | `aws_release` | version, architecture-specific target, required zero-create counters, URLs, health, rollback |
 
 The intake delivery stores `siteType` and all five capability booleans. Dashboard and
@@ -131,7 +131,7 @@ Product commerce without provider payment records `requiresCart=true`,
 `requiresCheckout=true`, and `requiresPayment=false`; its checkout gate runs
 the checkout-flow core and skips provider settlement only. Paid booking may set
 `requiresCart=false` with checkout and payment true.
-Hard checks (security, identity isolation, existing-resource verification, payment integrity, rollback availability, required infrastructure policy) must pass and cannot be deferred.
+Hard checks for the current release (secrets, identity isolation, registered target, rollback, unauthorized infrastructure, and post-deploy health) must pass and cannot be deferred. Payment integrity is hard only when payment is being enabled or claimed verified; user-owned payment testing is recorded as `PAYMENT_VERIFICATION: USER_OWNED_PENDING` and does not block the website release.
 Other checks may be `DEFERRED` only with explicit approval context.
 Child Skills return evidence; only `buyna-website-builder` persists transitions. A work package reduces repeated confirmation, never evidence requirements or authorization for external mutations.
 

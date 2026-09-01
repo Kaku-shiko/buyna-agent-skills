@@ -1,24 +1,15 @@
 # Phase 7: Testing And Upload Gate
 
-Deliver or update applicable automated tests and run them. For product
-commerce, first verify and test the fixed Dashboard, catalog, cart, order,
-PostgreSQL, and file modules. Verify desktop/mobile, permission, persistence,
-error handling, UTF-8, critical journeys, and package size.
+This phase keeps the compatible `testing_upload_gate` state ID but defaults to
+上线优先的 `FAST_RELEASE`; it is no longer a mandatory exhaustive audit.
 
-### Minimum delivery checks（默认优先）
+### FAST_RELEASE（默认，优先上线）
 
-- 只测最小阻塞项：
-  1) 站点主链路可用（首页/列表/详情/下单或预约主路径）
-  2) 关键权限与租户隔离（基础写保护）
-  3) 支付成功/失败关键状态流转（非全渠道全异常）
-  4) 运行包体与依赖清理（禁用本地环境文件、缓存、未过滤的大文件）
-  5) 可部署证据（构建产物路径、依赖恢复命令、部署目标）
-- 通过后记录 `PASS_MIN`，并给出明确 `DEFERRED` 清单（谁负责/截止时间）。
-- 仅在用户确认后启动“完整覆盖测试”：全量 UI 回归、全渠道异常码回放、性能压力、跨浏览器、端到端长链路。
+- 上线前只确认：运行产物可构建/启动且没有 Secret 或本地环境文件；目标资源已登记；关键写入具备租户隔离；回滚路径存在。
+- 上线后立即确认：首页或主入口、一个关键 API/路由、HTTPS 和运行日志健康。
+- 通过后记录 `FAST_RELEASE: PASS`。包体排行、图片阈值、重复素材、未使用依赖、全量 UI/移动端/跨浏览器/性能与长链路均记为 `DEFERRED`，不阻断本次上线。
+- 用户自己测试支付时记录 `PAYMENT_VERIFICATION: USER_OWNED_PENDING`；这不阻断网站上线，但不得宣称支付已上线或已验证。
 
-Hard-test checks must pass before upload in minimal mode; deferred items become explicit follow-up tasks.
-Non-blocking quality checks can be `DEFERRED` with explicit approval and a
-scheduled follow-up.
-Require an executed pre-upload report, exclusions, restore/build commands, and
-`PASS` for required checks; do not upload dependencies, caches, local
- environments, or unexplained oversized assets.
+### FULL_VERIFICATION（仅明确要求）
+
+只有用户明确说“要完整验证”或本次任务就是质量审计时，才运行固定模块与项目全测、全量 UI 回归、支付异常与退款、包体/重复资产审计、性能和跨浏览器验证。
