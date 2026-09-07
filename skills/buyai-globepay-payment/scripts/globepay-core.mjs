@@ -56,16 +56,54 @@ export function planCheckout({paymentMethod,context='desktop',enabledMethods}={}
   return{status:'pass',paymentMethod:method,context,channel,endpointFamily:'gateway',nextAction:'show_qr'};
 }
 
-export function evaluateProviderStatus({currentStatus,resultCode,eventType}={}){
+// Server-only: use the provider's pay_url, never reconstruct it from system order_id.
+export function buildProviderPayUrl({httpStatus,response,partnerCode,credentialCode,merchantOrderId,endpointFamily,redirectUrl,amount,currency,existingOrder,time,nonce}={}){
+  if(!Number.isInteger(httpStatus)||httpStatus<200||httpStatus>=300||response?.return_code!=='SUCCESS')codedError('PROVIDER_CREATE_REJECTED');
+  if(!['SUCCESS','EXISTS'].includes(response?.result_code))codedError('PROVIDER_CREATE_REJECTED');
+  const partner=trim(partnerCode),merchantOrder=trim(merchantOrderId);
+  if(!partner)codedError('MISSING_PARTNER_CODE');
+  if(!merchantOrder)codedError('MISSING_MERCHANT_ORDER_ID');
+  if(response.partner_code!==partner||response.partner_order_id!==merchantOrder)codedError('PROVIDER_ORDER_IDENTITY_MISMATCH');
+  const providerOrderId=trim(response.order_id);
+  if(!providerOrderId)codedError('MISSING_PROVIDER_ORDER_ID');
+  if(response.result_code==='EXISTS'){
+    if(!existingOrder)codedError('PROVIDER_EXISTING_ORDER_QUERY_REQUIRED');
+    if(!Number.isSafeInteger(amount)||amount<1||!trim(currency)||
+      existingOrder.partnerCode!==partner||existingOrder.merchantOrderId!==merchantOrder||
+      existingOrder.amount!==amount||existingOrder.currency!==currency||
+      existingOrder.status!=='pending_payment')codedError('PROVIDER_EXISTING_ORDER_MISMATCH');
+  }
+  if(!httpsUrl(redirectUrl))codedError('INVALID_REDIRECT_URL');
+  const paths={
+    gateway:`/api/v1.0/gateway/partners/${encodeURIComponent(partner)}/orders/${encodeURIComponent(merchantOrder)}/pay`,
+    h5_payment:`/api/v1.0/h5_payment/partners/${encodeURIComponent(partner)}/orders/${encodeURIComponent(merchantOrder)}/pay`,
+    pre_card_orders:`/api/v1.0/channels/card/partners/${encodeURIComponent(partner)}/gateway_orders/${encodeURIComponent(merchantOrder)}/view`,
+  };
+  if(!paths[endpointFamily])codedError('PROVIDER_PAY_URL_FAMILY_UNSUPPORTED');
+  let payUrl;
+  try{payUrl=new URL(response.pay_url)}catch{codedError('PROVIDER_PAY_URL_REQUIRED')}
+  if(payUrl.origin!=='https://pay.globepay.co.jp'||payUrl.username||payUrl.password||payUrl.hash||payUrl.pathname!==paths[endpointFamily])codedError('PROVIDER_PAY_URL_MISMATCH');
+  const auth=buildAuthParams({partnerCode:partner,credentialCode,time,nonce});
+  for(const key of ['time','nonce_str','sign'])payUrl.searchParams.set(key,auth[key]);
+  payUrl.searchParams.set('redirect',trim(redirectUrl));
+  return{merchantOrderId:merchantOrder,providerOrderId,payUrl:payUrl.href};
+}
+
+export function evaluateProviderStatus({currentStatus,resultCode,eventType,paidAmount,refundedAmount,refundAmount}={}){
   const current=trim(currentStatus)||'pending_payment',result=trim(resultCode).toUpperCase(),event=trim(eventType).toLowerCase();
   if(!trustedStatusEvents.has(event))return{status:'blocked',code:'UNTRUSTED_PAYMENT_EVENT',currentStatus:current,nextStatus:current,effects:[]};
   let next=current,effects=[];
   if(current==='refunded')next='refunded';
-  else if(refundCodes.has(result)&&['paid','refunded'].includes(current)){next='refunded';effects=['upsert_payment','record_refund'];}
-  else if(result==='PAY_SUCCESS'){next='paid';effects=['upsert_payment','upsert_paid_record','apply_inventory_once'];}
-  else if(result==='CLOSED'&&!['paid','refunded'].includes(current)){next='cancelled';effects=['upsert_payment'];}
-  else if(['PAY_FAIL','CREATE_FAIL'].includes(result)&&!['paid','refunded'].includes(current)){next='failed';effects=['upsert_payment'];}
-  return{status:'pass',code:next===current?'NO_STATUS_CHANGE':'STATUS_TRANSITION',currentStatus:current,nextStatus:next,effects};
+  else if(refundCodes.has(result)&&['paid','partially_refunded'].includes(current)){
+    const valid=Number.isSafeInteger(paidAmount)&&paidAmount>0&&Number.isSafeInteger(refundedAmount)&&refundedAmount>=0&&Number.isSafeInteger(refundAmount)&&refundAmount>0&&refundAmount>=refundedAmount&&refundAmount<=paidAmount;
+    if(!valid)return{status:'blocked',code:'REFUND_AMOUNT_INVALID',currentStatus:current,nextStatus:current,effects:[]};
+    if((result==='PARTIAL_REFUND'&&refundAmount>=paidAmount)||(result!=='PARTIAL_REFUND'&&refundAmount!==paidAmount))return{status:'blocked',code:'REFUND_STATUS_MISMATCH',currentStatus:current,nextStatus:current,effects:[]};
+    if(refundAmount>refundedAmount){next=refundAmount===paidAmount?'refunded':'partially_refunded';effects=['upsert_payment','record_refund'];}
+  }
+  else if(result==='PAY_SUCCESS'&&current!=='partially_refunded'){next='paid';effects=['upsert_payment','upsert_paid_record','apply_inventory_once'];}
+  else if(result==='CLOSED'&&!['paid','partially_refunded','refunded'].includes(current)){next='cancelled';effects=['upsert_payment'];}
+  else if(['PAY_FAIL','CREATE_FAIL'].includes(result)&&!['paid','partially_refunded','refunded'].includes(current)){next='failed';effects=['upsert_payment'];}
+  return{status:'pass',code:next===current?'NO_STATUS_CHANGE':'STATUS_TRANSITION',currentStatus:current,nextStatus:next,effects,...(effects.includes('record_refund')?{refundDelta:refundAmount-refundedAmount,cumulativeRefundAmount:refundAmount}:{})};
 }
 
 function stable(value){

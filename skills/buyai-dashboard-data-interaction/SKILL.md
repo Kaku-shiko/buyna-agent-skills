@@ -126,3 +126,8 @@ product media contract for product images and the same durable sequence for
 service/site images. Do not report completion from preview, upload HTTP success
 alone, or fixed-module tests. Verify the connected project's routes and Adapters;
 report the exact failing stage or missing runtime evidence.
+
+Cached integration receipts must use `buyna-integration-receipt-core` validation.
+Malformed/missing dates, future timestamps and expiry (including the exact
+expiration instant) block reuse. Recreate valid evidence rather than bypassing
+the check; this receipt does not replace authenticated request authorization.

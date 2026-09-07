@@ -6,6 +6,7 @@ on:
       - "skills/**"
       - ".agents/skills/**"
       - "packages/**"
+      - "tests/**"
       - "repository-manifest.json"
       - "scripts/install.ps1"
       - "scripts/validate.ps1"
@@ -16,6 +17,7 @@ on:
       - "skills/**"
       - ".agents/skills/**"
       - "packages/**"
+      - "tests/**"
       - "repository-manifest.json"
       - "scripts/install.ps1"
       - "scripts/validate.ps1"
@@ -62,9 +64,10 @@ jobs:
           if ($testFiles.Count -eq 0) { throw 'No repository contract tests found' }
           node --test $testFiles
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Test project resource registry
+      - name: Test every Skill script
         shell: pwsh
-        run: node --test skills/buyna-project-resource-registry/scripts/validate-resource-record.test.mjs
-      - name: Test RDS resource identity migration guard
-        shell: pwsh
-        run: node --test skills/buyna-unified-merchant-architecture/scripts/validate-resource-identity-migration.test.mjs
+        run: |
+          $skillTests = @(Get-ChildItem skills -Recurse -File -Filter '*.test.mjs' | Select-Object -ExpandProperty FullName)
+          if ($skillTests.Count -eq 0) { throw 'No Skill script tests found' }
+          node --test $skillTests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

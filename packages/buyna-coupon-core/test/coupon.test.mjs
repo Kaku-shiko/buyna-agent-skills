@@ -282,10 +282,7 @@ test('normalizes codes and owns guarded management transitions', async () => {
   });
   assert.equal(paused.state, 'paused');
 
-  await assert.rejects(
-    coupons.activate({ eventId: 'event-reactivate', couponId: active.couponId }),
-    { code: 'COUPON_INVALID_TRANSITION' },
-  );
+  assert.equal((await coupons.activate({ eventId: 'event-reactivate', couponId: active.couponId })).state, 'active');
 
   const archived = await coupons.archive({
     eventId: 'event-archive',

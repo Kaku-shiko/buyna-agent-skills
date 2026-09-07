@@ -19,7 +19,7 @@ export { READ_PAGE_LIMIT, MAX_FACT_ROWS, MAX_FACT_PAGES, MAX_CANDIDATE_ROWS, MAX
 
 export const SUPPORTED_CURRENCIES = Object.freeze(['JPY']);
 export const COMMERCE_READ_STATUSES = Object.freeze([
-  'pending_payment', 'paid', 'partially_refunded', 'refunded', 'cancelled',
+  'pending_payment', 'paid', 'partially_refunded', 'refunded', 'cancelled', 'failed', 'expired',
 ]);
 export const TREND_INTERVALS = Object.freeze(['day', 'month']);
 

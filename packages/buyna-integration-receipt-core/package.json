@@ -1,1 +1,11 @@
-{"name":"@buyna/integration-receipt-core","version":"0.1.0","type":"module","exports":{".":"./src/index.mjs"},"scripts":{"test":"node --test test/integration-receipt.test.mjs"}}
+{
+  "name": "@buyna/integration-receipt-core",
+  "version": "0.1.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/integration-receipt.test.mjs"
+  }
+}

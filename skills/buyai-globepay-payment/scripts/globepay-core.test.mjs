@@ -1,3 +1,4 @@
+import * as paymentCore from './globepay-core.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
@@ -41,7 +42,7 @@ test('checkout planning preserves the selected method and routes by trusted cont
 test('provider status evaluation never treats redirect or order creation as paid',()=>{
   assert.deepEqual(evaluateProviderStatus({currentStatus:'pending_payment',eventType:'redirect',resultCode:'PAY_SUCCESS'}),{status:'blocked',code:'UNTRUSTED_PAYMENT_EVENT',currentStatus:'pending_payment',nextStatus:'pending_payment',effects:[]});
   assert.equal(evaluateProviderStatus({currentStatus:'expired',eventType:'query',resultCode:'PAY_SUCCESS'}).nextStatus,'paid');
-  assert.equal(evaluateProviderStatus({currentStatus:'paid',eventType:'notify',resultCode:'FULL_REFUND'}).nextStatus,'refunded');
+  assert.equal(evaluateProviderStatus({currentStatus:'paid',eventType:'notify',resultCode:'FULL_REFUND',paidAmount:100,refundedAmount:0,refundAmount:100}).nextStatus,'refunded');
   assert.equal(evaluateProviderStatus({currentStatus:'refunded',eventType:'query',resultCode:'PAY_SUCCESS'}).nextStatus,'refunded');
   assert.equal(evaluateProviderStatus({currentStatus:'pending_payment',eventType:'notify',resultCode:'CLOSED'}).nextStatus,'cancelled');
 });
@@ -75,4 +76,37 @@ test('CLI rejects a missing operation and never prints the credential',()=>{
   assert.equal(checked.status,0);
   assert.equal(JSON.parse(checked.stdout).status,'pass');
   assert.equal(checked.stdout.includes(credential),false);
+});
+
+
+function providerHandoff(overrides={}){
+ return{httpStatus:200,partnerCode:'P100',credentialCode:'C200',merchantOrderId:'MERCHANT-1',endpointFamily:'pre_card_orders',redirectUrl:'https://shop.example/payment/result?orderId=LOCAL-1',time:1700000000000,nonce:'nonce_123',response:{return_code:'SUCCESS',result_code:'SUCCESS',partner_code:'P100',partner_order_id:'MERCHANT-1',order_id:'SYSTEM-9',pay_url:'https://pay.globepay.co.jp/api/v1.0/channels/card/partners/P100/gateway_orders/MERCHANT-1/view'},...overrides};
+}
+test('provider handoff preserves merchant/system IDs and signs the returned URL',()=>{
+ const result=paymentCore.buildProviderPayUrl(providerHandoff());
+ assert.equal(result.merchantOrderId,'MERCHANT-1');assert.equal(result.providerOrderId,'SYSTEM-9');
+ const url=new URL(result.payUrl);assert.ok(url.pathname.includes('/MERCHANT-1/'));
+ assert.equal(url.searchParams.get('redirect'),'https://shop.example/payment/result?orderId=LOCAL-1');
+ assert.equal(url.searchParams.get('time'),'1700000000000');assert.ok(url.searchParams.get('sign'));
+ assert.ok(!JSON.stringify(result).includes('C200'));
+});
+test('provider handoff rejects failed creation, mismatched merchant IDs and guessed pay-page paths',()=>{
+ const valid=providerHandoff();
+ for(const response of [
+  {...valid.response,return_code:'FAIL'},
+  {...valid.response,result_code:'CREATE_FAIL'},
+  {...valid.response,partner_code:'OTHER'},
+  {...valid.response,partner_order_id:'LOCAL-1'},
+  {...valid.response,pay_url:undefined},
+  {...valid.response,pay_url:valid.response.pay_url.replace('MERCHANT-1','SYSTEM-9')},
+  {...valid.response,pay_url:'https://pay.globepay.co.jp/api/v1.0/gateway/partners/P100/orders/MERCHANT-1/pay'},
+ ])assert.throws(()=>paymentCore.buildProviderPayUrl({...valid,response}));
+ assert.throws(()=>paymentCore.buildProviderPayUrl({...valid,httpStatus:500}));
+});
+test('existing provider orders require exact trusted query reconciliation before reuse',()=>{
+ const input=providerHandoff();input.response.result_code='EXISTS';input.amount=1200;input.currency='JPY';
+ assert.throws(()=>paymentCore.buildProviderPayUrl(input),{code:'PROVIDER_EXISTING_ORDER_QUERY_REQUIRED'});
+ const existingOrder={partnerCode:'P100',merchantOrderId:'MERCHANT-1',amount:1200,currency:'JPY',status:'pending_payment'};
+ assert.equal(paymentCore.buildProviderPayUrl({...input,existingOrder}).providerOrderId,'SYSTEM-9');
+ assert.throws(()=>paymentCore.buildProviderPayUrl({...input,existingOrder:{...existingOrder,amount:1}}),{code:'PROVIDER_EXISTING_ORDER_MISMATCH'});
 });

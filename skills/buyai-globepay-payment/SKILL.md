@@ -89,3 +89,8 @@ Confirm server-only secrets, correct base URL, correct endpoint family, local pe
 The selected subskill must deliver real server-side source/configuration changes
 without secrets and applicable tests. Report changed paths and verification
 results; a payment plan or provider instructions alone are not complete.
+
+For hosted checkout, use the server-only `buildProviderPayUrl` helper and the
+[provider handoff contract](references/service-adapter-contract.md#provider-order-handoff)
+inside the project provider Adapter. Status-machine selection still follows the
+persisted architecture; do not compose both status writers.

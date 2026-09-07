@@ -60,9 +60,13 @@ export function createMerchantFileService({storage,metadata,projectId,sellerId,p
         const newFile=await tx.getFileById({scope:{...scope},fileId:segment(input.newFileId,'INVALID_NEW_FILE_ID')});
         if(!oldFile||!newFile)fail('FILE_NOT_FOUND');
         ownedKey(oldFile.objectKey);ownedKey(newFile.objectKey);
+        if(oldFile.id===newFile.id)return{unchanged:true,oldFile,newFile:oldFile};
+        if(oldFile.objectKey===newFile.objectKey)fail('REPLACEMENT_OBJECT_KEY_CONFLICT');
         if(newFile.status!=='confirmed')fail('NEW_FILE_NOT_CONFIRMED');
         return tx.replaceFile({scope:{...scope},oldFileId:oldFile.id,newFileId:newFile.id});
       });
+      if(replacement.unchanged)return{file:replacement.newFile,cleanupPending:false};
+      if(replacement.oldFile.id===replacement.newFile.id||replacement.oldFile.objectKey===replacement.newFile.objectKey)fail('REPLACEMENT_OBJECT_KEY_CONFLICT');
       try{
         await storage.deleteObject({key:ownedKey(replacement.oldFile.objectKey)});
         await metadata.markObjectDeleted({scope:{...scope},fileId:replacement.oldFile.id});

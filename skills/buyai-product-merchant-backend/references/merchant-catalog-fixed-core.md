@@ -110,3 +110,10 @@ Use `reorderCategories` for existing-category order changes and
 `setCategoryVisibility` for visibility. Do not pass sortOrder/status through
 ordinary text editing. Reopen from a fresh `getCategory` read after save and
 verify text, clearing, order, and merchant scope in the project Adapter.
+
+## Edit persistence
+
+`updateProduct` preserves explicit empty description/shortDescription values to
+clear text; omitted fields stay unchanged. Product and variant no-op updates
+return the locked existing record without an empty SQL UPDATE. Retain this
+behavior in project form mapping and verify saved values with a fresh read.

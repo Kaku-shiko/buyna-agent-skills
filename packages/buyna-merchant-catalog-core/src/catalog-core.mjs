@@ -269,19 +269,20 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
     async updateProduct(input={}){
       rejectManagedWrites(input);
       const id=required(input.productId,'MISSING_PRODUCT_ID');
-      const data=compact({
+      const data=Object.fromEntries(Object.entries({
         name:input.name===undefined?undefined:required(input.name,'MISSING_PRODUCT_NAME'),
         description:input.description,
         short_description:input.shortDescription,
         price:input.price===undefined?undefined:nonNegative(input.price,'INVALID_PRODUCT_PRICE'),
         currency:input.currency===undefined?undefined:required(input.currency,'MISSING_CURRENCY').toUpperCase(),
         stock:input.stock===undefined?undefined:stockQuantity(input.stock,'INVALID_PRODUCT_STOCK'),
-        category_id:input.categoryId,
-      });
+        category_id:input.categoryId===''?null:input.categoryId,
+      }).filter(([,value])=>value!==undefined));
       return withLocks(async transactionCore=>{
         const repository=lockingRepository(transactionCore,productPolicy);
         const current=await repository.getByIdForUpdate(id);
         if(!current)fail('CATALOG_PRODUCT_NOT_FOUND');
+        if(!Object.keys(data).length)return current;
         const candidate={...current,...data};
         if(candidate.status===CATALOG_STATES.ACTIVE){
           assertActiveProductCandidate(candidate);
@@ -406,6 +407,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
         const repository=lockingRepository(transactionCore,variantPolicy);
         const current=await repository.getByIdForUpdate(id);
         if(!current)fail('CATALOG_VARIANT_NOT_FOUND');
+        if(!Object.keys(data).length)return current;
         const candidate={...current,...data};
         if(candidate.status===CATALOG_STATES.ACTIVE)await assertActiveVariantCandidate(transactionCore,repository,candidate,{excludeId:id});
         return repository.updateById(id,data);

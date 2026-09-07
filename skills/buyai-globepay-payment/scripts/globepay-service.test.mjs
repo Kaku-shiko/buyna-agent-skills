@@ -21,6 +21,8 @@ test('checkout persists a pending order before calling GlobePay and then attache
   assert.deepEqual(calls.map(item=>item[0]),['pending','provider','attach']);
   assert.equal(result.status,'pending_payment');
   assert.equal(result.providerOrderId,'GP-1');
+  assert.equal(result.id,'local-1');
+  assert.equal(result.merchantOrderId,'ORDER-1');
   assert.equal(result.nextAction.type,'redirect');
 });
 
@@ -98,4 +100,19 @@ test('provider creation failure happens only after the pending order is persiste
 
   await assert.rejects(()=>service.createCheckout({sellerId:'seller-1',merchantOrderId:'ORDER-1',amount:1200,currency:'JPY',paymentMethod:'card'}),/PROVIDER_UNAVAILABLE/);
   assert.deepEqual(calls,[['pending','pending_payment'],'provider']);
+});
+
+
+test('checkout cannot hand off when the provider binding was not persisted',async()=>{
+ const service=createGlobepayService({store:{async createPendingOrder(){return{id:'local-1'}},async attachProviderOrder(){return null}},provider:{async createOrder(){return{providerOrderId:'GP-1',nextAction:{type:'redirect',url:'https://pay.example/GP-1'}}}}});
+ await assert.rejects(()=>service.createCheckout({sellerId:'seller-1',merchantOrderId:'ORDER-1',amount:1200,currency:'JPY',paymentMethod:'card'}),{code:'PROVIDER_ORDER_NOT_PERSISTED'});
+});
+
+test('legacy partial/full refund writer receives only the new delta and preserves partial state on paid queries',async()=>{
+  const order={id:'o1',status:'paid',amount:100,currency:'JPY',refundedAmount:0};let query={providerOrderId:'gp1',resultCode:'PARTIAL_REFUND',amount:100,currency:'JPY',refundAmount:40};const deltas=[];
+  const service=createGlobepayService({provider:{queryOrder:async()=>query},store:{withTransaction:work=>work({getOrderByProviderId:async()=>({...order}),claimPaymentEvent:async()=>true,applyPaymentTransition:async transition=>{order.status=transition.nextStatus;if(transition.effects.includes('record_refund')){deltas.push(transition.refundDelta);order.refundedAmount=transition.cumulativeRefundAmount}},getOrderById:async()=>({...order})})}});
+  const sync=()=>service.syncPaymentStatus({sellerId:'s1',providerOrderId:'gp1',eventType:'query'});
+  await sync();assert.equal(order.status,'partially_refunded');await sync();assert.deepEqual(deltas,[40]);
+  query={...query,resultCode:'PAY_SUCCESS'};await sync();assert.equal(order.status,'partially_refunded');
+  query={...query,resultCode:'FULL_REFUND',refundAmount:100};await sync();assert.equal(order.status,'refunded');assert.deepEqual(deltas,[40,60]);
 });
