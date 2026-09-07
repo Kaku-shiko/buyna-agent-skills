@@ -9,7 +9,7 @@ test('product backend routes product images through the fixed catalog and file c
   const contract=read('skills/buyai-product-merchant-backend/references/product-media-fixed-core.md');
   const phase=read('skills/buyna-website-builder/references/phase-05-dashboard-integration.md');
   for(const text of [skill,contract,phase])assert.match(text,/createProductMediaService/);
-  assert.match(skill,/createDraftWithImage[^]*attachUploadedImage[^]*setMainImage[^]*reorderImages[^]*replaceUploadedImage[^]*removeImage/);
+  assert.match(skill,/createDraft[^]*prepare upload[^]*transfer bytes[^]*attachUploadedImage[^]*setMainImage[^]*reorderImages[^]*replaceUploadedImage[^]*removeImage/);
   for(const method of ['getProductForUpdate','listProductImagesForUpdate','getProductImageByFileIdForUpdate','attachProductImage','replaceProductImage','setMainProductImage','reorderProductImages','removeProductImage','getProductWithImages'])assert.match(contract,new RegExp(method));
   assert.match(contract,/project_id \+ seller_id/);
   assert.match(contract,/first[- ]image[^]*main/i);
