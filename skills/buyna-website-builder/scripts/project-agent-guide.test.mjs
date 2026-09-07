@@ -63,3 +63,18 @@ test('CLI creates AGENTS.md from a task file', t => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(readFileSync(join(projectRoot, 'AGENTS.md'), 'utf8'), /中文商品网站/);
 });
+
+
+test('website types remain descriptive and service tasks preserve offline-payment scope', () => {
+  for (const siteType of ['content', 'commerce', 'service', 'mixed']) {
+    const guide = renderProjectAgentGuide({ task: { ...task, siteType } });
+    assert.match(guide, new RegExp(`"siteType": "${siteType}"`));
+    assert.match(guide, /尚未建立已验证的路由/);
+  }
+  const guide = renderProjectAgentGuide({ task: { projectId: 'booking', siteType: 'service', objective: '预约服务', constraints: ['到店付款，不启用在线支付'] } });
+  assert.match(guide, /到店付款，不启用在线支付/);
+  assert.match(guide, /服务容量不能直接套用商品库存逻辑/);
+  assert.match(guide, /merchant-legal-pages.md/);
+  assert.match(guide, /特定商取引法に基づく表記/);
+  assert.throws(() => renderProjectAgentGuide({ task: { ...task, siteType: 'unknown' } }), /TASK_SITE_TYPE_INVALID/);
+});

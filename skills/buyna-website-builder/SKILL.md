@@ -14,8 +14,13 @@ configuration, framework wiring, and visual presentation.
 
 Create or refresh project-root `AGENTS.md` using
 [project-agent-guide.md](references/project-agent-guide.md) after task intake,
-approved scope changes, and phase handoff. Preserve existing project rules. The
-generator records task scope and reuses this Builder's router for advisory Skill
+approved scope changes, and phase handoff. Preserve existing project rules.
+
+For every website type, carry the applicable merchant privacy and transaction
+disclosures from intake through design, frontend and verification using
+[merchant-legal-pages.md](references/merchant-legal-pages.md).
+
+The generator records task scope and reuses this Builder's router for advisory Skill
 and module snapshots; the guide never replaces verified workflow evidence.
 
 - New build: create a new workflow, invoke `buyna-customer-intake`, and persist
