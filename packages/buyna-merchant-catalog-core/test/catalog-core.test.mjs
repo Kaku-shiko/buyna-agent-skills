@@ -159,7 +159,7 @@ test('SKU writes use the fixed variant policy and reject negative price or stock
 });
 
 test('product and category edits map only approved normalized fields',async()=>{
-  const {core,calls}=fakeCore({products:[{id:'p1',status:'draft',price:100,currency:'JPY'}]});
+  const {core,calls}=fakeCore({products:[{id:'p1',status:'draft',price:100,currency:'JPY'}],categories:[{id:'c1',name:'Old',slug:'old',status:'draft'}]});
   const service=createMerchantCatalogService({dataCore:core});
   await service.updateProduct({productId:'p1',name:' New ',price:2000,stock:8,currency:'jpy'});
   await service.updateCategory({categoryId:'c1',name:' Care ',slug:'care'});
@@ -530,4 +530,61 @@ test('serialized parent deactivation and child activation never leave an active 
   assert.equal(categoryResults.filter(result=>result.status==='fulfilled').length,1);
   assert.equal(categoryResults.filter(result=>result.status==='rejected').length,1);
   assert.equal(categoryCase.records.get('products').get('p1').status==='active',categoryCase.records.get('categories').get('c1').status==='active');
+});
+
+
+test('category create persists the entered description and sort order',async()=>{
+ const {core,records}=fakeCore();
+ const service=createMerchantCatalogService({dataCore:core});
+ const created=await service.createCategory({name:' Care ',slug:'care',description:'Category details',sortOrder:4});
+ const saved=records.get('categories').get(created.id);
+ assert.equal(saved.description,'Category details');
+ assert.equal(saved.sort_order,4);
+ const reopened=await service.getCategory({categoryId:created.id});
+ assert.deepEqual(reopened,saved);
+});
+test('category edits clear optional description and preserve omitted fields',async()=>{
+ const {core,records}=fakeCore({categories:[{id:'c1',name:'Care',slug:'care',description:'Old details',status:'draft',sort_order:4}]});
+ const service=createMerchantCatalogService({dataCore:core});
+ await service.updateCategory({categoryId:'c1',description:''});
+ assert.equal(records.get('categories').get('c1').description,'');
+ await service.updateCategory({categoryId:'c1',name:' Updated '});
+ assert.equal(records.get('categories').get('c1').name,'Updated');
+ assert.equal(records.get('categories').get('c1').slug,'care');
+ assert.equal(records.get('categories').get('c1').sort_order,4);
+});
+test('category editing and reading missing records do not report saved',async()=>{
+ const {core}=fakeCore();const service=createMerchantCatalogService({dataCore:core});
+ await assert.rejects(()=>service.updateCategory({categoryId:'missing',name:'No record'}),{code:'CATALOG_CATEGORY_NOT_FOUND'});
+ await assert.rejects(()=>service.getCategory({categoryId:'missing'}),{code:'CATALOG_CATEGORY_NOT_FOUND'});
+});
+test('saving an unchanged category returns its current record without an empty SQL update',async()=>{
+ const {core,calls}=fakeCore({categories:[{id:'c1',name:'Care',slug:'care',description:'Keep',status:'draft'}]});
+ const service=createMerchantCatalogService({dataCore:core});
+ const result=await service.updateCategory({categoryId:'c1'});
+ assert.equal(result.description,'Keep');
+ assert.equal(calls.filter(call=>call[0]==='update').length,0);
+});
+
+
+test('category description preserves null clearing and rejects invalid values before writing',async()=>{
+ const {core,records}=fakeCore({categories:[{id:'c1',name:'Care',slug:'care',description:'Text',status:'draft'}]});
+ const service=createMerchantCatalogService({dataCore:core});
+ await service.updateCategory({categoryId:'c1',description:null});
+ assert.equal(records.get('categories').get('c1').description,'');
+ await assert.rejects(()=>service.updateCategory({categoryId:'c1',description:{unexpected:true}}),{code:'CATALOG_CATEGORY_DESCRIPTION_INVALID'});
+ await assert.rejects(()=>service.createCategory({name:'Care',slug:'care',sortOrder:-1}),{code:'CATALOG_SORT_ORDER_INVALID'});
+ await assert.rejects(()=>service.updateCategory({categoryId:'c1',sortOrder:3}),{code:'CATALOG_CATEGORY_ORDER_REQUIRES_REORDER'});
+ assert.equal(records.get('categories').get('c1').description,'');
+});
+
+
+test('name-only category forms get a generated slug that survives later edits',async()=>{
+ const {core}=fakeCore();const service=createMerchantCatalogService({dataCore:core});
+ const first=await service.createCategory({name:'分类名称'});
+ const second=await service.createCategory({name:'分类名称',slug:''});
+ assert.match(first.slug,/^category-[a-f0-9-]+$/);
+ assert.notEqual(first.slug,second.slug);
+ await service.updateCategory({categoryId:first.id,name:'编辑后的名称'});
+ assert.equal((await service.getCategory({categoryId:first.id})).slug,first.slug);
 });

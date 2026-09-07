@@ -74,6 +74,12 @@ function assertTransition(fromStatus,toStatus,{restoring=false}={}){
   return to;
 }
 
+function categoryDescription(value){
+  if(value===null)return '';
+  if(typeof value!=='string')fail('CATALOG_CATEGORY_DESCRIPTION_INVALID');
+  return value;
+}
+
 function currencySet(values){
   if(!Array.isArray(values)||!values.length)fail('CATALOG_ALLOWED_CURRENCIES_REQUIRED');
   const normalized=values.map(value=>required(value,'CATALOG_CURRENCY_REQUIRED').toUpperCase());
@@ -325,14 +331,37 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
     async listCategories(input={}){
       return categories.list({page:input.page,pageSize:input.pageSize,filters:compact({search:optional(input.search),status:optional(input.status)}),sort:input.sort});
     },
+    async getCategory({categoryId}={}){
+      const category=await categories.getById(required(categoryId,'MISSING_CATEGORY_ID'));
+      if(!category)fail('CATALOG_CATEGORY_NOT_FOUND');
+      return category;
+    },
     async createCategory(input={}){
       rejectCreateManagedWrites(input);
-      return categories.create({name:required(input.name,'MISSING_CATEGORY_NAME'),slug:required(input.slug,'MISSING_CATEGORY_SLUG'),status:createStatus(input.status,CATALOG_STATES.DRAFT)});
+      const data={name:required(input.name,'MISSING_CATEGORY_NAME'),slug:optional(input.slug)??`category-${globalThis.crypto.randomUUID()}`,status:createStatus(input.status,CATALOG_STATES.DRAFT)};
+      if(input.description!==undefined)data.description=categoryDescription(input.description);
+      if(input.sortOrder!==undefined)data.sort_order=stockQuantity(input.sortOrder,'CATALOG_SORT_ORDER_INVALID');
+      const created=await categories.create(data);
+      if(!created?.id)fail('CATALOG_CATEGORY_WRITE_FAILED');
+      return created;
     },
     async updateCategory(input={}){
       rejectManagedWrites(input);
-      const data=compact({name:input.name===undefined?undefined:required(input.name,'MISSING_CATEGORY_NAME'),slug:input.slug===undefined?undefined:required(input.slug,'MISSING_CATEGORY_SLUG'),description:input.description});
-      return categories.updateById(required(input.categoryId,'MISSING_CATEGORY_ID'),data);
+      const id=required(input.categoryId,'MISSING_CATEGORY_ID');
+      if(own(input,'sortOrder'))fail('CATALOG_CATEGORY_ORDER_REQUIRES_REORDER');
+      const data={};
+      if(input.name!==undefined)data.name=required(input.name,'MISSING_CATEGORY_NAME');
+      if(input.slug!==undefined)data.slug=required(input.slug,'MISSING_CATEGORY_SLUG');
+      if(input.description!==undefined)data.description=categoryDescription(input.description);
+      return withLocks(async transactionCore=>{
+        const repository=lockingRepository(transactionCore,categoryPolicy);
+        const current=await repository.getByIdForUpdate(id);
+        if(!current)fail('CATALOG_CATEGORY_NOT_FOUND');
+        if(!Object.keys(data).length)return current;
+        const saved=await repository.updateById(id,data);
+        if(!saved?.id)fail('CATALOG_CATEGORY_WRITE_FAILED');
+        return saved;
+      });
     },
     async setCategoryVisibility({categoryId,visible}={}){
       if(typeof visible!=='boolean')fail('INVALID_CATEGORY_VISIBILITY');

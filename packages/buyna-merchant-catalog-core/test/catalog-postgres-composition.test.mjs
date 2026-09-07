@@ -87,3 +87,50 @@ test('parent deactivation uses scoped locked child filters through the official 
   assert.match(productLock.text,/"project_id" = \$1 AND "seller_id" = \$2 AND "status" = \$3 AND "category_id" = \$4/);
   assert.deepEqual(productLock.values,['project-a','seller-a','active','c1']);
 });
+
+
+test('category create and edit round-trip through the official scoped PostgreSQL adapters',async()=>{
+ const rows=new Map();const calls=[];let counter=0;
+ function execute(text,values=[]){
+  calls.push({text,values});
+  if(text.startsWith('BEGIN')||text==='COMMIT'||text==='ROLLBACK')return{rows:[]};
+  if(text.startsWith('INSERT')){
+   const columns=text.match(/\(([^)]+)\) VALUES/)[1].split(',').map(column=>column.replaceAll('"',''));
+   const row={id:`c${++counter}`,...Object.fromEntries(columns.map((column,i)=>[column,values[i]]))};
+   rows.set(row.id,row);return{rows:[structuredClone(row)]};
+  }
+  if(text.startsWith('SELECT')){
+   const row=rows.get(values[0]);
+   return{rows:row&&row.project_id===values[1]&&row.seller_id===values[2]?[structuredClone(row)]:[]};
+  }
+  if(text.startsWith('UPDATE')){
+   const [id,projectId,sellerId]=values.slice(-3);const row=rows.get(id);
+   if(!row||row.project_id!==projectId||row.seller_id!==sellerId)return{rows:[]};
+   const assignments=[...text.matchAll(/"([^"\n]+)" = \$(\d+)/g)].slice(0,-3);
+   for(const [,column,index]of assignments)row[column]=values[Number(index)-1];
+   return{rows:[structuredClone(row)]};
+  }
+  throw Error('Unexpected SQL:'+text);
+ }
+ const connection={async query(text,values){return execute(text,values)},release(){}};
+ const pool={async query(text,values){return execute(text,values)},async connect(){return connection}};
+ const adapter=createNodePostgresAdapter({pool,entities:{categories:{table:'categories',write:{name:'name',slug:'slug',description:'description',sort_order:'sort_order',status:'status'}}}});
+ function service(sellerId='seller-a'){return createMerchantCatalogService({dataCore:createMerchantDataCore({adapter,projectId:'project-a',sellerId})})}
+ const first=service();
+ const created=await first.createCategory({name:'New category',slug:'new-category',description:'Text that must persist',sortOrder:5});
+ assert.equal(created.description,'Text that must persist');assert.equal(created.sort_order,5);
+ const reopened=service();
+ assert.deepEqual(await reopened.getCategory({categoryId:created.id}),created);
+ await reopened.updateCategory({categoryId:created.id,description:''});
+ assert.equal((await service().getCategory({categoryId:created.id})).description,'');
+ assert.equal((await service().getCategory({categoryId:created.id})).sort_order,5);
+ const updates=calls.filter(call=>call.text.startsWith('UPDATE')).length;
+ await reopened.updateCategory({categoryId:created.id});
+ assert.equal(calls.filter(call=>call.text.startsWith('UPDATE')).length,updates);
+ await assert.rejects(()=>service('other-seller').updateCategory({categoryId:created.id,name:'Tampered'}),{code:'CATALOG_CATEGORY_NOT_FOUND'});
+ await assert.rejects(()=>service('other-seller').getCategory({categoryId:created.id}),{code:'CATALOG_CATEGORY_NOT_FOUND'});
+ assert.equal(rows.get(created.id).name,'New category');
+ const update=calls.find(call=>call.text.startsWith('UPDATE'));
+ assert.deepEqual(update.values,['',created.id,'project-a','seller-a']);
+ assert.match(update.text,/"project_id" = \$3 AND "seller_id" = \$4/);
+});

@@ -43,6 +43,12 @@ changes the approved scope.
 
 - Category list with name, visibility, product count, and order.
 - Create, edit, delete, visibility, and sorting UI.
+- Category forms save the name and description. A slug field is optional in the
+  UI: the server generates it on creation when absent and preserves it on edits.
+- Load the complete category detail before editing. Preserve omitted fields;
+  send an empty description when the merchant clears it. Use separate ordering
+  and visibility operations. Report saved only after the API succeeds, then
+  reload the detail; keep entered text and actionable errors on failure.
 - Loading, empty, validation, success, error, and permission presentation.
 
 ### 优惠券管理
