@@ -70,7 +70,7 @@ This skill does not own SKU inventory or GlobePay endpoints. It owns availabilit
 
 ## Required MVP
 
-Single-merchant backend: one merchant administrator, login, session, dashboard, service CRUD/archive, images, price/currency, duration/package, availability/capacity, records, paid bookings/customers, CSV, manual email, payment settings, GlobePay portal, and mobile layout. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
+Single-merchant backend: one merchant administrator, login, session, dashboard, service CRUD with deletion, images, price/currency, duration/package, availability/capacity, records, paid bookings/customers, CSV, manual email, payment settings, GlobePay portal, and mobile layout. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
 
 Public site: service list/detail, booking form, date/time or preferred dates, participants, contact fields, notes, payment methods, verified confirmation, and shared footer.
 
@@ -98,3 +98,9 @@ Deliver backend source, routes/APIs, migrations, authorization/ownership and
 capacity logic, and applicable automated tests in the real project. Report
 changed paths and verification results. A backend specification or generated
 prompt alone is not complete.
+
+## Deletion semantics
+
+Implement service deletion, not an archive/restore flow. Preserve historical
+booking/payment snapshots. Report blocking dependencies instead of silently
+archiving; never cascade deletion into paid bookings or other merchants.

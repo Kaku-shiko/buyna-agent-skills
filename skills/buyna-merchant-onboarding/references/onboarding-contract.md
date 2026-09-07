@@ -87,7 +87,7 @@ Record `PASS`, `FAIL`, or `N/A` for each applicable check:
 | Existing merchant | Health, product/service count, order count, paid-customer count, and existing image display are unchanged |
 | Host routing | New exact host resolves only the new seller; unknown host returns 404 |
 | Login | New administrator can log in; its cookie/token returns 401 or 404 against another seller |
-| Catalog/service | Create, update, refresh, archive/delete policy, sorting, and public synchronization persist |
+| Catalog/service | Create, update, refresh, deletion behavior, sorting, and public synchronization persist |
 | S3 | Upload, signed display, replacement, deletion policy, correct prefix, and cross-seller denial pass |
 | Orders | Pending order persists and authorized detail returns the complete safe customer submission |
 | Payment | `N/A` or disabled unless seller-owned configuration and provider verification pass |

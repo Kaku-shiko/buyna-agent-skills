@@ -32,7 +32,7 @@ missing product prices; default their source to merchant Dashboard maintenance.
 For 商品管理 or 分类管理, also read
 `references/merchant-catalog-fixed-core.md` and call
 `packages/buyna-merchant-catalog-core`. Do not regenerate its field policies,
-filter/sort rules, stock/visibility/archive operations, or transactional
+filter/sort rules, stock/visibility/lifecycle operations, or transactional
 ordering. Generate only the project route and database Adapter required by the
 approved API contract.
 
@@ -137,7 +137,7 @@ no-provider checkout completes local review/order flow without settlement.
 
 ## MVP
 
-Single-merchant backend: one merchant administrator, login, session, product CRUD/archive, images/main image, categories, coupons, stock/variants, drag sorting, orders, paid customers, CSV, email, payment/subscription settings, and GlobePay portal. Route coupon rules to `buyai-coupon-commerce`; keep subscription status read-only and sourced server-to-server. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
+Single-merchant backend: one merchant administrator, login, session, product CRUD with deletion, images/main image, categories, coupons, stock/variants, drag sorting, orders, paid customers, CSV, email, payment/subscription settings, and GlobePay portal. Route coupon rules to `buyai-coupon-commerce`; keep subscription status read-only and sourced server-to-server. Do not create a platform administrator, cross-merchant console, merchant switcher, or merchant-account management API.
 
 Public site: backend list, category tabs, detail, checkout, payment methods, verified success, shared footer settings.
 

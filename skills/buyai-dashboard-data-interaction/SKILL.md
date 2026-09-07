@@ -117,3 +117,12 @@ For the 订单/预约 slice, require the approved detail UI and API contract to 
 ## Delivery
 
 Report frontend adapter, backend endpoint/service, schema/migration or S3 files, tests, persistence evidence, and remaining mock behavior. The slice fails without saved frontend and backend code and applicable passing checks.
+
+## Image-save slice evidence
+
+An image-saving slice includes real file transfer, metadata, the owning entity
+relation, and a fresh server read after browser state is discarded. Follow the
+product media contract for product images and the same durable sequence for
+service/site images. Do not report completion from preview, upload HTTP success
+alone, or fixed-module tests. Verify the connected project's routes and Adapters;
+report the exact failing stage or missing runtime evidence.

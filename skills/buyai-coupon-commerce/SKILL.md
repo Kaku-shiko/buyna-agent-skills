@@ -47,3 +47,12 @@ Run `npm test --prefix packages/buyna-coupon-core` only when the receipt has no
 PASS for the current package source digest. Always run the changed project Adapter,
 checkout, settlement, refresh, permission, and retry tests. A visible discount
 alone is not proof of a saved reservation or trusted redemption.
+
+## Merchant deletion
+
+Default merchant actions use deletion, not archive/restore. The existing
+`archive` method is a legacy transition and does not fulfill deletion. If a
+delete operation is missing, implement its fixed-core/Adapter contract within
+the approved feature scope before wiring the UI. Preserve redemption/payment
+history; active reservations or blocking references return an actionable
+conflict instead of silently archiving or cascading deletion.

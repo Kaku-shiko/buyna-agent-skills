@@ -69,3 +69,26 @@ scoped image relation is authoritative.
 Do not implement upload Base64 parsing, S3 SDK calls, database queries, React
 components, or merchant-specific fields in this fixed module. Generate those
 only in the project Adapter/UI.
+
+## Durable upload and save contract
+
+Selecting a file only creates a local preview. Before `attachUploadedImage` or
+`createDraftWithImage`, obtain an authorized upload target, transfer the actual
+bytes to the existing bucket, and check the transfer response. These product
+methods confirm and attach an uploaded file; calling them does not transfer
+browser file bytes.
+
+Await scoped file metadata and the product-image relation commit before showing
+saved. Keep a stable request key on retries and use returned product/image IDs.
+Persist `file_id` and the object key in their respective records; never persist
+`blob:` URLs, local paths, browser File objects, or expiring signed URLs as the
+durable identity. Generate fresh authorized display URLs on reads. Text-only
+product saves must not replace images with stale preview state or an empty set.
+
+Verify the changed project's actual route and storage/database Adapters:
+upload a test image, save, discard browser state, reopen the product through a
+fresh API read, and load the image bytes. Check the public view when publication
+is in scope, preserving private draft access. Test a failed transfer or relation
+write: no false success, text retained, retry possible, existing image preserved.
+A fixed-core test or preview screenshot alone cannot prove project persistence.
+Report unavailable live validation explicitly.

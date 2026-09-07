@@ -63,3 +63,17 @@ Use `scaffoldMerchantProject` only for a new local project directory and stop
 when the target already exists. Its incomplete resource record is intentionally
 blocked until the real existing database, schema, bucket, and region are
 confirmed.
+
+## Image persistence acceptance
+
+Verify byte transfer, scoped metadata, and the owning entity relation before
+returning saved. Local previews, Base64 data, and temporary signed URLs are not
+durable storage identities. Fresh reads resolve authorized display URLs from
+persisted file metadata.
+
+For upload failures inspect the first failing stage: browser/network response,
+preflight and CORS for the actual origin/method/headers, signature region and
+content type, expiry, server-role permissions, then metadata/entity transaction
+errors. Fix the observed fault in the existing resources; do not make the bucket
+public or invent a replacement store. Verify image bytes remain readable after
+browser state is cleared and the entity reopened.

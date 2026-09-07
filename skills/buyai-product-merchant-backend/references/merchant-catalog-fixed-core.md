@@ -39,10 +39,22 @@ routes.
 - `updateVariant`
 - `transitionVariant`
 
-The module fixes field allowlists, filter/sort fields, normalization, soft
-deletion, and transactional product ordering. A project may add an Adapter or
-approved route mapping, but must not bypass merchant scope or replace archive
-with hard deletion.
+The listed archive/restore methods are legacy capabilities, not the required
+merchant deletion contract. Do not expose them as default merchant actions or
+rename an archive call to delete and claim completion.
+
+Implement real deletion with server-owned merchant scope and transactional
+dependency checks. Remove the target catalog record and exclusively owned
+catalog dependents; preserve historical order/payment snapshots and shared
+files. Reject category dependencies with an actionable error or use an
+explicitly approved reassignment policy. Do not silently introduce soft
+deletion, archive, trash, or restore behavior.
+
+Inspect installed modules before wiring deletion. If only archive exists,
+report the precise capability gap and implement the fixed-core delete operation,
+Adapter contract, and focused tests within the authorized feature scope before
+connecting it. Do not invent an existing delete API or bypass authorization
+with route-local SQL. Unrelated catalog operations continue using the core.
 
 When the persisted route includes stock/SKU capability, compose this service
 with `packages/buyna-inventory-core`; catalog fields describe the SKU while the
