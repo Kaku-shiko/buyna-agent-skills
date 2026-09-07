@@ -51,7 +51,10 @@ routes, approved custom-field mapping, and notification templates.
 
 Call `createPendingOrder` only with a fresh fixed-cart checkout snapshot and
 the complete safe customer submission. Use `listOrders`, `getOrderDetail`,
-`archiveUnpaidOrder`, and `createOrdersCsv` for the seller backend.
+`createOrdersCsv` for the seller backend. `archiveUnpaidOrder` is a legacy
+internal retention operation, not a default merchant button and not a delete
+implementation. If unpaid-order deletion is requested, implement its scoped
+delete contract before enabling it; never expose archive as a substitute.
 
 Do not mark an order paid or refunded through the order core. Route trusted
 provider notify/query results to the existing GlobePay service/status core.

@@ -30,6 +30,17 @@ export function createNodePostgresAdapter({pool,entities,idempotencyTable='merch
         const result=await client.query(`UPDATE ${quoteName(config.table)} SET ${assignments.join(',')} WHERE ${quoteName(idColumn)} = $${values.length-2} AND ${quoteName(scope.project)} = $${values.length-1} AND ${quoteName(scope.seller)} = $${values.length} RETURNING *`,values);
         return result.rows[0]??null;
       },
+      async deleteById(input){
+        const config=entityConfig(entities,input.entity),scope=scopeConfig(config),idColumn=config.idColumn??'id';
+        if(config.allowDelete!==true)fail('DELETE_NOT_CONFIGURED');
+        try{
+          const result=await client.query(`DELETE FROM ${quoteName(config.table)} WHERE ${quoteName(idColumn)} = $1 AND ${quoteName(scope.project)} = $2 AND ${quoteName(scope.seller)} = $3 RETURNING *`,[input.id,input.scope.projectId,input.scope.sellerId]);
+          return result.rows[0]??null;
+        }catch(error){
+          if(error.code==='23503')fail('RECORD_DELETE_REFERENCED');
+          throw error;
+        }
+      },
       async list(input){
         const config=entityConfig(entities,input.entity),scope=scopeConfig(config);
         const values=[input.scope.projectId,input.scope.sellerId];

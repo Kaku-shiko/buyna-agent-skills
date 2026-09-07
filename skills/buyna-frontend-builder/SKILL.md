@@ -105,3 +105,20 @@ Require build/type checks, keyboard/touch usability, no horizontal overflow, rea
 Report changed project-relative paths, routes, commands, and verification
 results. Code shown only in chat, screenshots, or design artifacts do not count
 as frontend delivery.
+
+## Image integration acceptance
+
+For product image saving, follow the durable upload/save contract in
+`buyai-product-merchant-backend/references/product-media-fixed-core.md`; use an
+equivalent scoped entity relation for other images. Await byte transfer,
+metadata, and entity association before showing saved. Reopen through a fresh
+server read and verify image loading. A `blob:` preview or local storage entry
+cannot satisfy persistence. Keep errors visible and retryable.
+In Phase 4 clearly label simulated saves; complete the real connection when
+Phase 5 is included in the authorized work package.
+
+For browser image saving import `createImageUploadClient` from
+`@buyna/merchant-file-core/upload` and map its three API methods using
+`buyna-s3-storage/references/merchant-file-adapter-contract.md`. Keep the
+original File separate from serialized queue state. Never import the Node-only
+`src/file-core.mjs` into frontend components.

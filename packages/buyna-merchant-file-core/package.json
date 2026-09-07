@@ -1,9 +1,15 @@
 {
   "name": "@buyna/merchant-file-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "exports": "./src/file-core.mjs",
+  "exports": {
+    ".": {
+      "browser": "./src/browser.mjs",
+      "default": "./src/file-core.mjs"
+    },
+    "./upload": "./src/browser.mjs"
+  },
   "scripts": {
-    "test": "node --test test/file-core.test.mjs test/upload-queue.test.mjs"
+    "test": "node --test test/file-core.test.mjs test/upload-queue.test.mjs test/browser-upload.test.mjs test/image-upload-client.test.mjs"
   }
 }

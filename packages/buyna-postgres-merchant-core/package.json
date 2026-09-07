@@ -1,6 +1,6 @@
 {
   "name": "@buyna/postgres-merchant-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "exports": {
     ".": "./src/merchant-core.mjs",
@@ -14,6 +14,8 @@
     "pg": ">=8"
   },
   "peerDependenciesMeta": {
-    "pg": {"optional": true}
+    "pg": {
+      "optional": true
+    }
   }
 }

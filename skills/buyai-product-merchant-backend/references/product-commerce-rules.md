@@ -66,8 +66,9 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 - `project_id`
 - `seller_id`
 - `product_id`
-- `storage_path`
-- `public_url`
+- `file_id` referencing scoped file metadata
+- nullable `variant_id`
+- timestamps
 - `alt_text`
 - `position`
 - `is_main`
@@ -93,7 +94,7 @@ Follow the repository's module conventions. Avoid putting all behavior into one 
 - status
 - `paid_at`
 - `expires_at`
-- `archived_at` or `deleted_at`
+- `deleted_at` only for an explicitly approved order-retention policy
 
 Product checkout buyer form fields:
 
@@ -315,7 +316,7 @@ Orders page must support:
 - reset filters action
 - pagination or load more
 - URL query params reflecting active filters
-- unpaid-order delete/archive action only for unpaid statuses
+- unpaid-order delete action only for unpaid statuses
 - one page-level silent payment-status refresh action; no per-row refresh buttons for MVP
 - refresh repairs `pending_payment/expired/failed + PAY_SUCCESS -> paid`
 - refresh repairs paid orders refunded in GlobePay -> `refunded`
@@ -342,5 +343,9 @@ Seller backend must work on phone screens.
 
 - Convert dense tables to cards/stacked rows or horizontal scroll with reachable actions.
 - Do not rely on hover for essential actions.
-- Keep add/edit/delete/archive/send-email buttons touchable.
+- Keep add/edit/delete/send-email buttons touchable.
 - Dialogs must fit screen height and scroll internally when needed.
+
+For product images, use the canonical relation in `product-media-fixed-core.md`.
+File metadata owns object key, size, and MIME type. Generate display URLs on
+reads; do not persist expiring signed URLs as the durable image identity.

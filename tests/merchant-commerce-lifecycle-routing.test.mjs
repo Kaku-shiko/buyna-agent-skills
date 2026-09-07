@@ -1,3 +1,4 @@
+import {fileURLToPath} from 'node:url';
 import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -484,7 +485,7 @@ test("project installation carries the authoritative manifest used by the instal
     const installer = new URL("scripts/install.ps1", root);
     const install = spawnSync("powershell", [
       "-ExecutionPolicy", "Bypass",
-      "-File", installer.pathname.slice(1),
+      "-File", fileURLToPath(installer),
       "-Scope", "Project",
       "-ProjectPath", target,
     ], { encoding: "utf8" });
@@ -495,7 +496,7 @@ test("project installation carries the authoritative manifest used by the instal
 
     const collision = spawnSync("powershell", [
       "-ExecutionPolicy", "Bypass",
-      "-File", installer.pathname.slice(1),
+      "-File", fileURLToPath(installer),
       "-Scope", "Project",
       "-ProjectPath", target,
     ], { encoding: "utf8" });
@@ -504,7 +505,7 @@ test("project installation carries the authoritative manifest used by the instal
 
     const forced = spawnSync("powershell", [
       "-ExecutionPolicy", "Bypass",
-      "-File", installer.pathname.slice(1),
+      "-File", fileURLToPath(installer),
       "-Scope", "Project",
       "-ProjectPath", target,
       "-Force",

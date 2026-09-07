@@ -685,6 +685,30 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
     });
   }
 
+  async function deleteCoupon(input = {}) {
+    const eventId=requiredText(input.eventId,'eventId');
+    const couponId=requiredText(input.couponId,'couponId');
+    return store.transaction(async tx=>{
+      requireMethods(tx,['claimCouponEvent','getCouponForUpdate','deleteCoupon']);
+      const claimed=await claim(tx,eventContext(scope,eventId,'delete','coupon',couponId,{couponId}));
+      const result={...scope,couponId,deleted:true};
+      if(claimed.duplicate){
+        assertReplay(claimed.result,result,Object.keys(result),'delete');
+        return claimed.result;
+      }
+      const current=await tx.getCouponForUpdate({...scope,couponId});
+      if(!current)throw failure('COUPON_NOT_FOUND','coupon was not found');
+      assertScope(current,scope.projectId,scope.sellerId);
+      if(current.couponId!==couponId)adapterInvalid('locked coupon identity is invalid');
+      validateAuthoritativeCoupon(current);
+      if(current.reservedCount>0||current.redeemedCount>0)throw failure('COUPON_DELETE_REFERENCED','coupon has reservations or redemptions');
+      const removed=await tx.deleteCoupon({...scope,couponId});
+      assertAdapterWrite(removed,result,'deleteCoupon');
+      await completeClaim(claimed,result);
+      return immutable(result);
+    });
+  }
+
   async function quote(input = {}) {
     return store.transaction(async (tx) => {
       requireMethods(tx, ['getCouponForUpdate']);
@@ -978,6 +1002,7 @@ export function createCouponModule({ projectId, sellerId, store, clock = () => n
 
   return Object.freeze({
     createDraft,
+    deleteCoupon,
     activate: (input) => transition('activate', STATES.ACTIVE, input),
     pause: (input) => transition('pause', STATES.PAUSED, input),
     archive: (input) => transition('archive', STATES.ARCHIVED, input),

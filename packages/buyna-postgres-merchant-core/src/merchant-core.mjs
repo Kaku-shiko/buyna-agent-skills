@@ -15,6 +15,7 @@ function createCore({adapter,scope,maxPageSize,lockingContext=false}){
       allowedFilters:policy.allowedFilters??[],
       allowedSort:policy.allowedSort??[],
       allowedWrite:policy.allowedWrite??[],
+      allowDelete:policy.allowDelete===true,
     };
   }
 
@@ -67,6 +68,11 @@ function createCore({adapter,scope,maxPageSize,lockingContext=false}){
       const values=policyValues(policy);
       return{
         ...writes(values),
+        async deleteById(id){
+          if(!values.allowDelete)fail('DELETE_NOT_ALLOWED');
+          method(adapter,'deleteById');
+          return adapter.deleteById({entity:values.entity,id:required(id,'MISSING_RECORD_ID'),scope:{...scope}});
+        },
         async getByIdForUpdate(id){
           method(adapter,'getByIdForUpdate');
           return adapter.getByIdForUpdate({entity:values.entity,id:required(id,'MISSING_RECORD_ID'),scope:{...scope}});

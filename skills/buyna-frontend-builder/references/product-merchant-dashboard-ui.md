@@ -36,20 +36,20 @@ changes the approved scope.
 
 - Product list with image, name, category, price, stock, visibility, and order.
 - Search and approved status/category filters.
-- Create, edit, archive, visibility, image, inventory, and sorting UI.
+- Create, edit, delete, visibility, image, inventory, and sorting UI.
 - Loading, empty, validation, success, error, and permission presentation.
 
 ### 分类管理
 
 - Category list with name, visibility, product count, and order.
-- Create, edit, archive, visibility, and sorting UI.
+- Create, edit, delete, visibility, and sorting UI.
 - Loading, empty, validation, success, error, and permission presentation.
 
 ### 优惠券管理
 
 - Coupon list with code/type, discount, quantity/amount thresholds, validity,
   status, usage count, and order.
-- Create, edit, activate/deactivate, archive, and issue/claim presentation.
+- Create, edit, activate/deactivate, delete, and issue/claim presentation.
 - Keep calculation, reservation, redemption, release, and payment amount logic
   in `buyai-coupon-commerce` and the fixed coupon core.
 - Loading, empty, validation, success, error, and permission presentation.
@@ -79,6 +79,20 @@ changes the approved scope.
 - Add a separate read-only Buyna.ai subscription card showing only the current
   merchant's plan, status, start date, and bound domain.
 - Loading, unconfigured, configured, error, and permission presentation.
+
+## Delete and image-save behavior
+
+Use 删除 / Delete actions for products, categories, and coupons. Do not generate
+archive buttons, archive tabs, or restore flows unless explicitly requested.
+Delete requires a matching backend operation; changing an archive button label
+is not a deletion implementation. Show success only after server completion;
+failed deletion leaves the item visible with an actionable error.
+
+For images, distinguish local preview, uploading, saving the entity relation,
+saved, and failed. A selected file or preview is not saved. In integration mode,
+wait for transfer and relation persistence, then render the server-returned
+image record. Preserve text and retryable pending images on failure. During
+mock-only delivery label image saves as simulated and not persisted.
 
 ## Responsive Structure
 

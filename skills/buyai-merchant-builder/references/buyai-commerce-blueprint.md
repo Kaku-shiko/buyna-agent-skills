@@ -62,7 +62,7 @@ Use project naming, but preserve these responsibilities:
 - `email_events`: recipient, template/action, result, error, timestamps.
 - `site_settings` / `merchant_profile`: shared public company/footer/policy configuration.
 
-Use foreign keys, uniqueness constraints, timestamps, and indexes for seller, status, provider id, and operational filters. Define deletion/archival behavior explicitly.
+Use foreign keys, uniqueness constraints, timestamps, and indexes for seller, status, provider id, and operational filters. Define deletion behavior explicitly; do not substitute archive for delete.
 
 ## Authentication And Sessions
 
@@ -77,7 +77,7 @@ Use foreign keys, uniqueness constraints, timestamps, and indexes for seller, st
 Seller backend must provide the applicable features:
 
 - Login, logout, protected navigation, and mobile layout.
-- Product/service CRUD with archive rather than destructive deletion where records are referenced.
+- Product/service CRUD with deletion. Preserve historical order/booking snapshots and report blocking dependencies instead of silently archiving.
 - Categories, SKU/stock or availability/capacity, images, status, featured state, and sorting.
 - Orders/bookings, paid customers/paid bookings, details, filters, search, pagination, CSV, and manual email action.
 - Payment configuration status with masked partner code and no credential leak.
