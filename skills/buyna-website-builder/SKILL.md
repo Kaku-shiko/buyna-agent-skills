@@ -12,6 +12,12 @@ configuration, framework wiring, and visual presentation.
 
 ## Start Or Resume
 
+Create or refresh project-root `AGENTS.md` using
+[project-agent-guide.md](references/project-agent-guide.md) after task intake,
+approved scope changes, and phase handoff. Preserve existing project rules. The
+generator records task scope and reuses this Builder's router for advisory Skill
+and module snapshots; the guide never replaces verified workflow evidence.
+
 - New build: create a new workflow, invoke `buyna-customer-intake`, and persist
   its normalized capabilities before routing later work. Do not synthesize or
   import completed history for a new project.

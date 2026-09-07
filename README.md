@@ -14,6 +14,15 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 ## 仓库目录
 
+### 让 AI 接续具体网站任务
+
+Builder 在任务接收、已批准的范围变更和阶段交接时，使用公共生成器维护项目根目录
+`AGENTS.md`。文件记录本次目标、交付项、约束、验收条件和证据路径，并从现有路由器
+取得 Skill／代码模块提示；后续 AI 仍须加载真实工作流重新路由。
+生成器保留项目原有说明，不会把任务描述变成部署授权或完成证明。
+任务 JSON 格式、生成命令和接续 API 见
+[项目 AGENTS.md 生成方案](skills/buyna-website-builder/references/project-agent-guide.md)。
+
 | 目录 | 用途 | 是否安装到 Codex |
 | --- | --- | --- |
 | `.github/` | Issue、PR、CODEOWNERS和 Actions | 否 |
