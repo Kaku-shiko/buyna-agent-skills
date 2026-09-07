@@ -27,6 +27,7 @@ routes.
 - `setFeaturedProducts`
 - `reorderProducts`
 - `listCategories`
+- `getCategory`
 - `createCategory`
 - `updateCategory`
 - `setCategoryVisibility`
@@ -88,3 +89,24 @@ never enable cascades that erase transaction history. Map
 `RECORD_DELETE_REFERENCED` and catalog child-reference errors to a clear 409
 response. An old Adapter lacking deletion is an incomplete integration, not
 permission to fall back to `archiveProduct` or `archiveCategory`.
+
+
+## Category create and edit
+
+Create through `createCategory({name,slug?,description?,sortOrder?,status?})`.
+A name-only form is supported: blank/omitted slug gets a server-generated stable
+identifier. Preserve an explicit slug, and never regenerate it when editing the
+name. Description and initial sort order must reach the database.
+
+Load the edit form through `getCategory({categoryId})`, not a summary list row.
+Save via `updateCategory({categoryId,name?,slug?,description?})`. Omitted fields
+stay unchanged; an empty string or null description explicitly clears it.
+A no-field patch returns the existing record without issuing an empty SQL update.
+Missing/foreign-merchant IDs fail with `CATALOG_CATEGORY_NOT_FOUND`; null results
+are never successful saves. Map validation errors into the form and preserve
+entered text after failure.
+
+Use `reorderCategories` for existing-category order changes and
+`setCategoryVisibility` for visibility. Do not pass sortOrder/status through
+ordinary text editing. Reopen from a fresh `getCategory` read after save and
+verify text, clearing, order, and merchant scope in the project Adapter.
