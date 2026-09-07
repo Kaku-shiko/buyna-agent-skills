@@ -1,4 +1,7 @@
+import {createHash} from 'node:crypto';
 function fail(code){const error=new Error(code);error.code=code;throw error}
+function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])]));return value}
+function fingerprint(value){return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex')}
 function required(value,code){const text=String(value??'').trim();if(!text)fail(code);return text}
 function money(value,code){const number=Number(value);if(!Number.isSafeInteger(number)||number<0)fail(code);return number}
 function method(owner,name){if(typeof owner?.[name]!=='function')fail(`MISSING_ADAPTER_${name.toUpperCase()}`)}
@@ -53,12 +56,31 @@ export function createOrderService({store,projectId,sellerId,idGenerator,clock=(
   return{
     scope,
     async createPendingOrder(input={}){
+      const key=required(input.idempotencyKey,'MISSING_IDEMPOTENCY_KEY');
       const checkout=normalizeCheckout(input.checkout);
       const paymentMethod=required(input.paymentMethod,'MISSING_PAYMENT_METHOD');
       if(!paymentMethods.has(paymentMethod))fail('INVALID_PAYMENT_METHOD');
       const submission=normalizeSubmission(input.submission,input.locale,input.schemaVersion);
-      const order={id:required(idGenerator(),'INVALID_ORDER_ID'),...scope,status:'pending_payment',paymentMethod,...checkout,submission,createdAt:clock().toISOString(),expiresAt:input.expiresAt??null};
-      return store.transaction(async tx=>{method(tx,'createPendingOrder');const created=await tx.createPendingOrder({scope:{...scope},order});return created?.order??created});
+      const request={...scope,paymentMethod,...checkout,submission,expiresAt:input.expiresAt??null};
+      const requestFingerprint=fingerprint(request);
+      return store.transaction(async tx=>{
+        method(tx,'createPendingOrder');method(tx,'claimIdempotency');method(tx,'completeIdempotency');
+        const identity={scope:{...scope},key,operation:'create_order'};
+        const claim=await tx.claimIdempotency(identity);
+        if(claim?.claimed!==true){
+          if(!claim?.result)fail('ORDER_CREATION_IN_PROGRESS');
+          if(claim.result.fingerprint!==requestFingerprint)fail('ORDER_IDEMPOTENCY_CONFLICT');
+          const saved=claim.result.order;
+          if(!saved?.id||saved.projectId!==scope.projectId||saved.sellerId!==scope.sellerId)fail('ORDER_CREATION_RESULT_INVALID');
+          return structuredClone(saved);
+        }
+        const order={id:required(idGenerator(),'INVALID_ORDER_ID'),...request,status:'pending_payment',createdAt:clock().toISOString()};
+        const created=await tx.createPendingOrder({scope:{...scope},order,idempotencyKey:key});
+        const saved=created?.order??created;
+        if(!saved?.id||saved.id!==order.id||saved.projectId!==scope.projectId||saved.sellerId!==scope.sellerId)fail('ORDER_CREATION_RESULT_INVALID');
+        await tx.completeIdempotency({...identity,result:{fingerprint:requestFingerprint,order:saved}});
+        return saved;
+      });
     },
     async listOrders(input={}){
       method(store,'listOrders');
@@ -82,4 +104,12 @@ export function createOrderService({store,projectId,sellerId,idGenerator,clock=(
       });
     },
   };
+}
+
+export function createCheckoutOrderAdapter({orders,mapSubmission}={}){
+  method(orders,'createPendingOrder');
+  if(typeof mapSubmission!=='function')fail('MISSING_SUBMISSION_MAPPER');
+  return Object.freeze({async createPendingOrder(input={}){
+    return orders.createPendingOrder({idempotencyKey:input.idempotencyKey,checkout:input.checkoutSnapshot,paymentMethod:input.paymentMethod,submission:await mapSubmission(input.fields),locale:input.locale,schemaVersion:input.schemaVersion,expiresAt:input.expiresAt});
+  }});
 }

@@ -48,3 +48,10 @@ Reject any remaining reservation/history references, including released records,
 with `COUPON_DELETE_REFERENCED`; never cascade through those records. Preserve
 the separate deletion event so retries replay the result. `archive` remains a
 legacy state transition and is not a merchant deletion action.
+
+## Pause and resume
+
+`activate` accepts both draft and paused coupons. Resuming revalidates the saved
+policy and validity window; retain all counters and reservations. Archived or
+expired coupons cannot be resumed. Bind merchant enable/disable to activate/pause,
+and test enable → pause → enable plus rejection after validity expiry.

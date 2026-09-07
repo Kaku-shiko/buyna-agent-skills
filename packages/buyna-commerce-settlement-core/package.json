@@ -1,1 +1,12 @@
-{"name":"@buyna/commerce-settlement-core","version":"0.2.0","description":"Trusted provider settlement state and exact-once commerce effects","type":"module","exports":{".":"./src/index.mjs"},"scripts":{"test":"node --test test/settlement.test.mjs"}}
+{
+  "name": "@buyna/commerce-settlement-core",
+  "version": "0.3.0",
+  "description": "Trusted provider settlement state and exact-once commerce effects",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/settlement.test.mjs"
+  }
+}

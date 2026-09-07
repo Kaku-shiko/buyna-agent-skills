@@ -65,3 +65,32 @@ provider notify/query results to the existing GlobePay service/status core.
 npm test --prefix packages\buyna-cart-core
 npm test --prefix packages\buyna-order-core
 ```
+
+## Durable order creation and checkout composition
+
+`createPendingOrder` requires a stable server-issued `idempotencyKey` (reuse the
+checkout review submission ID). It uses `claimIdempotency` and
+`completeIdempotency` on the same Store transaction as `createPendingOrder`.
+Use the existing PostgreSQL Adapter's implementations with operation
+`create_order`, unique `(project_id,seller_id,idempotency_key,operation)`, and
+its `result_json` column. Bind the order insert and these methods to the same
+transaction connection; do not implement the claim with a process-local Set.
+
+The core persists `{fingerprint,order}`. A repeated matching key returns that
+order; a different checkout/submission/method under that key fails with
+`ORDER_IDEMPOTENCY_CONFLICT`. A technical failure rolls back the claim and insert.
+The claim survives HTTP response loss and process restart. Do not delete order
+creation claims while requests can replay. Existing Adapters must implement the
+two claim methods before upgrading order-core to 0.2; missing methods fail closed.
+
+Pass `createCheckoutOrderAdapter({orders:orderService,mapSubmission})` into
+`createCheckoutFlow`. The adapter maps `checkoutSnapshot` to `checkout` and calls
+the project's approved server-side field-schema mapper to produce the full
+`submission` array with keys, labels and values. It preserves the stable key.
+Do not pass orderService directly: the two public input shapes are different.
+Keep expiry and customer schema stable for the same reviewed submission.
+
+Map the saved order `total` to settlement `amount`; do not substitute a fresh
+cart total during payment verification. Test the real checkout/order composition,
+concurrent same-key submission, changed-payload conflict, transaction rollback,
+and replay after losing the HTTP response.

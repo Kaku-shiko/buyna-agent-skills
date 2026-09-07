@@ -42,8 +42,8 @@ export const SETTLEMENT_TRANSITIONS = Object.freeze({
     SETTLEMENT_STATUSES.PARTIALLY_REFUNDED,
     SETTLEMENT_STATUSES.REFUNDED,
   ]),
-  failed: Object.freeze([]),
-  expired: Object.freeze([]),
+  failed: Object.freeze([SETTLEMENT_STATUSES.PAID]),
+  expired: Object.freeze([SETTLEMENT_STATUSES.PAID]),
   cancelled: Object.freeze([]),
   partially_refunded: Object.freeze([
     SETTLEMENT_STATUSES.PARTIALLY_REFUNDED,
@@ -208,14 +208,31 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
         validateScope(scope, verified, order);
         validateOrder(verified, order);
         const refund = refundAmounts(verified, order);
+        const latePayment = verified.status === SETTLEMENT_STATUSES.PAID
+          && ['expired', 'failed'].includes(order.status);
+        if (latePayment) {
+          method(tx, 'reconcileLatePayment');
+          method(tx, 'recordFulfillmentReview');
+        }
+        let fulfillmentStatus;
 
         await tx.upsertPayment({ order, verified });
         await tx.setOrderStatus({ order, status: verified.status });
 
         if (verified.status === SETTLEMENT_STATUSES.PAID) {
-          await tx.applyInventoryOnce({ order, eventId: verified.eventId });
-          if (enabledCapabilities.coupon) {
-            await tx.applyCouponOnce({ order, eventId: verified.eventId });
+          if (latePayment) {
+            const reconciliation = await tx.reconcileLatePayment({ order, verified, capabilities: enabledCapabilities });
+            if (!['fulfilled', 'review_required'].includes(reconciliation?.status)) fail('LATE_PAYMENT_RECONCILIATION_INVALID');
+            fulfillmentStatus = reconciliation.status;
+            if (fulfillmentStatus === 'review_required') {
+              requiredText(reconciliation.reason, 'LATE_PAYMENT_REVIEW_REASON_REQUIRED');
+              await tx.recordFulfillmentReview({ order, verified, reason: reconciliation.reason });
+            }
+          } else {
+            await tx.applyInventoryOnce({ order, eventId: verified.eventId });
+            if (enabledCapabilities.coupon) {
+              await tx.applyCouponOnce({ order, eventId: verified.eventId });
+            }
           }
           await tx.upsertPaidCustomer({ order, verified });
           await tx.appendGmvOutbox({ order, verified });
@@ -252,6 +269,7 @@ export function createSettlementModule({ provider, store, capabilities } = {}) {
           orderId: order.id,
           paymentStatus: verified.status,
           eventId: verified.eventId,
+          ...(fulfillmentStatus ? { fulfillmentStatus } : {}),
         };
       });
     },

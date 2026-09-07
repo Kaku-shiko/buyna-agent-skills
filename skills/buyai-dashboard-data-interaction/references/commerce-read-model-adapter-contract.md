@@ -54,3 +54,7 @@ responsive behavior, and CSS from the approved project design.
 
 This is ordinary merchant sales reporting. CRM GMV events, keys, labels, and
 endpoints are prohibited and must never be exposed through this read model.
+
+Recent-order candidates include `failed` and `expired` as well as pending, paid,
+partial/full refund and cancelled states. Preserve those records; they must not
+crash the overview. Financial totals still come only from trusted settlement facts.

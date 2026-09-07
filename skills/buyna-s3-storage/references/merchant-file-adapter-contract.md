@@ -102,3 +102,11 @@ but must resolve real bytes by item ID and supply the same complete sequence.
 Keep the effect claim executor on the trusted server when it controls storage
 or metadata operations. Test the real project Adapters before claiming live
 persistence; this repository's in-memory tests do not verify customer AWS.
+
+## Replacement replay protection
+
+`replaceObject` treats identical old/new file IDs as a no-op without metadata or
+object deletion. Distinct file IDs with the same object key are rejected with
+`REPLACEMENT_OBJECT_KEY_CONFLICT`. Adapters must preserve file identity in their
+returned records, enforce reference protection and never alias a replacement to
+a live shared key. Test retries as well as ordinary distinct-file replacement.

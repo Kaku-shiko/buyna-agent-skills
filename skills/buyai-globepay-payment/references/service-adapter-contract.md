@@ -50,3 +50,29 @@ notification, mandatory Query after notification, amount/currency mismatch,
 provider failure with the pending order preserved, duplicate event handling,
 paid/refund transitions, one-time stock/capacity effects, and a post-write read
 of the saved order.
+
+## Refund reconciliation
+
+The legacy normalized Query result supplies original order `amount`, `currency`,
+and cumulative completed `refundAmount`. Local orders persist `refundedAmount`
+(initially zero). Partial refunds become `partially_refunded`; full refunds must
+equal the paid amount. Missing/out-of-range amounts block mutation. The writer
+receives `refundDelta` and `cumulativeRefundAmount`; persist both refund history
+and the cumulative order amount atomically. Replay of the same cumulative amount
+has no refund effects. A later PAY_SUCCESS must not undo partial/full refunds.
+Refund submission/acceptance is never a completed refund.
+
+## Provider order handoff
+
+Keep local order ID, merchant order ID (`partner_order_id`) and provider system
+order ID separate. Hosted payment URLs use the merchant order ID. In the server
+provider Adapter call `buildProviderPayUrl` with the actual create response, HTTP
+status, endpoint family, merchant order ID and server-selected credentials. It
+checks the returned pay_url and freshly signs it; do not construct a URL from
+the provider system ID. Existing-order responses require a trusted Query result
+matching merchant, amount/currency and pending status before reuse. JSAPI uses
+its own invocation payload rather than this hosted URL helper.
+
+`attachProviderOrder` must persist and return the canonical local order ID. A null
+attachment is an error. Return a real provider-issued nextAction only after local
+order and provider binding persistence; preserve the same order for retries.

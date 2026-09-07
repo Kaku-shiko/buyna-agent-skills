@@ -16,14 +16,13 @@ Required local fields:
 
 Notify and return query must call one idempotent writer:
 
-1. Find order by provider order id.
-2. If already paid/refunded, exit safely unless provider confirms a later refund.
-3. Set `orders.status`.
-4. Set `paid_at` from provider/local payment time.
-5. Upsert payment attempt by provider id.
-6. Upsert paid customer/booking by local order id.
-7. Deduct stock or confirm capacity once.
-8. Store raw provider data for audit.
+1. Resolve the scoped local order and verify exact amount/currency.
+2. Reconcile financial status with the architecture-selected writer.
+3. For paid: preserve paid time, upsert payment/customer, reconcile inventory/capacity once.
+4. For late paid after failed/expired: use the fixed late-payment reconciliation contract; persist fulfillment review for released resources that cannot be recovered.
+5. For completed refund: preserve paid history, persist partial/full status and cumulative refund, and write only the new refund delta. Do not deduct stock or create a new paid customer.
+6. Store payment/refund audit and GMV outbox in the same idempotent transaction.
+7. Re-read persisted results before reporting success.
 
 Mobile H5/JSAPI return:
 
@@ -41,9 +40,10 @@ Repair rules:
 - `pending_payment + PAY_SUCCESS -> paid`
 - `expired + PAY_SUCCESS -> paid`
 - `failed + PAY_SUCCESS -> paid`
-- `paid + provider refund success -> refunded`
+- `paid/partially_refunded + completed partial refund -> partially_refunded`
+- `paid/partially_refunded + completed full refund -> refunded`
 - paid always beats local expiration
-- refund success after paid sets refunded and preserves paid audit trail
+- refund status follows the verified cumulative refunded amount and preserves paid audit trail
 
 Seller UI:
 

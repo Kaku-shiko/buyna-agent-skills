@@ -21,7 +21,10 @@ export function createGlobepayService({store,provider}={}){
       const created=await provider.createOrder({localOrder,checkout});
       required(created?.providerOrderId,'MISSING_PROVIDER_ORDER_ID');
       const attached=await store.attachProviderOrder({sellerId:input.sellerId,localOrderId:localOrder.id,providerOrderId:created.providerOrderId,providerResponse:created});
-      return{...attached,status:'pending_payment',providerOrderId:created.providerOrderId,nextAction:created.nextAction,checkout};
+      required(attached?.id??attached?.localOrderId,'PROVIDER_ORDER_NOT_PERSISTED');
+      if((attached.id??attached.localOrderId)!==localOrder.id){const error=new Error('PROVIDER_LOCAL_ORDER_MISMATCH');error.code=error.message;throw error}
+      required(created.nextAction?.type,'MISSING_PROVIDER_NEXT_ACTION');
+      return{...attached,id:localOrder.id,localOrderId:localOrder.id,merchantOrderId:input.merchantOrderId,status:'pending_payment',providerOrderId:created.providerOrderId,nextAction:created.nextAction,checkout};
     },
     async syncPaymentStatus(input={}){
       required(input.sellerId,'MISSING_SELLER_ID');
@@ -51,9 +54,9 @@ export function createGlobepayService({store,provider}={}){
         callable(tx,'getOrderById');
         const order=await tx.getOrderByProviderId({sellerId:input.sellerId,providerOrderId:providerResult.providerOrderId});
         if(!order){const error=new Error('ORDER_NOT_FOUND');error.code=error.message;throw error}
-        const transition=evaluateProviderStatus({currentStatus:order.status,eventType,resultCode:providerResult.resultCode});
+        const transition=evaluateProviderStatus({currentStatus:order.status,eventType,resultCode:providerResult.resultCode,paidAmount:order.amount,refundedAmount:order.refundedAmount??0,refundAmount:providerResult.refundAmount});
         if(transition.status!=='pass'){const error=new Error(transition.code);error.code=transition.code;throw error}
-        if(transition.nextStatus==='paid'){
+        if(transition.nextStatus==='paid'||transition.effects.includes('record_refund')){
           positiveInteger(providerResult.amount,'INVALID_PROVIDER_AMOUNT');
           positiveInteger(order.amount,'INVALID_ORDER_AMOUNT');
           if(Number(providerResult.amount)!==Number(order.amount)){const error=new Error('PAYMENT_AMOUNT_MISMATCH');error.code=error.message;throw error}
@@ -67,6 +70,7 @@ export function createGlobepayService({store,provider}={}){
         const saved=await tx.getOrderById({sellerId:input.sellerId,orderId:order.id});
         if(!saved){const error=new Error('POST_WRITE_ORDER_NOT_FOUND');error.code=error.message;throw error}
         if(claimed&&saved.status!==transition.nextStatus){const error=new Error('PAYMENT_TRANSITION_NOT_PERSISTED');error.code=error.message;throw error}
+        if(claimed&&transition.effects.includes('record_refund')&&saved.refundedAmount!==transition.cumulativeRefundAmount){const error=new Error('REFUND_AMOUNT_NOT_PERSISTED');error.code=error.message;throw error}
         return{status:'pass',applied:Boolean(claimed),idempotencyKey,transition,order:saved};
       });
     },

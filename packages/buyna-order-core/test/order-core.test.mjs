@@ -5,7 +5,7 @@ import {createOrderService,createOrdersCsv} from '../src/order-core.mjs';
 function fixture(){
   const calls=[];
   const record={id:'order-1',status:'pending_payment',paymentMethod:'wechat',total:2800,currency:'JPY',submission:[{key:'buyer_name',label:'姓名',value:'A',type:'text',order:1}]};
-  const tx={async createPendingOrder(input){calls.push(['create',input]);return input},async getOrderById(input){calls.push(['tx-detail',input]);return record},async archiveOrder(input){calls.push(['archive',input]);return{...record,status:'cancelled',archivedAt:input.archivedAt}}};
+  const tx={async claimIdempotency(){return{claimed:true}},async completeIdempotency(){},async createPendingOrder(input){calls.push(['create',input]);return input},async getOrderById(input){calls.push(['tx-detail',input]);return record},async archiveOrder(input){calls.push(['archive',input]);return{...record,status:'cancelled',archivedAt:input.archivedAt}}};
   const store={async transaction(work){calls.push(['transaction']);return work(tx)},async listOrders(input){calls.push(['list',input]);return{items:[record],total:1}},async getOrderById(input){calls.push(['detail',input]);return record}};
   const service=createOrderService({store,projectId:'shop',sellerId:'seller',idGenerator:()=> 'order-1',clock:()=>new Date('2026-08-10T04:00:00.000Z')});
   return{service,calls};
@@ -13,7 +13,7 @@ function fixture(){
 
 test('pending order stores immutable item, amount, payment, and complete safe submission snapshots',async()=>{
   const {service,calls}=fixture();
-  const order=await service.createPendingOrder({checkout:{items:[{productId:'p1',variantId:'v1',name:'Tea',skuCode:'M',quantity:2,unitPrice:1200,lineTotal:2400}],subtotal:2400,shipping:500,discount:100,tax:0,total:2800,currency:'JPY'},paymentMethod:'wechat',submission:[{key:'buyer_name',label:'姓名',value:'A',type:'text',order:1},{key:'notes',label:'备注',value:'门口',type:'textarea',order:2}],locale:'zh-CN',schemaVersion:'checkout-v1'});
+  const order=await service.createPendingOrder({idempotencyKey:"checkout-1",checkout:{items:[{productId:'p1',variantId:'v1',name:'Tea',skuCode:'M',quantity:2,unitPrice:1200,lineTotal:2400}],subtotal:2400,shipping:500,discount:100,tax:0,total:2800,currency:'JPY'},paymentMethod:'wechat',submission:[{key:'buyer_name',label:'姓名',value:'A',type:'text',order:1},{key:'notes',label:'备注',value:'门口',type:'textarea',order:2}],locale:'zh-CN',schemaVersion:'checkout-v1'});
   assert.equal(order.status,'pending_payment');
   assert.equal(order.total,2800);
   assert.equal(order.items[0].unitPrice,1200);

@@ -23,12 +23,9 @@ Never mark paid from redirect, opened payment page, or provider order creation. 
 
 Read `references/status-sync-rules.md`. Inspect orders, payments, paid customers/bookings, provider ids, return URL, notify URL, webhook, refresh button, and dashboard queries.
 
-Run `status.evaluate` through
-`buyai-globepay-payment/scripts/globepay-cli.mjs` for every notify, provider
-query, or reconciliation result. Use the returned transition, effects, and
-idempotency key inside one project-owned database transaction. Never call it
-with redirect/browser state as a trusted event, and never treat its output as a
-completed write until the transaction and post-write read both succeed.
+Use `status.evaluate` only for the legacy recipe below. Do not run its state
+machine before the fixed settlement core. Each recipe owns one state writer;
+browser redirects are never trusted settlement events.
 
 Select one status recipe from the persisted workflow:
 
@@ -36,7 +33,9 @@ Select one status recipe from the persisted workflow:
   supplies a trusted notify/query event with server-owned
   `projectId + sellerId` to `packages/buyna-commerce-settlement-core`. The core
   reconciles the exact local order, amount, and currency before one idempotent
-  transition and its transactional effects.
+  transition and its transactional effects. Read
+  [the settlement contract](references/settlement-adapter-contract.md), including
+  late-payment reconciliation and fulfillment review after reservations were released.
 - With `paymentArchitecture: legacy-globepay-service`, use the legacy-only
   `createGlobepayService(...).syncPaymentStatus(...)` Interface described by
   `buyai-globepay-payment/references/service-adapter-contract.md`. Verify notify
@@ -78,8 +77,8 @@ fails its release gate when this integration or its sync test is missing.
 ## Validate
 
 Check mobile return, early return before notify, cancelled/closed wallet,
-`pending/expired/failed + PAY_SUCCESS -> paid`, `paid + refund success ->
-refunded`, idempotency, real paid time, seller visibility, CSV, dashboard
+`pending/expired/failed + PAY_SUCCESS -> paid`, partial and full refund amounts,
+released-reservation fulfillment review, idempotency, real paid time, seller visibility, CSV, dashboard
 totals, and no deletion of paid/refunded records.
 
 Deliver notify/query/status-writer source, persistence changes, and applicable
