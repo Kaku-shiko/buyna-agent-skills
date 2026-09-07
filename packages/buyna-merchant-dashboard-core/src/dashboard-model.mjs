@@ -24,9 +24,9 @@ export const DASHBOARD_METRICS=Object.freeze([
 const commonStates=Object.freeze(['loading','empty','ready','error','permission']);
 export const DASHBOARD_PAGES=Object.freeze({
   dashboard:{metrics:['activeProducts','pendingOrders','paidOrders','paidCustomers'],sections:['quickLinks','recentOrders','lowStock'],states:commonStates},
-  products:{table:'products',filters:['search','status','category'],actions:['create','edit','archive','visibility','images','inventory','reorder'],states:commonStates},
-  categories:{table:'categories',filters:['search','visibility'],actions:['create','edit','archive','visibility','reorder'],states:commonStates},
-  coupons:{table:'coupons',filters:['search','status','type'],actions:['create','edit','activate','deactivate','archive','issue'],states:commonStates},
+  products:{table:'products',filters:['search','status','category'],actions:['create','edit','delete','visibility','images','inventory','reorder'],states:commonStates},
+  categories:{table:'categories',filters:['search','visibility'],actions:['create','edit','delete','visibility','reorder'],states:commonStates},
+  coupons:{table:'coupons',filters:['search','status','type'],actions:['create','edit','activate','deactivate','delete','issue'],states:commonStates},
   orders:{table:'orders',filters:['search','status','month'],actions:['detail','refreshPayments','exportCsv'],states:commonStates},
   paidCustomers:{table:'paidCustomers',filters:['search','month'],actions:['detail','exportCsv','contact'],states:commonStates},
   paymentSettings:{sections:['connectionStatus','enabledMethods','notifyUrl','returnUrl','merchantPortal','buynaSubscription'],actions:['validateConfiguration'],states:['loading','unconfigured','configured','subscriptionUnavailable','error','permission'],ownership:['projectId','sellerId'],subscriptionAccess:'server_only_read'},

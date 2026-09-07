@@ -40,9 +40,12 @@ For product creation/editing with images, read
 `references/product-media-fixed-core.md` and construct
 `createProductMediaService` from the same catalog package with
 `buyna-merchant-file-core`. Use the fixed API sequence:
-`createDraftWithImage` -> `attachUploadedImage` -> `setMainImage` /
-`reorderImages` / `replaceUploadedImage` / `removeImage`, returning the complete
-product after each success. Do not write `mainImageId` directly or improvise a
+`createDraft` -> prepare upload for the returned product ID -> transfer bytes
+-> `attachUploadedImage` -> `setMainImage` / `reorderImages` /
+`replaceUploadedImage` / `removeImage`, returning the complete product after
+each success. Retain the draft ID on upload failure and retry on that same
+product; do not create another draft. `createDraftWithImage` is only for an
+already-uploaded file in a server-side import flow, not a browser file picker. Do not write `mainImageId` directly or improvise a
 project-specific product/file join. Generate only the scoped media Store,
 storage Adapter, signed-URL mapping, routes, and project-owned UI.
 

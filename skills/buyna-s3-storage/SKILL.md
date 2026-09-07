@@ -24,9 +24,10 @@ applicable check once.
    exists or the target changed.
 3. Use `packages/buyna-merchant-file-core`; do not regenerate project/seller key construction or lifecycle ordering.
 4. Read `references/merchant-file-adapter-contract.md` and implement only the approved S3 and PostgreSQL metadata adapters.
-5. For interactive uploads, call `createUploadQueue` and
-   `createUploadEffectExecutor`; implement only their approved S3 and metadata
-   Adapter handlers. Continue to call the fixed `confirmUpload`,
+5. For browser image saves, use `createImageUploadClient` from the `/upload`
+   entry with the three API Adapters defined in the file contract. Use
+   `createUploadQueue` for presentation. Existing server effect integrations
+   use `createUploadEffectExecutor`; never execute the same transfer twice. Continue to call the fixed `confirmUpload`,
    `replaceObject`, `softDelete`, and `cleanupOrphans` interfaces from project
    routes or jobs.
 6. Run `npm test --prefix packages/buyna-merchant-file-core` only when no

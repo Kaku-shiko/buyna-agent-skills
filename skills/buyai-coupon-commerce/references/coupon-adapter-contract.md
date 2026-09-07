@@ -37,3 +37,14 @@ may configure localized labels and fields, but cannot change safe-integer JPY
 money, discount calculation, eligibility, usage limits, legal transitions, or
 exact-once semantics. The final coupon snapshot is copied unchanged into the
 checkout/order snapshot and later passed to settlement redemption or release.
+
+## Coupon deletion
+
+Map the Dashboard `delete` action to `deleteCoupon({eventId,couponId})`.
+It requires `claimCouponEvent`, `getCouponForUpdate`, and `deleteCoupon` in one
+transaction. The core rejects reserved/redeemed coupons. The Adapter physically
+deletes only the scoped coupon and returns `{projectId,sellerId,couponId,deleted:true}`.
+Reject any remaining reservation/history references, including released records,
+with `COUPON_DELETE_REFERENCED`; never cascade through those records. Preserve
+the separate deletion event so retries replay the result. `archive` remains a
+legacy state transition and is not a merchant deletion action.

@@ -209,6 +209,20 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
     });
   }
 
+  async function deleteRecord({id,policy,notFound,childPolicy,childField,childError}){
+    return withLocks(async transactionCore=>{
+      const repository=lockingRepository(transactionCore,{...policy,allowDelete:true});
+      method(repository,'deleteById','MISSING_CATALOG_DELETE');
+      if(!await repository.getByIdForUpdate(id))fail(notFound);
+      if(childPolicy){
+        const children=await lockingRepository(transactionCore,childPolicy).listAllForUpdate({filters:{[childField]:id}});
+        if(children.length)fail(childError);
+      }
+      if(!await repository.deleteById(id))fail(notFound);
+      return{deleted:true,id};
+    });
+  }
+
   async function reorder({items,policy,missingCode,idKey,duplicateCode,scopeCode}={}){
     const normalized=normalizeOrder(items,{missingCode,idKey,duplicateCode});
     return withLocks(async transactionCore=>{
@@ -277,6 +291,8 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
       if(typeof visible!=='boolean')fail('INVALID_PRODUCT_VISIBILITY');
       return transitionProduct({productId,toStatus:visible?CATALOG_STATES.ACTIVE:CATALOG_STATES.DRAFT});
     },
+    async deleteProduct({productId}={}){return deleteRecord({id:required(productId,'MISSING_PRODUCT_ID'),policy:productPolicy,notFound:'CATALOG_PRODUCT_NOT_FOUND',childPolicy:variantPolicy,childField:'product_id',childError:'CATALOG_PRODUCT_HAS_VARIANTS'})},
+    async deleteVariant({variantId}={}){return deleteRecord({id:required(variantId,'MISSING_VARIANT_ID'),policy:variantPolicy,notFound:'CATALOG_VARIANT_NOT_FOUND'})},
     async archiveProduct({productId}={}){return transitionProduct({productId,toStatus:CATALOG_STATES.ARCHIVED})},
     transitionProduct,
     async restoreProduct({productId}={}){return transitionProduct({productId,toStatus:CATALOG_STATES.DRAFT},{restoring:true})},
@@ -322,6 +338,7 @@ export function createMerchantCatalogService({dataCore,clock=()=>new Date(),feat
       if(typeof visible!=='boolean')fail('INVALID_CATEGORY_VISIBILITY');
       return transitionCategory({categoryId,toStatus:visible?CATALOG_STATES.ACTIVE:CATALOG_STATES.DRAFT});
     },
+    async deleteCategory({categoryId}={}){return deleteRecord({id:required(categoryId,'MISSING_CATEGORY_ID'),policy:categoryPolicy,notFound:'CATALOG_CATEGORY_NOT_FOUND',childPolicy:productPolicy,childField:'category_id',childError:'CATALOG_CATEGORY_HAS_PRODUCTS'})},
     async archiveCategory({categoryId}={}){return transitionCategory({categoryId,toStatus:CATALOG_STATES.ARCHIVED})},
     transitionCategory,
     async restoreCategory({categoryId}={}){return transitionCategory({categoryId,toStatus:CATALOG_STATES.DRAFT},{restoring:true})},

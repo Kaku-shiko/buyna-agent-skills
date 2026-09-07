@@ -101,3 +101,19 @@ test('locked reads reject configured identifier injection before querying',async
   await assert.rejects(()=>unsafeFilter.listAllForUpdate({entity:'products',scope:{projectId:'p',sellerId:'s'},filters:{status:'active'}}),error=>error.code==='INVALID_SQL_IDENTIFIER');
   assert.equal(queried,false);
 });
+
+
+test('physical deletion is explicit, scoped, parameterized and reports foreign-key conflicts',async()=>{
+ const calls=[];let referenced=false;
+ const pool={async query(text,values){calls.push({text,values});if(referenced)throw Object.assign(new Error('fk'),{code:'23503'});return{rows:[{id:values[0]}]}}};
+ const denied=createNodePostgresAdapter({pool,entities:{products:{table:'products'}}});
+ const input={entity:'products',id:"p1'; DELETE FROM orders;--",scope:{projectId:'p',sellerId:'s'}};
+ await assert.rejects(()=>denied.deleteById(input),{code:'DELETE_NOT_CONFIGURED'});
+ assert.equal(calls.length,0);
+ const adapter=createNodePostgresAdapter({pool,entities:{products:{table:'products',allowDelete:true}}});
+ await adapter.deleteById(input);
+ assert.equal(calls[0].text,'DELETE FROM "products" WHERE "id" = $1 AND "project_id" = $2 AND "seller_id" = $3 RETURNING *');
+ assert.deepEqual(calls[0].values,[input.id,'p','s']);
+ referenced=true;
+ await assert.rejects(()=>adapter.deleteById(input),{code:'RECORD_DELETE_REFERENCED'});
+});

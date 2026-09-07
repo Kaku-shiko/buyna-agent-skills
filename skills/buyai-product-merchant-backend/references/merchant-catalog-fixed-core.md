@@ -22,31 +22,32 @@ routes.
 - `updateProduct`
 - `setProductStock`
 - `setProductVisibility`
-- `archiveProduct`
+- `deleteProduct`
 - `transitionProduct`
-- `restoreProduct`
 - `setFeaturedProducts`
 - `reorderProducts`
 - `listCategories`
 - `createCategory`
 - `updateCategory`
 - `setCategoryVisibility`
-- `archiveCategory`
+- `deleteCategory`
 - `transitionCategory`
-- `restoreCategory`
 - `reorderCategories`
 - `createVariant`
 - `updateVariant`
 - `transitionVariant`
+- `deleteVariant`
 
-The listed archive/restore methods are legacy capabilities, not the required
-merchant deletion contract. Do not expose them as default merchant actions or
+The fixed deletion methods are `deleteProduct`, `deleteCategory`, and
+`deleteVariant`. Archive/restore methods remain only for existing integrations;
+they are not the required merchant deletion contract. Do not expose them as default merchant actions or
 rename an archive call to delete and claim completion.
 
 Implement real deletion with server-owned merchant scope and transactional
-dependency checks. Remove the target catalog record and exclusively owned
-catalog dependents; preserve historical order/payment snapshots and shared
-files. Reject category dependencies with an actionable error or use an
+dependency checks. Remove the target catalog record; preserve historical order/payment snapshots
+and shared files. Product deletion rejects any remaining variants (including
+drafts); category deletion rejects any remaining products. Resolve dependents
+through their own scoped deletion/reassignment operations before retrying. Reject category dependencies with an actionable error or use an
 explicitly approved reassignment policy. Do not silently introduce soft
 deletion, archive, trash, or restore behavior.
 
@@ -75,3 +76,15 @@ npm test --prefix packages\buyna-merchant-catalog-core
 
 Do not use this module for orders, payments, paid customers, authentication,
 storage transport, visual image editing, or booking capacity.
+
+## Database deletion mapping
+
+The data core exposes `deleteById` only on a locking repository with
+`allowDelete: true`. The official PostgreSQL Adapter additionally requires
+`allowDelete: true` in the server-owned entity configuration. Enable it only
+for the approved catalog entities after inspecting actual foreign keys.
+Use RESTRICT/NO ACTION for historical orders, reservations, and shared files;
+never enable cascades that erase transaction history. Map
+`RECORD_DELETE_REFERENCED` and catalog child-reference errors to a clear 409
+response. An old Adapter lacking deletion is an incomplete integration, not
+permission to fall back to `archiveProduct` or `archiveCategory`.

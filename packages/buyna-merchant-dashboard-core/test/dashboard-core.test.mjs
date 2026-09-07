@@ -236,3 +236,12 @@ test('legacy table views map into operation vocabulary without changing table ou
     error=>error.code==='DASHBOARD_TABLE_STATE_UNSUPPORTED',
   );
 });
+
+
+test('merchant action contracts offer delete without archive or restore',()=>{
+  for(const page of ['products','categories','coupons']){
+    assert.ok(DASHBOARD_PAGES[page].actions.includes('delete'));
+    assert.ok(!DASHBOARD_PAGES[page].actions.includes('archive'));
+    assert.ok(!DASHBOARD_PAGES[page].actions.includes('restore'));
+  }
+});

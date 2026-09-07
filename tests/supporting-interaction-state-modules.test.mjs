@@ -421,7 +421,8 @@ test("website-builder installs the fixed file, auth, and merchant-context module
     const pkg = readJson(`packages/${moduleName}/package.json`);
     const entrypoint = typeof pkg.exports === "string" ? pkg.exports : pkg.exports?.["."];
     assert.ok(entrypoint, `${moduleName} has a public package entrypoint`);
-    assert.ok(read(`packages/${moduleName}/${entrypoint.replace(/^\.\//u, "")}`));
+    const entries = typeof entrypoint === "string" ? [entrypoint] : Object.values(entrypoint);
+    for (const entry of entries) assert.ok(read(`packages/${moduleName}/${entry.replace(/^\.\//u, "")}`));
     assert.match(pkg.scripts?.test ?? "", /^node --test\b/u);
   }
 

@@ -104,6 +104,13 @@ function createStore({
         events: mapSnapshot(events),
       };
       const tx = {
+        async deleteCoupon(input) {
+          const record=coupons.get(input.couponId);
+          if(!record||record.projectId!==input.projectId||record.sellerId!==input.sellerId)return null;
+          if([...reservations.values()].some(row=>row.couponId===input.couponId))throw Object.assign(new Error('referenced'),{code:'COUPON_DELETE_REFERENCED'});
+          coupons.delete(input.couponId);
+          return {...input,deleted:true};
+        },
         async getCouponForUpdate(query) {
           const matchedReservation = query.reservationId
             ? reservations.get(query.reservationId)
@@ -1071,4 +1078,21 @@ test('rejects invalid authoritative policy before activate, pause, or archive', 
     assert.equal(fixture.store.inspectCoupon('coupon-1').state, 'active');
     assert.equal(fixture.store.inspectEvent(eventId), undefined);
   }
+});
+
+
+test('deleteCoupon removes an unused coupon and safely replays the deletion event',async()=>{
+ const {coupons,store}=moduleWith();await activeCoupon(coupons);
+ const input={eventId:'delete-1',couponId:'coupon-1'};
+ const result=await coupons.deleteCoupon(input);
+ assert.equal(result.deleted,true);assert.equal(store.inspectCoupon('coupon-1'),undefined);
+ assert.deepEqual(await coupons.deleteCoupon(input),result);
+});
+test('deleteCoupon protects used coupons and tenant scope',async()=>{
+ const {coupons,store}=moduleWith();await activeCoupon(coupons);
+ store.mutateCoupon('coupon-1',row=>({...row,reservedCount:1,perCustomerReservations:{c1:1}}));
+ await assert.rejects(()=>coupons.deleteCoupon({eventId:'delete-1',couponId:'coupon-1'}),{code:'COUPON_DELETE_REFERENCED'});
+ assert.equal(store.inspectCoupon('coupon-1').state,'active');
+ store.mutateCoupon('coupon-1',row=>({...row,sellerId:'other'}));
+ await assert.rejects(()=>coupons.deleteCoupon({eventId:'delete-2',couponId:'coupon-1'}),{code:'COUPON_SCOPE_MISMATCH'});
 });

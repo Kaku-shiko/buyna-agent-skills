@@ -15,7 +15,7 @@ project persistence or API work.
   coupon work and keep the ordinary checkout route unchanged.
 - Resolve server-owned `projectId + sellerId`, then create one project Store
   Adapter. Do not accept ownership from browser fields.
-- Call the fixed core for draft/active/paused/archived management and
+- Call the fixed core for draft/active/paused management, `deleteCoupon`, and
   quote/reserve/redeem/release checkout behavior. Do not regenerate discount,
   eligibility, usage-limit, money, transition, or idempotency rules.
 - Put the core's immutable payable amount in the locked checkout snapshot.
@@ -51,8 +51,8 @@ alone is not proof of a saved reservation or trusted redemption.
 ## Merchant deletion
 
 Default merchant actions use deletion, not archive/restore. The existing
-`archive` method is a legacy transition and does not fulfill deletion. If a
-delete operation is missing, implement its fixed-core/Adapter contract within
-the approved feature scope before wiring the UI. Preserve redemption/payment
+`archive` method is a legacy transition and does not fulfill deletion. Wire
+`deleteCoupon` and its transactional Adapter contract before enabling the
+button. Preserve redemption/payment
 history; active reservations or blocking references return an actionable
 conflict instead of silently archiving or cascading deletion.

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const EFFECT_TYPES = Object.freeze([
@@ -105,7 +104,7 @@ export function createUploadQueue({
   if (!policy || typeof policy !== 'object' || typeof clock !== 'function') {
     fail('UPLOAD_QUEUE_INVALID_CONFIGURATION');
   }
-  const generateId = idGenerator ?? (kind => `${kind}_${randomUUID().replaceAll('-', '')}`);
+  const generateId = idGenerator ?? (kind => `${kind}_${globalThis.crypto.randomUUID().replaceAll('-', '')}`);
   if (typeof generateId !== 'function') fail('UPLOAD_QUEUE_INVALID_CONFIGURATION');
 
   let items = [];
@@ -506,7 +505,7 @@ function canonicalizeJsonSafe(value) {
     fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
   }
   if (serialized === undefined) fail('UPLOAD_EFFECT_RESULT_NOT_SERIALIZABLE');
-  if (Buffer.byteLength(serialized, 'utf8') > 256 * 1024) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
+  if (new TextEncoder().encode(serialized).byteLength > 256 * 1024) fail('UPLOAD_EFFECT_RESULT_TOO_LARGE');
   return deepFreeze(canonical);
 }
 
