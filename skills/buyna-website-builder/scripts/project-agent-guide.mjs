@@ -12,11 +12,12 @@ const fail = code => { throw new Error(code); };
 const json = value => JSON.stringify(value, null, 2).replaceAll('<', '\\u003c');
 
 function validateTask(task) {
-  const allowed = ['projectId', 'objective', 'deliverables', 'constraints', 'acceptance', 'recordPaths'];
+  const allowed = ['projectId', 'objective', 'deliverables', 'constraints', 'acceptance', 'recordPaths', 'siteType'];
   if (!task || typeof task !== 'object' || Array.isArray(task) || Object.keys(task).some(key => !allowed.includes(key))) fail('TASK_SCHEMA_INVALID');
   for (const key of ['projectId', 'objective']) if (typeof task[key] !== 'string' || !task[key].trim() || task[key].length > 8000) fail('TASK_TEXT_REQUIRED');
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(task.projectId)) fail('PROJECT_ID_INVALID');
-  for (const key of allowed.slice(2)) if (task[key] !== undefined && (!Array.isArray(task[key]) || task[key].length > 100 || task[key].some(value => typeof value !== 'string' || value.length > 8000))) fail('TASK_LIST_INVALID');
+  if (task.siteType !== undefined && !['content', 'commerce', 'service', 'mixed'].includes(task.siteType)) fail('TASK_SITE_TYPE_INVALID');
+  for (const key of ['deliverables', 'constraints', 'acceptance', 'recordPaths']) if (task[key] !== undefined && (!Array.isArray(task[key]) || task[key].length > 100 || task[key].some(value => typeof value !== 'string' || value.length > 8000))) fail('TASK_LIST_INVALID');
   return task;
 }
 
@@ -41,6 +42,21 @@ export function renderProjectAgentGuide({ task, workflowState, routeRequest } = 
 \`\`\`json
 ${json(task)}
 \`\`\`
+
+## 网站类型与业务边界
+
+- content：内容／展示网站；只启用用户要求的能力。
+- commerce：电商商城；按确认范围组合商品、分类、购物车、库存、订单等能力。
+- service：预约服务；先确认服务项目、可预约时段、人员／资源、名额、取消与改期规则，再选择实际需要的能力。服务容量不能直接套用商品库存逻辑。
+- mixed：商品与预约并存；分别确认两套能力及其关联，不因类型为 mixed 就默认全部开启。
+- siteType 是任务意图提示，不是已批准能力。未填写时通过 intake 确认。在线支付、退款、优惠券和通知均独立确认；预约不代表必须在线付款，商城也不默认启用所有功能。
+- 路由依据工作流中持久化的标准能力记录。若本次类型／需求与记录不一致，先走范围变更流程。新增未来业务类型需扩展能力契约与路由测试，不能偷偷归入现有类型。
+
+## 商家隐私与交易披露
+
+所有类型网站均评估实际数据收集与交易方式。按 Builder 的 references/merchant-legal-pages.md 收集商家资料，生成适用的隐私政策和「特定商取引法に基づく表記」，并接入页脚、数据收集表单及适用交易流程。内容网站不自动套用商城交易声明；预约服务区分取消、改期、爽约与退款，商品区分退货、瑕疵处理与退款。
+
+任务记录只放已确认的范围和资料路径；完整商家公开资料与政策正文存放项目内容配置。禁止复制其他商家身份，禁止编造地址、电话、处理目的、服务商或退费期限。缺项可继续制作标有待确认的预览，但不得将占位文案当成正式披露交付。确认政策版本、展示入口及其与订单／预约实际行为一致；不能凭生成了页面就宣称法律合规。
 
 ## 开始或接续任务
 

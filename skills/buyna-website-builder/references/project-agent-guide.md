@@ -8,6 +8,9 @@ or synchronize unrelated projects or user Skills as part of generation.
 ## Task schema
 
 Required: `projectId` (letters, digits, underscore, hyphen), `objective`.
+Optional `siteType`: `content`, `commerce`, `service`, or `mixed`. This is
+descriptive intent only; intake must confirm and persist the actual capabilities.
+Never infer payment, cart, inventory, coupons, or notifications from this hint.
 Optional arrays of strings: `deliverables`, `constraints`, `acceptance`,
 `recordPaths` (references to inspect, never authorization). Unknown fields fail.
 Record only the user's actual scope; omit unresolved details rather than inventing
@@ -16,6 +19,7 @@ them. Never include credentials, secrets, personal data, or approval flags.
 ```json
 {
   "projectId": "example_shop",
+  "siteType": "commerce",
   "objective": "创建中文商品网站，支持商品与分类管理",
   "deliverables": ["商品列表与详情", "分类创建与编辑"],
   "constraints": ["先完成本地验收"],
@@ -23,6 +27,28 @@ them. Never include credentials, secrets, personal data, or approval flags.
   "recordPaths": ["docs/website-handoff.md"]
 }
 ```
+
+## Booking/service example
+
+```json
+{
+  "projectId": "example_booking",
+  "siteType": "service",
+  "objective": "创建预约服务网站，先支持到店付款",
+  "deliverables": ["服务项目展示", "可预约时段", "预约记录管理"],
+  "constraints": ["不启用在线支付", "人员安排、名额、取消和改期规则待确认"],
+  "acceptance": ["不可用时段不能预约", "确认并发预约不会超过名额"],
+  "recordPaths": ["docs/website-handoff.md"]
+}
+```
+
+Use `mixed` only when the user needs both product commerce and booking services;
+confirm each capability independently. Existing routing already selects
+`buyai-booking-service-backend` when verified `requiresBooking` is true. Follow
+its current contracts and implement project-specific scheduling adapters as needed;
+do not claim that a dedicated scheduling core exists without checking the manifest.
+For a new future business type, extend the capability schema, router and tests
+before using it. Keep AGENTS generation independent of those business algorithms.
 
 ## Bootstrap
 
