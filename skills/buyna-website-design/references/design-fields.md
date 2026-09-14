@@ -15,7 +15,7 @@ Generate the complete record without a separate section-by-section confirmation.
 | --- | --- | --- | --- | --- | --- | --- |
 参考图可见区块总数：
 拟采用区块总数：
-设计板模式：REFERENCE_FAITHFUL / CUSTOM_DIRECTION
+设计板模式：REFERENCE_FAITHFUL / CUSTOM_DIRECTION / MODULAR_VARIANTS
 参考图输入方式：referenced_image_paths / num_last_images_to_include / 无参考图
 参考图视觉映射：色彩、字体、密度、组件几何、区块顺序、版式和响应式关系
 参考图匹配检查：通过 / 已重新生成一次 / 待重新附加参考图
@@ -48,6 +48,11 @@ UI/UX 关键词：
 导航风格：
 圆角/边框/阴影：
 
+商城区块配置文件：
+必需/条件/可选区块选择：
+每区数量/列数/布局：
+素材文件与区块映射：
+不同方案的构图与组合差异：
 首页主要区块：
 移动端处理：
 无障碍与减少动画：
@@ -60,4 +65,4 @@ UI/UX 关键词：
 待确认内容：
 ```
 
-Use 4–6 named color values with exact HEX codes. Confirm the written record before image generation.
+Use 4–6 named color values with exact HEX codes. Check the written record before image generation; obtain user selection first only when requested or genuinely unresolved, and reuse explicit choices.

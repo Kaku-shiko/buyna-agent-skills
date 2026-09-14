@@ -7,6 +7,14 @@ description: "Plan and confirm a customer website's desktop and mobile pages and
 
 Turn the customer information and completed Skill 2 design record into one combined design-and-structure package. Do not write production code or final legal text.
 
+## Commerce Region Contract
+
+For product commerce, consume the selected region configurations from website design
+and `buyai-commerce-section-design/references/commerce-sections.md`. Preserve region IDs,
+order, counts, layout choices and asset mappings. Record any approved adaptation;
+do not silently reset quantities to example defaults. Conditional requirements
+such as a variant picker depend on real product data.
+
 ## Workflow
 
 1. Read the confirmed outputs from `buyna-customer-intake` and `buyna-website-design`.

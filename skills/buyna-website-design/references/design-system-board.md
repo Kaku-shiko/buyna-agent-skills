@@ -2,8 +2,9 @@
 
 Select one mode before generation:
 
-- `REFERENCE_FAITHFUL`: required whenever the user supplied a design image or screenshot as the approved direction. The raw reference image must be attached to `imagegen`; a textual audit alone is not sufficient.
-- `CUSTOM_DIRECTION`: used only when no design image was supplied. This mode uses the fallback three-column board below.
+- `MODULAR_VARIANTS`: use when the user requests different commerce region combinations; follow `commerce-upload-design.md` and generate actual page previews from selected configurations.
+- `REFERENCE_FAITHFUL`: outside requested variation mode, required whenever the user supplied a design image or screenshot as the approved direction. The raw reference image must be attached to `imagegen`; a textual audit alone is not sufficient.
+- `CUSTOM_DIRECTION`: used when no actual visual design direction was supplied (product photos and text-brief screenshots alone are not layout references). This mode uses the fallback three-column board below.
 
 ## Reference Image Input Contract
 
@@ -78,4 +79,4 @@ Specify:
 
 After a `REFERENCE_FAITHFUL` image is generated, compare it against the reference for palette, typography, density, component geometry, and layout composition. Record the result in `参考图匹配检查`. If any major category is visibly inconsistent, regenerate once with a more explicit correction prompt while keeping the actual reference image attached.
 
-For either mode, inspect subject, layout, text, palette, component consistency, and responsive previews. If dense text is inaccurate, regenerate once with shorter labels. Keep the written design record authoritative.
+For every mode, inspect subject, layout, text, palette, component consistency, and responsive previews. If dense text is inaccurate, regenerate once with shorter labels. Keep the written design record authoritative.

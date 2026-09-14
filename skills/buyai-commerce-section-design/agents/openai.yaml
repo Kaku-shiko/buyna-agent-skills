@@ -1,0 +1,3 @@
+interface:
+  display_name: "商城区块设计"
+  short_description: "选择必需与可选区域，调整数量并根据上传资料生成不同商城设计。"

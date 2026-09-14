@@ -18,6 +18,15 @@ stop with `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` instead of
 regenerating a missing Dashboard, catalog, cart, order, PostgreSQL, or file
 core.
 
+## Commerce Region Rendering
+
+For product storefronts, consume approved page-region configuration using
+`buyai-commerce-section-design/scripts/commerce-sections.mjs` and its
+`references/commerce-sections.md`. Map types to project components and sources to
+scoped Adapters. Keep appearance project-specific, preserve configurable counts
+and responsive columns, and reuse existing transaction cores. Design configuration
+is neither authorization nor proof that data is real or APIs are connected.
+
 ## Frontend Code Mode: Phase 4
 
 1. Read the approved customer record, the complete output from `buyna-website-design`, and the approved page/content plan from `buyna-page-structure`.

@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "note": "组合示例不是商家真实设计；基于文件证据选择，不自动启用全部模块。",
+  "variants": [
+    {
+      "id": "catalog-first",
+      "label": "商品优先",
+      "pageConfig": {
+        "schemaVersion": 1,
+        "page": "home",
+        "sections": [
+          {
+            "id": "header",
+            "type": "navigation"
+          },
+          {
+            "id": "categories",
+            "type": "categories",
+            "count": 6,
+            "source": "catalog.visibleCategories"
+          },
+          {
+            "id": "new-products",
+            "type": "product-grid",
+            "title": "新品",
+            "count": 8,
+            "columns": {
+              "desktop": 4,
+              "tablet": 3,
+              "mobile": 2
+            },
+            "source": "catalog.newProducts",
+            "layout": "grid"
+          },
+          {
+            "id": "featured-products",
+            "type": "product-grid",
+            "title": "精选",
+            "count": 4,
+            "source": "catalog.featuredProducts"
+          },
+          {
+            "id": "footer",
+            "type": "footer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brand-story",
+      "label": "品牌叙事",
+      "pageConfig": {
+        "schemaVersion": 1,
+        "page": "home",
+        "sections": [
+          {
+            "id": "header",
+            "type": "navigation"
+          },
+          {
+            "id": "hero",
+            "type": "hero",
+            "count": 1,
+            "source": "content.homeBanners",
+            "layout": "split"
+          },
+          {
+            "id": "campaigns",
+            "type": "campaign",
+            "count": 2,
+            "source": "content.campaigns",
+            "layout": "full-bleed"
+          },
+          {
+            "id": "new-products",
+            "type": "product-grid",
+            "title": "新品",
+            "count": 8,
+            "columns": {
+              "desktop": 4,
+              "tablet": 3,
+              "mobile": 2
+            },
+            "source": "catalog.newProducts",
+            "layout": "editorial"
+          },
+          {
+            "id": "benefits",
+            "type": "brand-benefits",
+            "count": 3,
+            "source": "content.verifiedBenefits"
+          },
+          {
+            "id": "footer",
+            "type": "footer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "visual-edit",
+      "label": "图片展示",
+      "pageConfig": {
+        "schemaVersion": 1,
+        "page": "home",
+        "sections": [
+          {
+            "id": "header",
+            "type": "navigation"
+          },
+          {
+            "id": "hero",
+            "type": "hero",
+            "count": 1,
+            "source": "content.homeBanners",
+            "layout": "full-bleed"
+          },
+          {
+            "id": "new-products",
+            "type": "product-grid",
+            "title": "新品",
+            "count": 8,
+            "columns": {
+              "desktop": 4,
+              "tablet": 3,
+              "mobile": 2
+            },
+            "source": "catalog.newProducts",
+            "layout": "horizontal"
+          },
+          {
+            "id": "categories",
+            "type": "categories",
+            "count": 6,
+            "source": "catalog.visibleCategories",
+            "layout": "text-links"
+          },
+          {
+            "id": "featured-products",
+            "type": "product-grid",
+            "title": "精选",
+            "count": 4,
+            "source": "catalog.featuredProducts"
+          },
+          {
+            "id": "footer",
+            "type": "footer"
+          }
+        ]
+      }
+    }
+  ]
+}
