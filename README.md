@@ -36,6 +36,14 @@ Builder 在任务接收、已批准的范围变更和阶段交接时，使用公
 
 ### 固定商城状态模块
 
+商城 UI/UX 使用一个设计入口及一个区块子技能：
+`buyna-website-builder → buyna-website-design → buyai-commerce-section-design`。
+子技能集中提供 23 类必需、条件必需及可选区域，支持独立设置显示数量、顺序、
+桌面／平板／手机列数与布局；主技能根据上传素材生成不同设计并统一交付。
+用户要求先选区块时，应在出图前完成选择，已有明确选择不重复询问。
+完整选项见 [商城区域目录](skills/buyai-commerce-section-design/references/commerce-sections.md)。
+数量限制仅用于展示集合，不截断订单、费用或必要披露；这套模块不固定商家主题。
+
 `buyna-inventory-core`、`buyna-coupon-core`、`buyna-merchant-catalog-core`、
 `buyna-merchant-dashboard-core`、`buyna-checkout-flow-core` 与
 `buyna-commerce-settlement-core` 提供固定的 inventory、coupon、catalog、Dashboard、

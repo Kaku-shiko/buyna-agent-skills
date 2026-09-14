@@ -7,6 +7,13 @@ description: "Standardize Buyna.ai storefront UX: header, navigation, seller log
 
 Use for public storefront structure and usability. Owns header, nav, category tabs, login entry, footer, policy links, empty states, contrast, grid readability, and mobile layout. Does not own CRUD, booking, payment, or order sync.
 
+## Standard Commerce Regions
+
+For product storefronts, consume the selected configuration from the
+`buyai-commerce-section-design` child Skill. Present required/conditional/optional regions
+before design images when the user requests selection. Configure collection counts,
+columns, order and layouts independently; never trim transactional records.
+
 ## First Move
 
 Inspect page or screenshot. Find weak header, nav, seller login, categories, empty state, footer, policy links, contrast, grid, and mobile behavior.

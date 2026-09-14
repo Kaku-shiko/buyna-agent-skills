@@ -1,0 +1,820 @@
+{
+  "schemaVersion": 1,
+  "pages": [
+    "home",
+    "catalog",
+    "product",
+    "cart",
+    "buyer",
+    "review",
+    "payment",
+    "result"
+  ],
+  "sections": {
+    "announcement": {
+      "label": "公告栏",
+      "pages": [
+        "home",
+        "catalog",
+        "product"
+      ],
+      "kind": "collection",
+      "fields": [
+        "text",
+        "link"
+      ],
+      "actions": [
+        "关闭",
+        "打开活动"
+      ],
+      "states": [
+        "ready",
+        "empty"
+      ],
+      "defaultCount": 1,
+      "defaultColumns": {
+        "desktop": 1,
+        "tablet": 1,
+        "mobile": 1
+      },
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [],
+      "selection": "conditional",
+      "selectionReason": "有已确认公告才启用。"
+    },
+    "navigation": {
+      "label": "导航栏",
+      "pages": [
+        "*"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "logo",
+        "navigation",
+        "search",
+        "account",
+        "cart"
+      ],
+      "actions": [
+        "打开菜单",
+        "搜索",
+        "查看购物车"
+      ],
+      "states": [
+        "ready",
+        "menu-open"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "home",
+        "catalog",
+        "product"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "hero": {
+      "label": "首屏 Banner",
+      "pages": [
+        "home"
+      ],
+      "kind": "collection",
+      "fields": [
+        "image",
+        "alt",
+        "heading",
+        "description",
+        "primaryAction",
+        "secondaryAction"
+      ],
+      "actions": [
+        "访问关联商品或分类"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready"
+      ],
+      "defaultCount": 1,
+      "defaultColumns": {
+        "desktop": 1,
+        "tablet": 1,
+        "mobile": 1
+      },
+      "layouts": [
+        "split",
+        "full-bleed",
+        "contained"
+      ],
+      "defaultLayout": "split",
+      "requiredOn": [],
+      "selection": "optional",
+      "selectionReason": "可省略；不要为凑首页格式制造Banner。"
+    },
+    "categories": {
+      "label": "分类入口",
+      "pages": [
+        "home",
+        "catalog"
+      ],
+      "kind": "collection",
+      "fields": [
+        "id",
+        "name",
+        "image",
+        "link"
+      ],
+      "actions": [
+        "选择分类"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready"
+      ],
+      "defaultCount": 6,
+      "defaultColumns": {
+        "desktop": 4,
+        "tablet": 3,
+        "mobile": 2
+      },
+      "layouts": [
+        "tiles",
+        "text-links",
+        "horizontal"
+      ],
+      "defaultLayout": "tiles",
+      "requiredOn": [],
+      "selection": "optional",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "product-grid": {
+      "label": "商品展示",
+      "pages": [
+        "home",
+        "catalog",
+        "product"
+      ],
+      "kind": "collection",
+      "fields": [
+        "id",
+        "image",
+        "alt",
+        "name",
+        "price",
+        "availability",
+        "link"
+      ],
+      "actions": [
+        "查看详情",
+        "选规格或加入购物车"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready",
+        "unavailable"
+      ],
+      "defaultCount": 8,
+      "defaultColumns": {
+        "desktop": 4,
+        "tablet": 3,
+        "mobile": 2
+      },
+      "layouts": [
+        "grid",
+        "editorial",
+        "horizontal"
+      ],
+      "defaultLayout": "grid",
+      "requiredOn": [
+        "catalog"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "campaign": {
+      "label": "专题区域",
+      "pages": [
+        "home",
+        "catalog"
+      ],
+      "kind": "collection",
+      "fields": [
+        "image",
+        "heading",
+        "description",
+        "link"
+      ],
+      "actions": [
+        "访问专题"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready"
+      ],
+      "defaultCount": 2,
+      "defaultColumns": {
+        "desktop": 3,
+        "tablet": 2,
+        "mobile": 1
+      },
+      "layouts": [
+        "split",
+        "tiles",
+        "full-bleed"
+      ],
+      "defaultLayout": "split",
+      "requiredOn": [],
+      "selection": "conditional",
+      "selectionReason": "有真实专题内容和目标集合才启用。"
+    },
+    "brand-benefits": {
+      "label": "品牌与服务",
+      "pages": [
+        "home",
+        "product"
+      ],
+      "kind": "collection",
+      "fields": [
+        "heading",
+        "description",
+        "image"
+      ],
+      "actions": [
+        "查看服务说明"
+      ],
+      "states": [
+        "ready",
+        "empty"
+      ],
+      "defaultCount": 3,
+      "defaultColumns": {
+        "desktop": 3,
+        "tablet": 2,
+        "mobile": 1
+      },
+      "layouts": [
+        "icons",
+        "text",
+        "image-text"
+      ],
+      "defaultLayout": "icons",
+      "requiredOn": [],
+      "selection": "conditional",
+      "selectionReason": "有已确认品牌和服务信息才启用。"
+    },
+    "reviews": {
+      "label": "真实评价",
+      "pages": [
+        "home",
+        "product"
+      ],
+      "kind": "collection",
+      "fields": [
+        "id",
+        "rating",
+        "text",
+        "displayName",
+        "date",
+        "source"
+      ],
+      "actions": [
+        "查看更多真实评价"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready"
+      ],
+      "defaultCount": 3,
+      "defaultColumns": {
+        "desktop": 3,
+        "tablet": 2,
+        "mobile": 1
+      },
+      "layouts": [
+        "grid",
+        "quotes",
+        "horizontal"
+      ],
+      "defaultLayout": "grid",
+      "requiredOn": [],
+      "selection": "conditional",
+      "selectionReason": "有真实评价资料才启用，不制造评价。"
+    },
+    "footer": {
+      "label": "页脚",
+      "pages": [
+        "*"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "navigation",
+        "contact",
+        "privacyLink",
+        "commerceDisclosureLink"
+      ],
+      "actions": [
+        "访问帮助及适用政策"
+      ],
+      "states": [
+        "ready"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "home",
+        "catalog",
+        "product"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "listing-tools": {
+      "label": "筛选与排序",
+      "pages": [
+        "catalog"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "filters",
+        "selectedFilters",
+        "sort",
+        "resultCount"
+      ],
+      "actions": [
+        "筛选",
+        "清除筛选",
+        "排序"
+      ],
+      "states": [
+        "ready",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "catalog"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "breadcrumbs": {
+      "label": "面包屑",
+      "pages": [
+        "catalog",
+        "product"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "ancestors",
+        "currentLabel"
+      ],
+      "actions": [
+        "返回上级"
+      ],
+      "states": [
+        "ready"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [],
+      "selection": "optional",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "product-gallery": {
+      "label": "商品图片",
+      "pages": [
+        "product"
+      ],
+      "kind": "collection",
+      "fields": [
+        "image",
+        "alt",
+        "variantId"
+      ],
+      "actions": [
+        "放大查看",
+        "切换图片"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready"
+      ],
+      "defaultCount": null,
+      "defaultColumns": {
+        "desktop": 1,
+        "tablet": 1,
+        "mobile": 1
+      },
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [],
+      "selection": "optional",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "product-info": {
+      "label": "商品信息",
+      "pages": [
+        "product"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "name",
+        "price",
+        "description",
+        "availability"
+      ],
+      "actions": [
+        "阅读信息"
+      ],
+      "states": [
+        "loading",
+        "error",
+        "ready",
+        "unavailable"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "product"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "variant-picker": {
+      "label": "规格选择",
+      "pages": [
+        "product"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "options",
+        "selectedVariant",
+        "availability"
+      ],
+      "actions": [
+        "选择规格"
+      ],
+      "states": [
+        "ready",
+        "unavailable",
+        "validation"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [],
+      "selection": "conditional",
+      "selectionReason": "商品存在可选规格时必需。"
+    },
+    "purchase-actions": {
+      "label": "购买操作",
+      "pages": [
+        "product"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "quantity",
+        "availability",
+        "addToCart"
+      ],
+      "actions": [
+        "调整购买数量",
+        "加入购物车"
+      ],
+      "states": [
+        "ready",
+        "pending",
+        "error",
+        "unavailable",
+        "validation"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "product"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "product-description": {
+      "label": "商品说明",
+      "pages": [
+        "product"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "content",
+        "media"
+      ],
+      "actions": [
+        "展开说明"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [],
+      "selection": "optional",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "shipping-returns": {
+      "label": "配送与退换",
+      "pages": [
+        "product"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "shipping",
+        "returns",
+        "policyLinks"
+      ],
+      "actions": [
+        "查看适用条款"
+      ],
+      "states": [
+        "ready"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "product"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "cart-items": {
+      "label": "购物车商品",
+      "pages": [
+        "cart"
+      ],
+      "kind": "transaction",
+      "fields": [
+        "items",
+        "variants",
+        "quantities",
+        "lineTotals"
+      ],
+      "actions": [
+        "修改数量",
+        "移除商品"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "error",
+        "ready",
+        "pending"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "cart"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "cart-summary": {
+      "label": "购物车费用",
+      "pages": [
+        "cart"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "subtotal",
+        "discount",
+        "shippingEstimate",
+        "total"
+      ],
+      "actions": [
+        "前往买家表单"
+      ],
+      "states": [
+        "ready",
+        "pending",
+        "error"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "cart"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "buyer-form": {
+      "label": "买家与配送信息",
+      "pages": [
+        "buyer"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "contact",
+        "address",
+        "fulfillment"
+      ],
+      "actions": [
+        "填写信息",
+        "继续确认"
+      ],
+      "states": [
+        "ready",
+        "validation",
+        "pending",
+        "error"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "buyer"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "order-review": {
+      "label": "订单确认",
+      "pages": [
+        "review"
+      ],
+      "kind": "transaction",
+      "fields": [
+        "items",
+        "buyer",
+        "delivery",
+        "discount",
+        "total",
+        "terms"
+      ],
+      "actions": [
+        "确认或返回修改"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "pending",
+        "error"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "review"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "payment-methods": {
+      "label": "支付选择",
+      "pages": [
+        "payment"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "availableMethods",
+        "selectedMethod",
+        "amount"
+      ],
+      "actions": [
+        "选择实际可用方式",
+        "支付"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "pending",
+        "error",
+        "unavailable"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "payment"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    },
+    "payment-result": {
+      "label": "支付结果",
+      "pages": [
+        "result"
+      ],
+      "kind": "singleton",
+      "fields": [
+        "verifiedStatus",
+        "orderReference",
+        "nextAction"
+      ],
+      "actions": [
+        "查看订单",
+        "按真实状态继续或重试"
+      ],
+      "states": [
+        "pending",
+        "success",
+        "failed",
+        "expired",
+        "error"
+      ],
+      "layouts": [
+        "standard"
+      ],
+      "defaultLayout": "standard",
+      "requiredOn": [
+        "result"
+      ],
+      "selection": "required",
+      "selectionReason": "按本页必需项和已确认任务选择；不是所有页面都启用。"
+    }
+  },
+  "requiredByPage": {
+    "home": [
+      "navigation",
+      "footer"
+    ],
+    "catalog": [
+      "navigation",
+      "listing-tools",
+      "product-grid",
+      "footer"
+    ],
+    "product": [
+      "navigation",
+      "product-info",
+      "purchase-actions",
+      "shipping-returns",
+      "footer"
+    ],
+    "cart": [
+      "cart-items",
+      "cart-summary"
+    ],
+    "buyer": [
+      "buyer-form"
+    ],
+    "review": [
+      "order-review"
+    ],
+    "payment": [
+      "payment-methods"
+    ],
+    "result": [
+      "payment-result"
+    ]
+  },
+  "oneOfByPage": {
+    "home": [
+      [
+        "categories",
+        "product-grid"
+      ]
+    ]
+  }
+}

@@ -5,7 +5,16 @@ description: "Produce the design half of a combined website design-and-structure
 
 # Buyna.ai Website Design
 
-Turn confirmed customer information into a website design direction, then pass it directly to `buyna-page-structure`. Do not write production code or request an intermediate approval.
+Turn confirmed customer information into a website design direction, then pass it directly to `buyna-page-structure`. Do not write production code or request an unsolicited intermediate approval. Honor an explicit request to select commerce regions before generating images.
+
+## Commerce Region Design
+
+For product-commerce designs, read [commerce-upload-design.md](references/commerce-upload-design.md).
+Invoke the `buyai-commerce-section-design` child Skill selected by Builder.
+Use its region catalog and configuration compiler; record
+required and optional regions, quantities and asset mappings before image generation.
+When the user requests pre-image selection, obtain that selection first; reuse
+an already explicit selection. This is not an additional workflow authorization.
 
 ## Workflow
 
@@ -16,7 +25,7 @@ Turn confirmed customer information into a website design direction, then pass i
    For merchant projects, apply the same visual system to the Dashboard UI
    without defining database, permission, order, inventory, or payment logic.
 5. Produce the written record from `references/design-fields.md`.
-6. Read `references/design-system-board.md`, select its generation mode, and use `imagegen` to create one landscape design-system board image. When the user supplied any design image, use `REFERENCE_FAITHFUL` and attach the actual design image to the generation request; a textual audit alone is never sufficient.
+6. Read `references/design-system-board.md`, select its generation mode, and use `imagegen` to create one landscape design-system board image. When the user requests alternative commerce combinations, use `MODULAR_VARIANTS` from the commerce reference. Otherwise, when a supplied design image is the approved direction, use `REFERENCE_FAITHFUL` and attach the actual design image; a textual audit alone is never sufficient. A screenshot of task text is not an approved visual direction.
 7. Pass the written record and image directly to `buyna-page-structure` for one combined approval package.
 
 ## Rules

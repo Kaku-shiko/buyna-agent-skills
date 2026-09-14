@@ -326,10 +326,10 @@ function normalizeNotificationSelection({ targetGate, notificationOperation, per
 function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboardSelection, notificationSelection }) {
   const fixedModules = ["buyna-workflow-state-core"];
   if (gate === "customer_intake") return { skills: ["buyna-customer-intake"], fixedModules, commerceArchitecture: null };
-  if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure"], fixedModules, commerceArchitecture: null };
+  if (gate === "design_and_structure") return { skills: ["buyna-website-design", "buyna-page-structure", ...(capabilities.requiresCatalog || capabilities.requiresCart ? ["buyai-commerce-section-design"] : [])], fixedModules, commerceArchitecture: null };
   if (gate === "frontend_code") {
     addUnique(fixedModules, lifecycleModules(capabilities, { dashboard: true }));
-    return { skills: ["buyna-frontend-builder"], fixedModules, commerceArchitecture: null };
+    return { skills: ["buyna-frontend-builder", ...(capabilities.requiresCatalog || capabilities.requiresCart ? ["buyai-commerce-section-design"] : [])], fixedModules, commerceArchitecture: null };
   }
   if (gate === "dashboard_integration") {
     const skills = [];
