@@ -27,7 +27,7 @@ function fixture({lostAck=false,failHead=false}={}) {
     async deleteObject(){events.push('delete');throw new Error('MUST_NOT_DELETE');},
     async signImage(){throw new Error('READ_LINK_FAILED');},
   };
-  return {writer:createMerchantImageWriter({projectId:'shop-a',sellerId:'seller-a',storage,metadata}),events,requests,objects,storage};
+  return {writer:createMerchantImageWriter({projectId:'shop-a',sellerId:'seller-a',storage,metadata,quota:{reserve:async()=>{},confirm:async()=>{}}}),events,requests,objects,storage};
 }
 test('validates MIME, signature, policy and actual byte length',()=>{
   assert.equal(validateImageBytes({bytes,contentType:'image/png'}).extension,'png');

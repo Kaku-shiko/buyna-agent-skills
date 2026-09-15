@@ -20,12 +20,13 @@ export function validateImageBytes({bytes,contentType,maxBytes=5*1024*1024}={}) 
 }
 
 /** Durable write protocol. Metadata adapter owns SQL transactions and leases. */
-export function createMerchantImageWriter({projectId,sellerId,storage,metadata,maxBytes=5*1024*1024}={}) {
+export function createMerchantImageWriter({projectId,sellerId,storage,metadata,quota,maxBytes=5*1024*1024}={}) {
   const scope=Object.freeze({projectId,sellerId});
   // Validate scope before any adapter can run.
   buildMerchantObjectKey({...scope,entityType:'images',entityId:'scope',objectId:'scope',extension:'png'});
   for(const name of ['reserveImageWrite','commitImageWrite']) if(typeof metadata?.[name]!=='function') fail('IMAGE_WRITE_ADAPTER_MISSING');
   if(typeof storage?.putObject!=='function'||typeof storage?.headObject!=='function') fail('IMAGE_STORAGE_ADAPTER_MISSING');
+  if(typeof quota?.reserve!=='function'||typeof quota?.confirm!=='function') fail('STORAGE_QUOTA_ADAPTER_REQUIRED');
   return {
     async write({requestKey,entityType,entityId,variant='original',expectedRevision,bytes,contentType}={}) {
       if(typeof requestKey!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(requestKey)) fail('INVALID_UPLOAD_REQUEST_KEY');
@@ -42,9 +43,12 @@ export function createMerchantImageWriter({projectId,sellerId,storage,metadata,m
       if(claim.state!=='acquired'||typeof claim.leaseToken!=='string'||!claim.leaseToken) fail('INVALID_IMAGE_WRITE_CLAIM');
       const expectedPrefix=buildMerchantObjectKey({...scope,...slot,objectId:'scope',extension:image.extension}).replace(`scope.${image.extension}`,'');
       if(typeof claim.objectKey!=='string'||!claim.objectKey.startsWith(expectedPrefix)||!/^[-A-Za-z0-9]+\.(?:jpg|png|webp)$/.test(claim.objectKey.slice(expectedPrefix.length))) fail('INVALID_IMAGE_WRITE_KEY');
+      await quota.reserve({scope:{...scope},requestKey,objectKey:claim.objectKey,size:image.size});
       await storage.putObject({key:claim.objectKey,body:image.body,contentType:image.contentType});
       const stored=await storage.headObject({key:claim.objectKey});
       if(!stored||stored.size!==image.size||stored.contentType!==image.contentType) fail('IMAGE_UPLOAD_NOT_CONFIRMED');
+      // A confirmed object consumes space even if attaching it later fails.
+      await quota.confirm({scope:{...scope},requestKey,objectKey:claim.objectKey,size:image.size});
       // This atomic transaction binds the slot, file and request, and enqueues
       // old-object cleanup. No delete/URL signing occurs in the write path.
       const file=await metadata.commitImageWrite({scope:{...scope},requestKey,fingerprint,leaseToken:claim.leaseToken,slot,expectedRevision,objectKey:claim.objectKey,contentType:image.contentType,size:image.size,sha256:image.sha256,etag:stored.etag??null});

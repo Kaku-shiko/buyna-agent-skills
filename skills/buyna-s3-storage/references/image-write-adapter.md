@@ -29,6 +29,11 @@ full image decode or malware scan; use the project's image decoder where require
 
 ## Metadata implementation in the existing database
 
+The writer now requires `quota.reserve` and `quota.confirm`. Read
+[Storage quotas](storage-quota.md) and use the shared Basic/Pro ledger.
+Confirmation accounts for physical S3 bytes before attaching the business record;
+failed attachment does not release storage occupied by the orphan candidate.
+
 These methods are REQUIRED executable SQL adapters, not optional callbacks:
 
 - `reserveImageWrite(input)`: atomically unique by project_id, seller_id,
