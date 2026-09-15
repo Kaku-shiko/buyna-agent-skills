@@ -3,6 +3,12 @@ name: buyai-globepay-payment
 description: "Use when a Buyna.ai request involves GlobePay configuration, one-time checkout, mobile or desktop payment selection, notify or query status, refunds, recurring billing, or an unclear payment failure."
 ---
 
+When the merchant confirms supplying both matching payment Codes, treat channel
+opening as merchant-confirmed. Distinguish pending website configuration,
+pending verification, and the website collection switch; none alone means
+“支付渠道未开通”. Follow `buyai-globepay-config` for reporting and actual provider
+errors. Never infer a completed transaction from credential presence.
+
 # Buyai GlobePay Payment
 
 Use this as the GlobePay router. Do not implement detailed endpoint logic here; select the right payment subskill and combine it with product, booking, or checkout skills.
