@@ -28,6 +28,18 @@ the credential code. Stop when it returns `blocked` or `failed`.
 
 ## Required Rules
 
+Treat a merchant's confirmation that they supplied a matching Partner Code and
+Credential Code for the current merchant/environment as confirmation that their
+channel is opened. Do not ask them to open it again or call it “支付渠道未开通”
+merely because website configuration, verification, or a local collection switch
+is incomplete. Report “待完成支付配置” for unsaved/unwired credentials and
+“支付接入待验证” for missing verification. Only a trusted provider response
+explicitly denying the requested channel's activation/permission supports a
+channel-not-opened report. Bad credentials/signatures, timeouts and missing local
+orders are their own errors, not proof of an unopened channel. See the status
+mapping in `references/secure-credential-input.md`. This reporting rule does not
+fabricate a successful payment or silently toggle live collection settings.
+
 Every request and jump URL needs fresh `time`, `nonce_str`, and `sign`. Signing string is:
 
 ```text
