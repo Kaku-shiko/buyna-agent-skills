@@ -30,6 +30,8 @@ an already explicit selection. This is not an additional workflow authorization.
 
 ## Rules
 
+- Default website and design-image copy to normal commercial selling/booking language. Do not add unsolicited 演示, 测试, 示例商品, demo or test labels. Put development disclosures in the handoff; never invent stock, testimonials or payment readiness.
+
 - Recommend a default instead of making nontechnical team members compare every library.
 - Use customer assets when provided. Do not invent logos, slogans, company history, testimonials, clients, prices, or team members.
 - Use `frontend-design` principles: ground decisions in the real business, make typography intentional, choose one distinctive signature, and avoid generic AI-style decoration.

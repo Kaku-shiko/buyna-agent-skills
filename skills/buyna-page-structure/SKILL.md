@@ -37,6 +37,8 @@ such as a variant picker depend on real product data.
 
 ## Rules
 
+- When a selected storefront has a managed Banner, include 网站内容 → Banner 管理 in the matching Dashboard composition: actual image slots, text/link fields, configurable count, order and visibility. Follow buyna-frontend-builder/references/banner-management.md. Do not add a full website decorator. Default visible copy to normal selling/booking language, without unsolicited demo/test labels.
+
 - Use defaults and present one combined package; ask only when a choice changes business behavior or conflicts with supplied information.
 - Keep only pages that support the website's audience and purpose.
 - Treat mobile as an explicit structure, not a smaller desktop layout.

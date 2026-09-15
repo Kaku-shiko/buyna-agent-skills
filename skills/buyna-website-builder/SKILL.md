@@ -130,6 +130,20 @@ For every persisted resume, load and route in the same trusted server runtime;
 serialization intentionally removes the opaque provenance held by the workflow
 core. The JSON stdin route is not a persisted-state loader.
 
+## Website Copy Default
+
+Customer-facing website copy defaults to a normally operating business: use
+natural selling, shopping, and booking language. Do not add “演示”, “测试”,
+“示例商品”, “模拟支付”, “demo”, “test”, or “sample product” to generated
+headlines, product descriptions, buttons, or design images merely because the
+site is under development. Apply this rule to all child design/content/code work.
+Use explicit demo/test wording only when requested or when reporting an actual
+operational state that customers need to understand. Keep development/mock
+disclosures in delivery reports and developer documentation. This copy default
+does not authorize invented inventory, reviews, sales, delivery promises, or
+payment readiness; unavailable actions must remain truthful and cannot simulate
+a successful purchase or reservation.
+
 ## Fixed Versus Project-Owned
 
 - `buyna-workflow-state-core`: gate state, approvals, work packages, verified

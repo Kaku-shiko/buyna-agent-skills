@@ -40,6 +40,11 @@ to produce the selection and design specification. Do not claim the compiler
 ran or independent image files were generated when those tools are unavailable.
 An HTML design preview is a preview, not evidence of an image-generation call.
 
+For selected managed hero/Banner regions, hand off the corresponding
+网站内容 → Banner 管理 fields and count to page structure/frontend. Normal
+commercial copy is the default in all generated regions; development/mock
+disclosures belong in the handoff, not unsolicited 演示/测试 labels on the site.
+
 ## Boundaries
 
 No theme is hard-coded. Project UI implements region markup/CSS and maps sources

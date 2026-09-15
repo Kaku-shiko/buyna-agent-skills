@@ -11,6 +11,11 @@ Use for setup, secrets, host/path, signing, currency, and provider error diagnos
 
 Use `https://pay.globepay.co.jp/api/v1.0` for GlobePay Japan. Sandbox/production use the same host; switch credentials, not host. Never put `credential_code` in browser/client code. Do not use `pay.globepay.co`, `pay.globepay.cn`, or duplicated `/api/v1.0/api/v1.0`.
 
+For Partner Code / Credential Code input setup, read
+[Secure credential input](references/secure-credential-input.md). Resolve the
+intended merchant before opening a write-capable form; example school scripts
+have fixed targets and must not be used for other merchants.
+
 ## First Move
 
 Read `references/config-signing-rules.md`. Inspect `GLOBEPAY_BASE_URL` or `GLOBEPAY_API_BASE_URL`, `GLOBEPAY_PARTNER_CODE`, `GLOBEPAY_CREDENTIAL_CODE`, `GLOBEPAY_NOTIFY_URL`, `GLOBEPAY_RETURN_URL`, server timezone/clock, and whether the merchant account enabled the requested payment method.

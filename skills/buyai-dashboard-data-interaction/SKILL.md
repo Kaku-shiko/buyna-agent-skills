@@ -53,6 +53,10 @@ running this entry check again.
 
 Read `references/dashboard-data-interaction.md`. Read `references/approved-stack.md` only when no working/approved backend stack exists.
 
+For Banner management, consume the frontend Skill's `references/banner-management.md`; connect its scoped content persistence and
+`buyna-s3-storage/references/image-write-adapter.md`. Do not treat this as a
+page-layout editor or claim that UI-only editing persists.
+
 ## Slice Sequence
 
 For the current page only:
