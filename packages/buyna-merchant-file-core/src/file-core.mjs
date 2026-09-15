@@ -110,3 +110,4 @@ export function createMerchantFileService({storage,metadata,projectId,sellerId,p
 }
 
 export {createImageUploadClient} from './image-upload-client.mjs';
+export {validateImageBytes,createMerchantImageWriter} from './image-write.mjs';

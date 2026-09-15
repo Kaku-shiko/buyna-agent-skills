@@ -18,6 +18,10 @@ stop with `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` instead of
 regenerating a missing Dashboard, catalog, cart, order, PostgreSQL, or file
 core.
 
+For frontend Banner content and its corresponding Dashboard menu, read
+[Banner management](references/banner-management.md). Include this content slice
+when the selected design contains a managed Banner.
+
 ## Commerce Region Rendering
 
 For product storefronts, consume approved page-region configuration using
@@ -40,7 +44,7 @@ is neither authorization nor proof that data is real or APIs are connected.
    and transitions, then generate the button, drawer markup, position, motion,
    responsive treatment, and styles from the approved project design. Do not
    implement cart pricing rules in components.
-4. Implement all approved desktop and mobile interactions with clearly marked mock data.
+4. Implement all approved desktop and mobile interactions. Mark mock data in source/adapters and delivery reports; customer-facing copy defaults to normal selling/booking language, without unsolicited 演示, 测试, 示例商品 or demo labels.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.
 6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.
 7. Record implemented paths/routes, verification commands/results, and the API contract location. Report the interface as frontend code using mock data, not as persisted or backend-connected.
@@ -96,8 +100,7 @@ For product or service layouts, keep visual presentation in frontend components 
 ## Boundaries
 
 - Do not place database, AWS, or payment secrets in frontend code.
-- In frontend code mode, label mock data and simulated actions clearly. Do not claim
-  they persist or connect to a backend.
+- In frontend code mode, label mock data and simulated actions clearly in source/adapters and delivery reports. Do not claim they persist or connect to a backend. Keep unavailable/error states truthful and never show a simulated purchase as a real transaction.
 - A design image, wireframe, screenshot, or specification without runnable
   project source code cannot complete Phase 4.
 - In integration mode, remove mock business data and disconnected demo actions.

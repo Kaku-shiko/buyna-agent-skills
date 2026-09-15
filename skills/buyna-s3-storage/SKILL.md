@@ -14,6 +14,11 @@ new confirmation. If the storage target or scope changed, return one structured
 missing-evidence result to the Builder. Standalone work performs each
 applicable check once.
 
+For server-proxied image writes (including Banner), read
+[Durable image writes](references/image-write-adapter.md). Reuse
+`createMerchantImageWriter` and `createS3ImageStorage`; keep signed-URL reads
+outside the commit/error-compensation path.
+
 ## Steps
 
 1. Reuse the approved project resource record from `executionCheckReceipt`;
