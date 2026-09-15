@@ -3,6 +3,12 @@ name: buyna-merchant-onboarding
 description: "Safely register and activate one new independent merchant in an already approved Buyna multi-tenant backend. Use when a developer asks to add, onboard, register, configure, or validate a new merchant on verified shared database, storage, compute, and ingress resources without provisioning replacement cloud resources."
 ---
 
+For activated Basic/Pro merchants, configure storage using
+`buyna-s3-storage/references/storage-quota.md`: Basic 500 MiB, Pro 2 GiB.
+Initialize the quota ledger only after reconciling existing files; unknown plans
+or unknown usage must not become unlimited/zero-used defaults. Preserve the
+existing trusted subscription activation authority.
+
 # Buyna Merchant Onboarding
 
 Add one merchant without changing existing merchants or creating cloud infrastructure.

@@ -21,6 +21,12 @@ outside the commit/error-compensation path.
 
 ## Steps
 
+For merchant subscription storage, read [Storage quotas](references/storage-quota.md).
+Enforce Basic 500 MiB and Pro 2 GiB using the trusted activated plan and a shared
+transactional usage ledger. All upload routes reserve capacity before transfer;
+unknown plan or uninitialized usage blocks new uploads. Use the reusable
+PostgreSQL quota adapter with the registered database, not per-conversation limits.
+
 1. Reuse the approved project resource record from `executionCheckReceipt`;
    run the `buyna-aws-data-layer` Existing Resource Gate only for standalone
    work or missing/changed resource evidence.

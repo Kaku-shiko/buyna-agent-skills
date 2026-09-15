@@ -103,6 +103,11 @@ For the 订单/预约 slice, require the approved detail UI and API contract to 
 
 ## Boundaries
 
+- Storage-space UI reads the merchant's trusted activated plan and server usage:
+  Basic 500 MiB, Pro 2 GiB. Follow `buyna-s3-storage/references/storage-quota.md`;
+  display used, reserved and remaining bytes, and retain drafts on quota errors.
+  Never allow a merchant-side plan selector to change their entitlement.
+
 - Do not preload or implement later pages.
 - Preserve the approved UI and API contract; return conflicts for focused approval.
 - Keep fixed operation/drawer/table/dialog behavior separate from the
