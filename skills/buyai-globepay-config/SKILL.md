@@ -61,3 +61,5 @@ Check base URL, no client secrets, no duplicated API version, fresh signing, cor
 Deliver real server-side configuration/adapter changes without secrets and
 applicable tests. Report changed paths and verification results; configuration
 instructions alone are not complete.
+
+Read [merchant access management](references/merchant-access-management.md) when managing merchant information, activation or CRM subscription status.

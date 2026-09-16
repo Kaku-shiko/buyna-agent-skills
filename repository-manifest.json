@@ -57,7 +57,9 @@
     "buyna-postgres-merchant-core",
     "buyna-resource-evidence-core",
     "buyna-runtime-slot-core",
-    "buyna-workflow-state-core"
+    "buyna-workflow-state-core",
+    "buyna-merchant-access-core",
+    "buyna-repository-retrieval-core"
   ],
   "profiles": {
     "website-builder": {
@@ -98,7 +100,9 @@
         "buyna-merchant-file-core",
         "buyna-order-core",
         "buyna-postgres-merchant-core",
-        "buyna-workflow-state-core"
+        "buyna-workflow-state-core",
+        "buyna-merchant-access-core",
+        "buyna-repository-retrieval-core"
       ]
     }
   },
