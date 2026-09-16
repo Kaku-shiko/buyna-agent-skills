@@ -1,0 +1,12 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+import {createHmac} from 'node:crypto';
+const {send}=vi.hoisted(()=>({send:vi.fn()}));
+vi.mock('@aws-sdk/client-dynamodb',()=>({DynamoDBClient:class{}}));
+vi.mock('@aws-sdk/lib-dynamodb',()=>({DynamoDBDocumentClient:{from:()=>({send})},GetCommand:class{constructor(public input:any){}},TransactWriteCommand:class{constructor(public input:any){}}}));
+import {readAccess,saveAccess,verifyAccessRequest} from './merchant-access.server';
+const projectId='project-00000000-0000-0000-0000-000000000001';
+beforeEach(()=>{send.mockReset();process.env.BUILDER_CRM_ACCESS_SECRET='unit-test-only';});
+it('rejects other owner before reading customer data',async()=>{send.mockResolvedValueOnce({Item:{ownerActor:'a'}});await expect(readAccess(projectId,'b')).rejects.toThrow('ACCESS_NOT_FOUND');expect(send).toHaveBeenCalledTimes(1);});
+it('saves state and immutable audit in a single conditional transaction',async()=>{send.mockResolvedValueOnce({Item:{id:'c',plan:'Basic',planStatus:'生效中'}}).mockResolvedValueOnce({}).mockResolvedValueOnce({});await saveAccess({projectId,ownerActor:'a',customerId:'c',expectedRevision:0,patch:{activation:'merchant_confirmed',reason:'Confirmed'}},'admin');const tx=send.mock.calls[2][0].input.TransactItems;expect(tx).toHaveLength(2);expect(tx[0].Put.ConditionExpression).toBe('attribute_not_exists(id)');expect(tx[1].Put.Item.access.verification).toBe('pending');});
+it('merchant cannot create or rebind an access record',async()=>{send.mockResolvedValueOnce({Item:{plan:'Basic'}}).mockResolvedValueOnce({});await expect(saveAccess({projectId,ownerActor:'a',customerId:'c',expectedRevision:0,patch:{legalName:'x'}},'a',true)).rejects.toThrow('ACCESS_NOT_FOUND');expect(send).toHaveBeenCalledTimes(2);});
+it('signed body cannot be changed or replayed outside the time window',()=>{const body='{}',time=String(Date.now()),sig=createHmac('sha256','unit-test-only').update(`merchant-access-v1\n${time}\n${body}`).digest('hex');const headers=new Headers({'x-buyna-timestamp':time,'x-buyna-signature':sig});expect(verifyAccessRequest(body,headers,Number(time))).toBe(true);expect(verifyAccessRequest('{"ownerActor":"b"}',headers,Number(time))).toBe(false);expect(verifyAccessRequest(body,headers,Number(time)+61000)).toBe(false);});
