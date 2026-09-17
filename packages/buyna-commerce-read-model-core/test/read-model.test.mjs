@@ -178,7 +178,7 @@ test('passes one exact immutable server scope to every source method', async () 
   assert.deepEqual(Object.keys(calls[0][1]).sort(), ['asOf', 'currency', 'cursor', 'limit', 'order', 'scope']);
   assert.deepEqual(Object.keys(calls[1][1]).sort(), ['currency', 'cursor', 'from', 'limit', 'order', 'scope', 'to']);
   assert.deepEqual(Object.keys(calls[2][1]).sort(), ['cursor', 'limit', 'order', 'scope', 'threshold']);
-  assert.deepEqual(Object.keys(calls[3][1]).sort(), ['cursor', 'limit', 'order', 'scope']);
+  assert.deepEqual(Object.keys(calls[3][1]).sort(), ['currency', 'cursor', 'limit', 'order', 'scope']);
 });
 
 test('rejects cross-project or cross-seller rows in every source stream', async () => {
@@ -238,7 +238,7 @@ test('normalizes JPY and fails closed for every other currency', async () => {
 });
 
 test('exports immutable public constants', () => {
-  assert.deepEqual(SUPPORTED_CURRENCIES, ['JPY']);
+  assert.deepEqual(SUPPORTED_CURRENCIES, ['JPY', 'CNY']);
   assert.deepEqual(TREND_INTERVALS, ['day', 'month']);
   assert.equal(READ_PAGE_LIMIT, 200);
   assert.equal(MAX_FACT_ROWS, 10000);
@@ -571,4 +571,15 @@ test('rejects invalid recent-order amount and status facts', async () => {
     const { model } = createFixture({ recentOrders: [row] });
     await rejectsCode(model.getOverview(overviewInput()), 'READ_MODEL_FACT_INVALID');
   }
+});
+
+
+test('CNY minor units and refunds stay isolated from JPY', async () => {
+ const data={currentPending:[pending({currency:'CNY',payableAmount:990})],settlementFacts:[settlement({currency:'CNY',amount:9990}),settlement({currency:'CNY',eventId:'refund',type:'refund',amount:1990})],recentOrders:[recent({currency:'CNY'})]};
+ const {model,calls}=createFixture(data);
+ const result=await model.getOverview(overviewInput({currency:'CNY'}));
+ assert.equal(result.currency,'CNY');
+ assert.equal(result.metrics.netAmount,8000);
+ assert.ok(calls.filter(([type])=>type!=='stock').every(([,input])=>input.currency==='CNY'));
+ await rejectsCode(model.getOverview(overviewInput({currency:'JPY'})),'READ_MODEL_CURRENCY_UNSUPPORTED');
 });

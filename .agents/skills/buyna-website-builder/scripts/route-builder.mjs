@@ -371,6 +371,7 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboard
   }
   if (capabilities.requiresPayment) {
     skills.push("buyai-globepay-payment", "buyai-globepay-status-sync", "buyna-gmv-commerce");
+    fixedModules.push("buyna-gmv-core");
     if (fixedCorePayment) fixedModules.push("buyna-commerce-settlement-core");
   }
   return {
