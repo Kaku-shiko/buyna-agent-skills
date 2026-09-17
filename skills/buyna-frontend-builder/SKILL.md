@@ -43,7 +43,9 @@ is neither authorization nor proof that data is real or APIs are connected.
    to a mock Adapter matching `buyna-cart-core`. Import its fixed drawer state
    and transitions, then generate the button, drawer markup, position, motion,
    responsive treatment, and styles from the approved project design. Do not
-   implement cart pricing rules in components.
+   implement cart pricing rules in components. Do not reuse Medinance cart UI,
+   CSS, layout or branded assets; design the cart for the current storefront.
+   Backend storage examples do not authorize copying their visual design.
 4. Implement all approved desktop and mobile interactions. Mark mock data in source/adapters and delivery reports; customer-facing copy defaults to normal selling/booking language, without unsolicited 演示, 测试, 示例商品 or demo labels.
 5. Record the fields, operations, validation, ownership, and response states required from the later API.
 6. Run the applicable frontend build and type checks, then verify desktop and real mobile widths.

@@ -35,9 +35,11 @@ Storefront needs brand/header, visible login/admin entry, meaningful nav, backen
 
 For product commerce, default to the fixed commerce cart interaction: “加入购物车”
 opens a right-side drawer with item count, image/details, quantity controls,
-remove, totals, and one checkout action for all items. Use the fixed
-`buyna-cart-core` React components; configure styling instead of rebuilding the
-interaction.
+remove, totals, and one checkout action for all items. Reuse `buyna-cart-core` headless state, transitions and business behavior; it
+does not export React UI components. Generate cart markup, components, spacing,
+typography, color, motion and responsive layout for the current brand.
+Do not reuse or copy Medinance cart UI, CSS, layout or branded assets. Medinance
+may inform backend storage/write logic only, not storefront visual design.
 
 Product checkout must show `微信`, `支付宝`, and `银行卡` as three distinct
 payment choices immediately before the final payment button. Use accessible
