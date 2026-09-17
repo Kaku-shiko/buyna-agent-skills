@@ -254,7 +254,7 @@ const zh: OfficialSiteContent = {
     backLabel: "返回上一页",
     logout: "退出",
     logoutSuccess: "已退出登录",
-    sellerLogin: "商家登录",
+    sellerLogin: "登录",
     languageLabel: "语言",
   },
   hero: {
@@ -264,7 +264,7 @@ const zh: OfficialSiteContent = {
     description:
       "为日本商家提供「官网制作 + 商品 / 服务一键下单 + 信用卡在线扣款」的整套解决方案。注册即开通，几分钟上线属于自己的收款网站。",
     primaryCta: "查看套餐 · 立即开通",
-    secondaryCta: "商家登录",
+    secondaryCta: "登录",
   },
   stats: [
     { value: "¥10,000", label: "初期费用" },

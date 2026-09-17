@@ -9,7 +9,7 @@ export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: typeof search.redirect === "string" ? search.redirect : "/admin",
   }),
-  head: () => ({ meta: [{ title: "管理员登录 — Buyna AI" }] }),
+  head: () => ({ meta: [{ title: "登录 — Buyna AI" }] }),
   component: LoginPage,
 });
 
@@ -75,7 +75,7 @@ function LoginPage() {
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               Admin
             </div>
-            <h1 className="text-lg font-semibold">官方管理员登录</h1>
+            <h1 className="text-lg font-semibold">登录</h1>
           </div>
         </div>
 
@@ -111,7 +111,7 @@ function LoginPage() {
             disabled={busy}
             className="mt-2 w-full rounded-lg btn-primary py-3 text-sm font-semibold disabled:opacity-60"
           >
-            {busy ? "处理中…" : "登录后台"}
+            {busy ? "处理中…" : "登录"}
           </button>
         </form>
 

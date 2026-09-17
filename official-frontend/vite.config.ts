@@ -7,6 +7,7 @@
 import { defineConfig, type LovableViteTanstackOptions } from "@lovable.dev/vite-tanstack-config";
 
 const nitroConfig = {
+  cloudflare: { wrangler: { name: "buyna-ai-official" } },
   hooks: {
     "rollup:before": (_nitro: unknown, rollupConfig: { platform?: unknown }) => {
       delete rollupConfig.platform;
