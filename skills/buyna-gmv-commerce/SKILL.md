@@ -70,4 +70,3 @@ Call `@buyna/gmv-core` for event validation, event ids, paid/refund factories, H
 ## Delivery
 
 Deliver real migration, Adapter, payment/refund integration, worker, CRM ingestion/admin route, and automated tests for the approved step. A design document alone is not complete. Report implemented paths, executed tests, merchant-surface absence checks, deployment state, and the next approval only.
-
