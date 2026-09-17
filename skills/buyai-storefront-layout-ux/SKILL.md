@@ -31,7 +31,7 @@ gestures, transitions, image components, mobile layout, and CSS.
 
 Readable beats decorative. Do not ship pale text, hidden seller login, giant blanks, hard-coded categories after backend categories exist, or inconsistent footers.
 
-Storefront needs brand/header, visible login/admin entry, meaningful nav, backend-driven categories when available, product/service grid or useful empty state, tappable links, shared footer/legal links, and mobile layout without clipped actions. Label the public login button `登录`; do not display `商户登录` or `商家登录` unless the user explicitly approves that wording.
+Storefront needs brand/header, visible login/admin entry, meaningful nav, backend-driven categories when available, product/service grid or useful empty state, tappable links, shared footer/legal links, and mobile layout without clipped actions. Use `登录` for every user-visible login entry, navigation item, page heading, document title, button and prompt. Do not prefix the login label with merchant or administrator roles. Apply this to storefront, merchant backend, booking and CRM pages. Preserve authentication, authorization and existing login routes.
 
 For product commerce, default to the fixed commerce cart interaction: “加入购物车”
 opens a right-side drawer with item count, image/details, quantity controls,
