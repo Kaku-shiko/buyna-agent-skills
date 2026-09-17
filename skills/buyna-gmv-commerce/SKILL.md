@@ -20,7 +20,7 @@ verification. Standalone invocation performs the applicable checks once.
 ## Gate
 
 1. Inspect the real merchant order, payment, refund, PostgreSQL transaction, worker, CRM customer record, and deployment architecture.
-2. Confirm server-owned `project_id`, `seller_id`, merchant name, JPY currency,
+2. Confirm server-owned `project_id`, `seller_id`, merchant name, actual provider-confirmed payment currency (JPY or CNY),
    provider event ids, and the trusted CRM endpoint. Reconcile exact amount and
    currency for every event.
 3. Resolve `packages/buyna-gmv-core` from the project or user installation. Stop with `BLOCKED: FIXED_GMV_MODULE_NOT_INSTALLED` when absent; never regenerate it.
@@ -36,10 +36,10 @@ expansion or blocker.
 
 1. **Identity binding** — Add `project_id + seller_id` to every CRM merchant record. Payment-capable merchants receive an active server credential; merchants without payment remain registered with GMV disabled until payment is enabled. Prefer per-merchant HMAC; allow bearer only for an explicitly approved transition.
 2. **Outbox migration** — Generate only the project migration and Adapter described in the integration contract. Insert immutable events with a unique provider event key.
-3. **Payment writer** — After verified notify/query returns `PAY_SUCCESS`, update the order and insert `paymentCaptured(...)` in the same PostgreSQL transaction. Use the actual charged amount after discounts, shipping, and tax.
-4. **Refund writer** — After provider-confirmed refund completion, update the refund and insert `refundCompleted(...)` in the same transaction. Reject cumulative refunds above the paid amount.
+3. **Payment writer** — After verified notify/query returns `PAY_SUCCESS`, update the order and insert `paymentCaptured(...)` in the same PostgreSQL transaction. Use the actual charged amount after discounts, shipping, and tax, in integer minor units (JPY yen; CNY fen). Never derive payment currency from storefront display currency.
+4. **Refund writer** — After provider-confirmed refund completion, update the refund and insert `refundCompleted(...)` in the same transaction. Pass the locked original payment and cumulative completed-refund amount; require matching currency and reject cumulative refunds above the paid amount.
 5. **Sync worker** — Call fixed `sendPendingGmvEvents(...)`; generate only the Adapter, schedule, and environment wiring. Checkout success must not depend on CRM availability.
-6. **CRM ingestion** — Verify HMAC identity binding, event idempotency, immutable storage, and merchant/project aggregation. Never accept browser authority for merchant identity, amount, paid status, or refund status.
+6. **CRM ingestion** — Verify HMAC identity binding, event idempotency, immutable storage, and merchant/project aggregation separated by currency. Never add CNY and JPY amounts together. Never accept browser authority for merchant identity, amount, paid status, or refund status.
 7. **CRM-only read integration** — Resolve the trusted Buyna CRM administrator
    route from server configuration and expose GMV summary, trends, and events
    only there. Do not create merchant-facing GMV routes, queries, dashboard
@@ -70,3 +70,4 @@ Call `@buyna/gmv-core` for event validation, event ids, paid/refund factories, H
 ## Delivery
 
 Deliver real migration, Adapter, payment/refund integration, worker, CRM ingestion/admin route, and automated tests for the approved step. A design document alone is not complete. Report implemented paths, executed tests, merchant-surface absence checks, deployment state, and the next approval only.
+
