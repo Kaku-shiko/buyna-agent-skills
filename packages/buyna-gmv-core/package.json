@@ -1,1 +1,1 @@
-{"name":"@buyna/gmv-core","version":"0.1.0","type":"module","exports":{".":"./src/gmv-core.mjs"},"scripts":{"test":"node --test test/gmv-core.test.mjs"},"engines":{"node":">=20"}}
+{"name":"@buyna/gmv-core","version":"0.2.0","type":"module","exports":{".":"./src/gmv-core.mjs"},"scripts":{"test":"node --test test/gmv-core.test.mjs test/currency.test.mjs"},"engines":{"node":">=20"}}
