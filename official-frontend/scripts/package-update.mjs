@@ -125,7 +125,12 @@ mkdirSync(outDir, { recursive: true });
 const shortCommit =
   run("git", ["rev-parse", "--short", "HEAD"], { cwd: repoRoot }).stdout || "nogit";
 const fullCommit = run("git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout || "";
-const branch = run("git", ["branch", "--show-current"], { cwd: repoRoot }).stdout || "";
+const branch =
+  run("git", ["branch", "--show-current"], { cwd: repoRoot }).stdout ||
+  (process.env.GITHUB_ACTIONS === "true"
+    ? process.env.GITHUB_HEAD_REF?.trim() || process.env.GITHUB_REF_NAME?.trim()
+    : "") ||
+  (fullCommit ? `detached:${fullCommit}` : "");
 const createdAt = new Date().toISOString();
 const packageName = `buyna-official-frontend-${timestamp()}-${shortCommit}.zip`;
 const zipPath = join(outDir, packageName);
