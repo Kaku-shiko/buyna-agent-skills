@@ -140,3 +140,7 @@ Cached integration receipts must use `buyna-integration-receipt-core` validation
 Malformed/missing dates, future timestamps and expiry (including the exact
 expiration instant) block reuse. Recreate valid evidence rather than bypassing
 the check; this receipt does not replace authenticated request authorization.
+
+## Currency-specific sales overview
+
+Call the commerce read model separately for the explicit actual payment currency (JPY or CNY). Pass currency to every monetary source query, including recent orders. Store integer minor units; display CNY divided by 100 and JPY without decimals. Do not sum currencies, relabel historical JPY, or infer actual payment currency from storefront display preferences.

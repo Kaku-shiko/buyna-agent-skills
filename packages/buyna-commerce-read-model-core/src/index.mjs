@@ -17,7 +17,7 @@ import { buildTimeBuckets, MAX_DAY_BUCKETS, MAX_MONTH_BUCKETS } from './time-buc
 export { buildTimeBuckets, MAX_DAY_BUCKETS, MAX_MONTH_BUCKETS };
 export { READ_PAGE_LIMIT, MAX_FACT_ROWS, MAX_FACT_PAGES, MAX_CANDIDATE_ROWS, MAX_CANDIDATE_PAGES };
 
-export const SUPPORTED_CURRENCIES = Object.freeze(['JPY']);
+export const SUPPORTED_CURRENCIES = Object.freeze(['JPY', 'CNY']);
 export const COMMERCE_READ_STATUSES = Object.freeze([
   'pending_payment', 'paid', 'partially_refunded', 'refunded', 'cancelled', 'failed', 'expired',
 ]);
@@ -67,10 +67,10 @@ function method(owner, name) {
 }
 
 function normalizeCurrency(value) {
-  if (typeof value !== 'string' || value.trim().toUpperCase() !== 'JPY') {
+  if (typeof value !== 'string' || !SUPPORTED_CURRENCIES.includes(value.trim().toUpperCase())) {
     fail('READ_MODEL_CURRENCY_UNSUPPORTED');
   }
-  return 'JPY';
+  return value.trim().toUpperCase();
 }
 
 function outputLimit(value) {
@@ -196,7 +196,7 @@ export function createCommerceReadModel({ projectId, sellerId, source, clock } =
       maxRows: MAX_CANDIDATE_ROWS,
       maxPages: MAX_CANDIDATE_PAGES,
       load: (cursor) => source.listRecentOrderCandidatePage({
-        ...pageRequest, cursor, order: ORDERS.recent,
+        ...pageRequest, currency, cursor, order: ORDERS.recent,
       }),
       compare: compareRecent,
     });
