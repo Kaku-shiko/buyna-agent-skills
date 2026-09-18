@@ -1,5 +1,13 @@
 # Phase 5: Dashboard Functional Integration
 
+Signed inspection receipts and a trusted public key are not universal release
+prerequisites. Only projects explicitly using a signed inspection service follow
+the cached-baseline rules below. Otherwise use the current-release live checks in
+`aws-project-deployer/references/direct-release.md` with the registered resource
+record; do not fabricate a baseline. Preserve any actual runtime authorization
+and signature enforcement. Missing optional signing configuration alone must
+not block ordinary release or backend integration.
+
 Require the approved Phase 4 code record and API contract. Use `buyai-dashboard-data-interaction` to complete one page or related slice at a time: executable API foundation, merchant identity, `buyna-project-resource-registry`, the matching existing-resource gate, database/S3 when needed, domain endpoint/service, mock-adapter replacement, and persistence/error/public-site verification.
 
 Before backend integration, require existing-resource evidence matching the project architecture:

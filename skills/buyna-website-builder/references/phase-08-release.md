@@ -1,5 +1,13 @@
 # Phase 8: AWS Release
 
+Signed inspection receipts and a trusted public key are not universal release
+prerequisites. Only projects explicitly using a signed inspection service follow
+the cached-baseline rules below. Otherwise use the current-release live checks in
+`aws-project-deployer/references/direct-release.md` with the registered resource
+record; do not fabricate a baseline. Preserve any actual runtime authorization
+and signature enforcement. Missing optional signing configuration alone must
+not block ordinary release or backend integration.
+
 Require the approved target/resource record, confirmed
 `projectDeploymentBaseline`, Phase 7 `PASS`, applicable migration/secrets plan,
 rollback path, and current release health verification. Reuse the baseline

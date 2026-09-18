@@ -1,6 +1,14 @@
 # Project Resource Contract
 
-Every record starts with:
+The signed baseline below is optional infrastructure for projects explicitly
+using a signed inspection service and its trusted cross-task reuse. It is not a
+universal AWS, Builder or website deployment prerequisite. Direct operator releases of existing projects may instead use
+the current-release live inspection procedure in
+`aws-project-deployer/references/direct-release.md`, without creating a baseline.
+The signature requirements below still apply to every baseline that is created
+or consumed; direct inspection cannot satisfy platform authority gates.
+
+A resource record with a signed baseline has this shape:
 
 ```yaml
 record:
