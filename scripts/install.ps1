@@ -20,10 +20,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $sopSourceRoot 'manifest.json'))) {
 }
 $sopRevision = $null
 if (Get-Command git -ErrorAction SilentlyContinue) {
-    $candidateRevision = & git -C $repositoryRoot rev-parse HEAD 2>$null
-    $sopChanges = & git -C $repositoryRoot status --porcelain -- sop 2>$null
-    if ($LASTEXITCODE -eq 0 -and -not $sopChanges -and $candidateRevision -match '^[a-f0-9]{40}$') {
-        $sopRevision = $candidateRevision
+    try {
+        $candidateRevision = & git -C $repositoryRoot rev-parse HEAD 2>$null
+        $sopChanges = & git -C $repositoryRoot status --porcelain -- sop 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not $sopChanges -and $candidateRevision -match '^[a-f0-9]{40}$') {
+            $sopRevision = $candidateRevision
+        }
+    } catch {
+        # Archive installations have no Git metadata; pin the actual content.
+        $sopRevision = $null
     }
 }
 
