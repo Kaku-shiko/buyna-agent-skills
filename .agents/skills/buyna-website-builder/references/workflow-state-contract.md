@@ -20,6 +20,14 @@ accepted from a route request, AI call, or individual load. Initialize only a
 fresh `createWorkflow` state. Every persisted resume calls
 `loadVerifiedWorkflow()`; every following persisted transition calls
 `saveWorkflow({loadedState, transition})` with that exact loaded state.
+From workflow-state-core 0.9.1, services needing an optimistic revision can use
+`loadVerifiedCheckpoint()` instead. It returns a frozen `{state, revision}` from
+one verified authoritative candidate. Pass that exact `state` to the core
+transition and to `saveWorkflow`; `revision` is descriptive CAS context, not a
+caller-issued authorization or replacement for the opaque loaded-state permit.
+Do not read a second local JSON file to pair a revision with the verified state.
+`loadVerifiedWorkflow()` remains backward-compatible and returns only `state`.
+
 The transition must be returned directly by a workflow-core API. Its opaque,
 single-use proof binds the exact verified parent fingerprint, resulting state
 digest, and canonical event batch. Never reconstruct `{state, event}` or edit a

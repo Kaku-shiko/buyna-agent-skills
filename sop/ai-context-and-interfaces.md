@@ -27,7 +27,7 @@
 | --- | --- | --- |
 | 初始化受保护 Store | `loadPinnedWorkflowAuthority()`、`createVerifiedWorkflowStore(...)` | 只由可信服务器初始化；AI 不提供公钥、transport 或任意 projectRoot |
 | 新任务初始化 | `createWorkflow(...)`、Store 的 `initializeWorkflow({state,...})` | 仅用于真正的新状态并通过 Store 持久化；已有任务恢复不能重新创建绕过历史 |
-| 读取检查点 | Store 的 `loadVerifiedWorkflow()` | 校验签名、日志和最新 head；返回真实状态，不接受聊天重构状态 |
+| 读取检查点 | Store 的 `loadVerifiedCheckpoint()`；兼容旧调用 `loadVerifiedWorkflow()` | 前者从同一个已验证权威候选返回 `{state, revision}`；后者只返回 state。校验签名、日志和最新 head，不接受聊天重构状态或另读未验证 JSON 拼接 revision |
 | 判定可继续 | `validateWorkflowReadinessEvidence(state)`、`getInteractionPolicy({state})` | 校验历史证据与展示政策后再路由 |
 | 开始阶段 | `startGate({state,gate,...})` | 由 core 验证前置条件，返回原生 transition |
 | 记录交付 | `validateDeliveryEvidence(state,gate,delivery)`、`recordDelivery({state,gate,delivery,...})` | 真实产物和 gate 专属 evidence；AI 文字不能替代必需字段 |
