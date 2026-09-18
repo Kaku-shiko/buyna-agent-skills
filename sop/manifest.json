@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "shared": ["index.md", "execution-contract.md", "ai-context-and-interfaces.md"],
+  "sops": {
+    "merchant-onboarding": "merchant-onboarding.md",
+    "website-delivery": "website-delivery.md",
+    "commerce-payment-refund": "commerce-payment-refund.md",
+    "service-booking": "service-booking.md",
+    "change-and-maintenance": "change-and-maintenance.md",
+    "incident-and-recovery": "incident-and-recovery.md"
+  }
+}
