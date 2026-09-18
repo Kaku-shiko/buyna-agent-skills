@@ -73,3 +73,18 @@ shared-EC2, serverless, static, or external architecture.
 
 Pull the newest repository version, run the installer with `-Force`, then start a new Codex task. Record the commit or release version used by the team.
 
+
+## SOP distribution
+
+`scripts/install.ps1` requires Node.js and installs the SOP library together with
+Skills, including when `-SkillsOnly` leaves modules unchanged. The project
+namespace is `.agents/buyna/`; the user namespace is `~/.codex/buyna/`.
+`sop-installation.json` selects the current snapshot under `sop/<sha256>/`.
+Snapshots include `manifest.json`, the six SOPs, shared contracts, schemas and
+examples. Reinstalling with `-Force` preserves old snapshots so existing task pins
+remain usable. Do not manually edit or delete a snapshot used by an active task.
+
+The project AGENTS generator selects `task.sopIds` and pins content before linking
+the required SOPs. See the Builder reference `references/project-agent-guide.md`.
+Installation is rule distribution only; it does not grant workflow authority or
+prove Builder/CRM has connected to a production workflow store.

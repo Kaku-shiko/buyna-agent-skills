@@ -271,10 +271,13 @@ export function createVerifiedWorkflowStore({projectRoot,pinnedAuthority,authori
     const event={event:'workflow_initialized',gate:state.currentGate,interactionMode:state.configuration?.interactionMode??'team',at:now};
     return persistRevision({state,events:[event],revision:1,records:[],previousHead:null,now});
   }
-  async function loadVerifiedWorkflow(){
+  async function loadVerifiedCheckpoint(){
     const verified=await loadAuthoritativeCandidate(),state=trustWorkflowState(verified.snapshot.state);
     verifiedLoads.set(state,{head:structuredClone(verified.head)});
-    return state;
+    return Object.freeze({state,revision:verified.head.revision});
+  }
+  async function loadVerifiedWorkflow(){
+    return (await loadVerifiedCheckpoint()).state;
   }
   async function saveWorkflow({loadedState,transition,now=new Date().toISOString()}={}){
     const loaded=verifiedLoads.get(loadedState);
@@ -290,5 +293,5 @@ export function createVerifiedWorkflowStore({projectRoot,pinnedAuthority,authori
     const current=await verifyCandidate(latestHead);
     return persistRevision({state:transition.state,events,revision:latestHead.revision+1,records:current.records,previousHead:latestHead,now});
   }
-  return Object.freeze({initializeWorkflow,loadVerifiedWorkflow,saveWorkflow});
+  return Object.freeze({initializeWorkflow,loadVerifiedWorkflow,loadVerifiedCheckpoint,saveWorkflow});
 }

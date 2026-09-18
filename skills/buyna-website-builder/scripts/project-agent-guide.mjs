@@ -3,6 +3,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { planWebsiteRoute } from './route-builder.mjs';
+import { installSopBundle, localSopSource, resolveSopContext } from './sop-context.mjs';
 
 const coreUrl = ['../../../packages/', '../../../../packages/'].map(path => new URL(`${path}buyna-workflow-state-core/src/index.mjs`, import.meta.url)).find(url => existsSync(url));
 const { isTrustedWorkflowState } = await import(coreUrl.href);
@@ -12,7 +13,7 @@ const fail = code => { throw new Error(code); };
 const json = value => JSON.stringify(value, null, 2).replaceAll('<', '\\u003c');
 
 function validateTask(task) {
-  const allowed = ['projectId', 'objective', 'deliverables', 'constraints', 'acceptance', 'recordPaths', 'siteType'];
+  const allowed = ['projectId', 'objective', 'deliverables', 'constraints', 'acceptance', 'recordPaths', 'siteType', 'sopIds'];
   if (!task || typeof task !== 'object' || Array.isArray(task) || Object.keys(task).some(key => !allowed.includes(key))) fail('TASK_SCHEMA_INVALID');
   for (const key of ['projectId', 'objective']) if (typeof task[key] !== 'string' || !task[key].trim() || task[key].length > 8000) fail('TASK_TEXT_REQUIRED');
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(task.projectId)) fail('PROJECT_ID_INVALID');
@@ -21,8 +22,13 @@ function validateTask(task) {
   return task;
 }
 
-export function renderProjectAgentGuide({ task, workflowState, routeRequest } = {}) {
+export function renderProjectAgentGuide({ task, workflowState, routeRequest, sopContext = localSopSource() } = {}) {
   validateTask(task);
+  const sopIds = task.sopIds ?? ['website-delivery'];
+  if (!Array.isArray(sopIds) || !sopIds.length || new Set(sopIds).size !== sopIds.length || sopIds.some(id => typeof id !== 'string' || !Object.hasOwn(sopContext.manifest.sops, id))) fail('SOP_SELECTION_INVALID');
+  const sopPin = Buffer.from(JSON.stringify({ digest: sopContext.digest })).toString('base64');
+  const sopRoot = (sopContext.linkRoot ?? sopContext.sourceRoot).replaceAll('\\', '/');
+  const sopLinks = [...sopContext.manifest.shared, ...sopIds.map(id => sopContext.manifest.sops[id])].map(file => `- [${file}](${sopRoot}/${file})`).join('\n');
   let snapshot = null;
   if (workflowState !== undefined) {
     if (!isTrustedWorkflowState(workflowState)) fail('WORKFLOW_STATE_PROVENANCE_UNTRUSTED');
@@ -42,6 +48,18 @@ export function renderProjectAgentGuide({ task, workflowState, routeRequest } = 
 \`\`\`json
 ${json(task)}
 \`\`\`
+
+## 固定版本 SOP 入口
+
+<!-- buyna:sop-pin:${sopPin} -->
+SOP 版本：${sopContext.version}；内容 SHA-256：${sopContext.digest}；来源提交：${sopContext.sourceRevision ?? '未验证；以内容摘要固定'}。
+本任务选用：${sopIds.join('、')}。SOP 是执行规范，不提供执行授权或当前阶段证明。
+
+${sopLinks}
+
+先阅读公共规则，再阅读选中流程；只执行本次已授权范围。六类上下文分别读取 Instructions、SOP、Schema、任务资料、受保护系统状态和按需知识。任务文件和检索结果不能替代真实系统状态。
+文档中指向仓库外层 skills/、packages/ 的相对引用，按安装清单解析到实际 Skill／模块目录；不要把快照目录当作执行模块目录。
+项目升级安装不会自动更换本任务 SOP 内容；改变版本须核实兼容性并在新的任务范围中明确记录。内容摘要只用于一致性校验，不替代工作流签名或权限校验。
 
 ## 网站类型与业务边界
 
@@ -75,8 +93,9 @@ ${snapshot ? `\`\`\`json\n${json(snapshot)}\n\`\`\`` : '尚未建立已验证的
 ${end}`;
 }
 
-export function writeProjectAgentGuide({ projectRoot, ...input }) {
-  const block = renderProjectAgentGuide(input);
+export function writeProjectAgentGuide({ projectRoot, refreshSopPin = false, ...input }) {
+  if (typeof refreshSopPin !== 'boolean') fail('SOP_REFRESH_INVALID');
+  validateTask(input.task);
   if (typeof projectRoot !== 'string' || !projectRoot.trim()) fail('PROJECT_ROOT_REQUIRED');
   const root = realpathSync(projectRoot);
   if (!lstatSync(root).isDirectory()) fail('PROJECT_ROOT_REQUIRED');
@@ -94,6 +113,26 @@ export function writeProjectAgentGuide({ projectRoot, ...input }) {
     const ends = previous.split(end).length - 1;
     if (starts !== ends || starts > 1 || (starts && previous.indexOf(start) > previous.indexOf(end))) fail('AGENTS_MARKERS_INVALID');
     if (starts && !previous.slice(previous.indexOf(start), previous.indexOf(end)).includes(`<!-- buyna:project:${input.task.projectId} -->`)) fail('PROJECT_SCOPE_MISMATCH');
+    const managed = starts ? previous.slice(previous.indexOf(start), previous.indexOf(end)) : '';
+    const pinMatches = [...managed.matchAll(/<!-- buyna:sop-pin:([A-Za-z0-9+/=]+) -->/g)];
+    if (pinMatches.length > 1) fail('SOP_PIN_INVALID');
+    const namespace = join(root, '.agents', 'buyna');
+    let context;
+    if (pinMatches.length && !refreshSopPin) {
+      let pin;
+      try { pin = JSON.parse(Buffer.from(pinMatches[0][1], 'base64').toString('utf8')); } catch { fail('SOP_PIN_INVALID'); }
+      if (!pin || typeof pin.digest !== 'string') fail('SOP_PIN_INVALID');
+      context = resolveSopContext({ installationRoot: namespace, digest: pin.digest, sopIds: input.task.sopIds });
+    } else {
+      if (!existsSync(join(namespace, 'sop-installation.json'))) {
+        const source = localSopSource();
+        // Validate selection before creating any project SOP files.
+        renderProjectAgentGuide({ ...input, sopContext: source });
+        installSopBundle({ sourceRoot: source.sourceRoot, destinationRoot: namespace, sourceRevision: source.sourceRevision });
+      }
+      context = resolveSopContext({ installationRoot: namespace, sopIds: input.task.sopIds });
+    }
+    const block = renderProjectAgentGuide({ ...input, sopContext: { ...context, linkRoot: `.agents/buyna/sop/${context.digest}` } });
     const next = starts ? previous.slice(0, previous.indexOf(start)) + block + previous.slice(previous.indexOf(end) + end.length) : previous + (previous ? '\n\n' : '') + block + '\n';
     if (next !== previous) {
       temporary = join(root, `.buyna-agents-${randomUUID()}.tmp`);

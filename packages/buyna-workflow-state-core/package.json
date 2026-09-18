@@ -1,6 +1,6 @@
 {
   "name": "@buyna/workflow-state-core",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "exports": {
     ".": "./src/index.mjs",

@@ -12,6 +12,25 @@ $sourceRoot = Join-Path $repositoryRoot 'skills'
 $moduleSourceRoot = Join-Path $repositoryRoot 'packages'
 $manifestSourcePath = Join-Path $repositoryRoot 'repository-manifest.json'
 $manifest = Get-Content -Raw -LiteralPath $manifestSourcePath | ConvertFrom-Json
+$sopSourceRoot = Join-Path $repositoryRoot 'sop'
+$sopInstaller = Join-Path $sourceRoot 'buyna-website-builder\scripts\sop-context.mjs'
+$nodeCommand = Get-Command node -ErrorAction Stop
+if (-not (Test-Path -LiteralPath (Join-Path $sopSourceRoot 'manifest.json'))) {
+    throw 'SOP manifest is missing; refusing an incomplete installation.'
+}
+$sopRevision = $null
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    try {
+        $candidateRevision = & git -C $repositoryRoot rev-parse HEAD 2>$null
+        $sopChanges = & git -C $repositoryRoot status --porcelain -- sop 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not $sopChanges -and $candidateRevision -match '^[a-f0-9]{40}$') {
+            $sopRevision = $candidateRevision
+        }
+    } catch {
+        # Archive installations have no Git metadata; pin the actual content.
+        $sopRevision = $null
+    }
+}
 
 if ($Scope -eq 'User') {
     $installationRoot = Join-Path $env:USERPROFILE '.codex'
@@ -104,6 +123,12 @@ if (-not $SkillsOnly) {
     }
 }
 
+# SOP snapshots are content-addressed and kept across -Force upgrades so active
+# task pins remain readable. SkillsOnly still installs SOP rules, not modules.
+$sopArguments = @($sopInstaller, $sopSourceRoot, $manifestDestinationRoot)
+if ($sopRevision) { $sopArguments += $sopRevision }
+& $nodeCommand.Source @sopArguments
+if ($LASTEXITCODE -ne 0) { throw 'SOP installation failed; installation is incomplete.' }
 Copy-Item -LiteralPath $manifestSourcePath -Destination $manifestDestinationPath -Force
 
 Write-Host ""

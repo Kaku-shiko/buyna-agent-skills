@@ -27,7 +27,7 @@
 
 AI 的六类读取对象、已有 Workflow API 和待接线服务边界见[AI 读取对象与接口规范](ai-context-and-interfaces.md)。
 
-当前可以由人或 AI 主动读取本目录。安装器、Builder loader、项目 AGENTS 生成器和 CRM 尚未因本次文档变更自动接入 SOP。后续接线应在项目 AGENTS 中保存 SOP 路径、固定版本和任务范围，不能复制实时状态或凭据。
+当前可以由人或 AI 主动读取本目录。仓库安装器已分发按内容摘要固定的 SOP 快照；项目 AGENTS 生成器已记录所选 SOP、版本、摘要和本地路径，并在升级安装后保留已有任务版本。此接线只提供执行规范，不复制实时状态或凭据，也不代表 Builder／CRM 已连接生产 Workflow 权威存储。分发目录与手动升级方式见 [AGENTS 生成说明](../skills/buyna-website-builder/references/project-agent-guide.md)。
 
 ## 权威来源与存储
 

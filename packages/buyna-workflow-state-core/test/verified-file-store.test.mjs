@@ -286,3 +286,40 @@ for(const scenario of [
     }finally{await rm(context.projectRoot,{recursive:true,force:true})}
   });
 }
+
+test('verified checkpoint pairs state and revision and preserves save provenance',async()=>{
+  const context=await fixture();
+  try{
+    let reads=0;
+    const readLatest=context.authorityTransport.readLatestHead.bind(context.authorityTransport);
+    context.authorityTransport.readLatestHead=async input=>{reads+=1;return readLatest(input)};
+    context.store=createVerifiedWorkflowStore(context.storeArgs);
+    const checkpoint=await context.store.loadVerifiedCheckpoint();
+    assert.equal(reads,1);
+    assert.deepEqual(Object.keys(checkpoint).sort(),['revision','state']);
+    assert.equal(checkpoint.revision,1);
+    assert.equal(isTrustedWorkflowState(checkpoint.state),true);
+    assert.equal(Object.isFrozen(checkpoint),true);
+    const transition=startGate({state:checkpoint.state,gate:'customer_intake',now:timestamp});
+    await context.store.saveWorkflow({loadedState:checkpoint.state,transition,now:timestamp});
+    const next=await context.store.loadVerifiedCheckpoint();
+    assert.equal(next.revision,2);
+    assert.equal(next.state.gates.customer_intake.status,transition.state.gates.customer_intake.status);
+    await assert.rejects(()=>context.store.saveWorkflow({loadedState:checkpoint.state,transition,now:timestamp}),/PERSISTED_STATE_NOT_VERIFIED/);
+  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
+});
+
+test('checkpoint revisions reject stale saves and never trust tampered candidate revision',async()=>{
+  const context=await fixture();
+  try{
+    const first=await context.store.loadVerifiedCheckpoint();
+    const stale=await context.store.loadVerifiedCheckpoint();
+    await context.store.saveWorkflow({loadedState:first.state,transition:startGate({state:first.state,gate:'customer_intake',now:timestamp}),now:timestamp});
+    await assert.rejects(()=>context.store.saveWorkflow({loadedState:stale.state,transition:startGate({state:stale.state,gate:'customer_intake',now:timestamp}),now:timestamp}),/PERSISTED_STATE_STALE/);
+    const files=await currentFiles(context);
+    const snapshot=JSON.parse(await readFile(files.statePath,'utf8'));
+    snapshot.stateRevision=999;
+    await writeFile(files.statePath,JSON.stringify(snapshot));
+    await assert.rejects(()=>context.store.loadVerifiedCheckpoint(),/MONOTONIC_HEAD_MISMATCH/);
+  }finally{await rm(context.projectRoot,{recursive:true,force:true})}
+});

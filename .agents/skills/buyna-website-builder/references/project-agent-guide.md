@@ -11,6 +11,11 @@ Required: `projectId` (letters, digits, underscore, hyphen), `objective`.
 Optional `siteType`: `content`, `commerce`, `service`, or `mixed`. This is
 descriptive intent only; intake must confirm and persist the actual capabilities.
 Never infer payment, cart, inventory, coupons, or notifications from this hint.
+Optional `sopIds`: a non-empty array of unique SOP IDs from `sop/manifest.json`.
+Choose only the applicable process (`merchant-onboarding`, `website-delivery`,
+`commerce-payment-refund`, `service-booking`, `change-and-maintenance`,
+`incident-and-recovery`). The default is `website-delivery`; this selection is
+instruction context, never a capability approval or workflow transition.
 Optional arrays of strings: `deliverables`, `constraints`, `acceptance`,
 `recordPaths` (references to inspect, never authorization). Unknown fields fail.
 Record only the user's actual scope; omit unresolved details rather than inventing
@@ -82,3 +87,32 @@ duplicate markers, another project's block, symbolic-link targets, or concurrent
 generator writes fail without replacing the instructions. Resolve those actual
 conflicts before retrying; do not delete the existing AGENTS.md. Keep task files
 and guide updates under the project's normal version-control review.
+
+## SOP installation and task pinning
+
+The repository installer includes SOP rules for both normal and `-SkillsOnly`
+installation. Project rules live at `.agents/buyna/sop/<content-sha256>/` and user
+rules at `~/.codex/buyna/sop/<content-sha256>/`. The namespaced
+`sop-installation.json` points to the most recently installed snapshot; old
+snapshots are retained for active tasks. Node.js is required by the installer.
+
+When generating a project guide from user Skills or repository sources, the
+generator copies the verified SOP snapshot into the project's namespace. It
+records version, content digest, optional verified source commit, selected SOPs,
+and portable local links in the managed block. Shared index, execution contract,
+and AI interface rules are always included. No running stage or authorization is
+created. In source worktrees without verified source metadata, the guide says
+that the source commit is unverified and pins the actual content digest.
+
+Existing guides keep their snapshot even after reinstalling newer Skills/SOPs.
+Missing snapshots or integrity mismatches fail; do not silently substitute newer
+rules. After reviewing compatibility for an explicitly requested rule update,
+call `writeProjectAgentGuide({ projectRoot, task, refreshSopPin: true })` to select
+the latest project-installed SOP. The normal CLI intentionally preserves pins.
+Changing `task.sopIds` selects a different SOP within the pinned version.
+
+Snapshot documents retain their canonical text and hashes. Repository-relative
+links to `skills/`, `packages/` or the repository manifest must be resolved through
+the installed namespaced manifest and actual Skill/module roots, not relative to
+the immutable SOP snapshot. These hashes detect mismatched files; they are not
+signatures, authorization proofs, or a substitute for trusted workflow storage.
