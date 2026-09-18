@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Buyna SOP exception exchange contract 1.0.0",
+  "description": "Protected runtime record; never store secrets or customer payloads here. A retry plan does not itself authorize a retry.",
+  "type": "object", "additionalProperties": false,
+  "required": ["exceptionId", "runId", "projectRef", "stepId", "recordedAt", "category", "reasonCode", "summary", "ownerRef", "evidenceRefs", "sideEffectStatus", "retry", "recoveryAction"],
+  "properties": {
+    "exceptionId": {"$ref": "#/$defs/text"},
+    "runId": {"$ref": "#/$defs/text"},
+    "projectRef": {"$ref": "#/$defs/text"},
+    "stepId": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "recordedAt": {"type": "string", "format": "date-time"},
+    "category": {"enum": ["missing_input", "auth", "quota", "connection", "version_conflict", "test_failure", "release_failure", "payment_uncertain", "manual_pause", "unknown"]},
+    "reasonCode": {"$ref": "#/$defs/text"},
+    "summary": {"$ref": "#/$defs/text"},
+    "ownerRef": {"$ref": "#/$defs/text"},
+    "evidenceRefs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+    "checkpointRef": {"$ref": "#/$defs/text"},
+    "sideEffectStatus": {"enum": ["none", "confirmed", "unknown"]},
+    "retry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "attempts", "maxAttempts", "precondition"],
+      "properties": {
+        "mode": {"enum": ["none", "bounded_after_verification", "after_input", "manual"]},
+        "attempts": {"type": "integer", "minimum": 0},
+        "maxAttempts": {"type": "integer", "minimum": 0},
+        "precondition": {"$ref": "#/$defs/text"}
+      }
+    },
+    "recoveryAction": {"$ref": "#/$defs/text"}
+  },
+  "$defs": {"text": {"type": "string", "minLength": 1}}
+}

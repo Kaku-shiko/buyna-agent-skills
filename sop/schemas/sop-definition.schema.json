@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Buyna SOP definition exchange contract 1.0.0",
+  "description": "Documentation exchange only; does not register tools, grant authority or replace workflow-core.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sopId", "sopVersion", "ownerRole", "trigger", "steps"],
+  "properties": {
+    "sopId": {"enum": ["merchant-onboarding", "website-delivery", "commerce-payment-refund", "service-booking", "change-and-maintenance", "incident-and-recovery"]},
+    "sopVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "ownerRole": {"type": "string", "minLength": 1},
+    "trigger": {"type": "string", "minLength": 1},
+    "steps": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["stepId", "objective", "inputContractRef", "preconditions", "ownerRole", "skills", "modules", "allowedOperations", "outputContractRef", "completionChecks", "authorizationRule", "exceptionPolicyRef", "evidenceRequirements"],
+        "properties": {
+          "stepId": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "objective": {"$ref": "#/$defs/text"},
+          "inputContractRef": {"$ref": "#/$defs/text"},
+          "preconditions": {"$ref": "#/$defs/textList"},
+          "ownerRole": {"$ref": "#/$defs/text"},
+          "skills": {"$ref": "#/$defs/textList"},
+          "modules": {"$ref": "#/$defs/textList"},
+          "allowedOperations": {"$ref": "#/$defs/textList"},
+          "outputContractRef": {"$ref": "#/$defs/text"},
+          "completionChecks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}},
+          "authorizationRule": {"$ref": "#/$defs/text"},
+          "exceptionPolicyRef": {"$ref": "#/$defs/text"},
+          "evidenceRequirements": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}},
+          "workflowGate": {"enum": ["customer_intake", "design_and_structure", "frontend_code", "dashboard_integration", "checkout_payment", "testing_upload_gate", "aws_release"]}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "textList": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/text"}}
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "sopId": "website-delivery",
+  "sopVersion": "1.0.0",
+  "ownerRole": "交付负责人",
+  "trigger": "交换格式示例，仅摘录一个步骤；不是完整可执行流程。",
+  "steps": [
+    {
+      "stepId": "verify",
+      "objective": "验证获授权的交付范围",
+      "inputContractRef": "skills/buyna-website-builder/references/workflow-state-contract.md",
+      "preconditions": ["已加载真实项目状态", "输入产物和版本明确"],
+      "ownerRole": "验证者",
+      "skills": ["buyna-testing-quality"],
+      "modules": ["buyna-workflow-state-core"],
+      "allowedOperations": ["读取授权项目产物", "运行范围内检查"],
+      "outputContractRef": "sop/schemas/step-result.schema.json",
+      "completionChecks": ["必需检查有可复核证据，未测项如实记录"],
+      "authorizationRule": "复用已有有效范围，不授予发布权限。",
+      "exceptionPolicyRef": "sop/incident-and-recovery.md",
+      "evidenceRequirements": ["测试结果、产物摘要、版本和限制"],
+      "workflowGate": "testing_upload_gate"
+    }
+  ]
+}

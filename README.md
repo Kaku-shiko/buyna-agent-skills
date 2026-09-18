@@ -14,6 +14,12 @@ Git克隆地址：`https://github.com/Kaku-shiko/buyna-agent-skills.git`
 
 ## 仓库目录
 
+### 标准作业流程（SOP）
+
+AI 与内部团队从 [SOP 总目录](sop/index.md)选择商户入驻、网站交付、支付退款、预约服务、修改维护或故障恢复流程。
+目录包含统一执行模板、Skill／模块映射、交换 schema，以及 [AI 六类读取对象与 Workflow 接口边界](sop/ai-context-and-interfaces.md)。
+当前为仓库规范；Builder／CRM 的自动加载和执行接口接线需独立实施，不因文档合并即视为上线。
+
 ### 让 AI 接续具体网站任务
 
 Builder 在任务接收、已批准的范围变更和阶段交接时，使用公共生成器维护项目根目录

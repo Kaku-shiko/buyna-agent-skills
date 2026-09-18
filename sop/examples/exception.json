@@ -1,0 +1,20 @@
+{
+  "exceptionId": "fictional-exception",
+  "runId": "fictional-run",
+  "projectRef": "protected-record:fictional-project",
+  "stepId": "release",
+  "recordedAt": "2026-09-18T00:00:00Z",
+  "category": "release_failure",
+  "reasonCode": "DEPLOY_RESPONSE_TIMEOUT",
+  "summary": "虚构示例：发布响应超时，实际版本尚待查询。",
+  "ownerRef": "role:technical-executor",
+  "evidenceRefs": [],
+  "sideEffectStatus": "unknown",
+  "retry": {
+    "mode": "manual",
+    "attempts": 0,
+    "maxAttempts": 0,
+    "precondition": "先查询实际运行版本与已有发布授权，不盲目重复部署。"
+  },
+  "recoveryAction": "确认实际部署结果和健康后决定完成、修复或回滚。"
+}
