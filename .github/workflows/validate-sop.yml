@@ -1,0 +1,32 @@
+name: Validate SOP
+
+on:
+  pull_request:
+    paths:
+      - 'sop/**'
+      - 'README.md'
+      - 'repository-manifest.json'
+      - 'scripts/validate-sop.py'
+      - '.github/workflows/validate-sop.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'sop/**'
+      - 'README.md'
+      - 'repository-manifest.json'
+      - 'scripts/validate-sop.py'
+      - '.github/workflows/validate-sop.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-sop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'jsonschema==4.26.0'
+      - run: python scripts/validate-sop.py

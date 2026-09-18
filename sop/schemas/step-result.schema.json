@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Buyna SOP step report exchange contract 1.0.0",
+  "description": "Report status is not workflow, payment or approval state. Resolve and authorize all references server-side.",
+  "type": "object", "additionalProperties": false,
+  "required": ["runId", "projectRef", "sopId", "sopVersion", "stepId", "recordedAt", "ownerRef", "inputDigest", "versionRefs", "authorizationRefs", "executionStatus", "verification", "artifacts", "evidenceRefs", "sideEffectRefs", "nextAction"],
+  "properties": {
+    "runId": {"$ref": "#/$defs/text"},
+    "projectRef": {"$ref": "#/$defs/text"},
+    "sopId": {"enum": ["merchant-onboarding", "website-delivery", "commerce-payment-refund", "service-booking", "change-and-maintenance", "incident-and-recovery"]},
+    "sopVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "stepId": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "recordedAt": {"type": "string", "format": "date-time"},
+    "ownerRef": {"$ref": "#/$defs/text"},
+    "inputDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "versionRefs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}},
+    "authorizationRefs": {"$ref": "#/$defs/refList"},
+    "workflowRevision": {"type": "integer", "minimum": 0},
+    "workflowGate": {"enum": ["customer_intake", "design_and_structure", "frontend_code", "dashboard_integration", "checkout_payment", "testing_upload_gate", "aws_release"]},
+    "executionStatus": {"enum": ["in_progress", "awaiting_input", "blocked", "completed", "failed", "not_applicable"]},
+    "verification": {"enum": ["not_run", "passed", "failed", "not_applicable"]},
+    "reasonCode": {"$ref": "#/$defs/text"},
+    "artifacts": {"$ref": "#/$defs/refList"},
+    "evidenceRefs": {"$ref": "#/$defs/refList"},
+    "sideEffectRefs": {"$ref": "#/$defs/refList"},
+    "exceptionRef": {"$ref": "#/$defs/text"},
+    "nextAction": {"$ref": "#/$defs/text"}
+  },
+  "dependentRequired": {"workflowGate": ["workflowRevision"]},
+  "allOf": [
+    {"if": {"properties": {"executionStatus": {"const": "completed"}}}, "then": {"properties": {"verification": {"const": "passed"}, "evidenceRefs": {"minItems": 1}}}},
+    {"if": {"properties": {"executionStatus": {"const": "not_applicable"}}}, "then": {"required": ["reasonCode"], "properties": {"verification": {"const": "not_applicable"}, "evidenceRefs": {"minItems": 1}}}},
+    {"if": {"properties": {"executionStatus": {"enum": ["awaiting_input", "blocked", "failed"]}}}, "then": {"required": ["reasonCode"]}}
+  ],
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "refList": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/text"}}
+  }
+}

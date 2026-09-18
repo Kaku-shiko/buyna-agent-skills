@@ -1,0 +1,21 @@
+{
+  "runId": "fictional-run",
+  "projectRef": "protected-record:fictional-project",
+  "sopId": "website-delivery",
+  "sopVersion": "1.0.0",
+  "stepId": "checkout",
+  "recordedAt": "2026-09-18T00:00:00Z",
+  "ownerRef": "role:technical-executor",
+  "inputDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "versionRefs": ["example-only:not-a-real-commit"],
+  "authorizationRefs": [],
+  "workflowRevision": 12,
+  "workflowGate": "checkout_payment",
+  "executionStatus": "awaiting_input",
+  "verification": "not_run",
+  "reasonCode": "PROVIDER_VERIFICATION_PENDING",
+  "artifacts": [],
+  "evidenceRefs": [],
+  "sideEffectRefs": [],
+  "nextAction": "虚构示例：补充渠道验证所需资料，继续无依赖的页面工作。"
+}
