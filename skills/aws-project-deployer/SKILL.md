@@ -12,7 +12,17 @@ matching `resourceRecordDigest`, `artifactDigest`, and `releasePlanDigest`
 evidence instead of repeating registry, data-layer, build, or unchanged test
 work. Standalone deployment creates equivalent evidence once.
 
-Load the confirmed `projectDeploymentBaseline` from the project resource
+## Select execution context first
+
+For a direct, user-authorized update of an existing project through the
+operator's AWS CLI, follow [direct release](references/direct-release.md).
+Its current-release live inspection replaces the cached-baseline prerequisite
+in the steps below; missing platform signing configuration alone does not block
+this route. All resource, isolation, scope, rollback and health checks still apply.
+Do not switch a platform-managed task to this route after an authority failure.
+
+Only when the project explicitly uses a signed inspection service for trusted cross-task evidence,
+load the confirmed `projectDeploymentBaseline` from the project resource
 record. It is project evidence, not a per-release gate: reuse it across later AI
 tasks and subsequent releases while its stable resource identity and policy
 digest remain unchanged.

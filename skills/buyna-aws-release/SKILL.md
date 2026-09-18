@@ -13,7 +13,15 @@ Own one `releaseCheckReceipt` for the release. It binds
 `aws-project-deployer`, and `buyna-testing-quality`; unchanged static evidence
 is consumed, not rerun. A changed digest invalidates only that field.
 
-Also consume the project's confirmed `projectDeploymentBaseline`. That baseline
+Select execution context before applying the baseline steps below. A direct
+operator AWS CLI release of an existing project follows
+`aws-project-deployer/references/direct-release.md`: current-release live
+inspection replaces the cached-baseline prerequisite and no signed baseline is
+created. Missing platform signing configuration alone does not block that route.
+Do not reroute a platform-managed task after a failed authority/approval check.
+All FAST_RELEASE essentials, scope limits and post-deploy checks remain required.
+
+Only for projects explicitly using a signed inspection service, also consume the project's confirmed `projectDeploymentBaseline`. That baseline
 owns AWS account, region, architecture, stable target identity, ownership,
 approved runtime identity, SSM evidence, and the zero-create policy. Reuse it across
 later AI tasks and subsequent releases; do not turn it into a per-release gate.
