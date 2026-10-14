@@ -184,6 +184,15 @@ route uses that service without the fixed checkout/settlement cores and confirms
 paid through provider Query plus exact amount/currency reconciliation. An
 omitted or unknown architecture is a blocker, not an implicit legacy selection.
 
+## Optional PWA capability
+
+For an explicit PWA/home-screen installation request, load `buyna-pwa` as the
+specialist within the authorized frontend/testing/release slice. It is an optional
+Skill, not a new workflow gate or an entitlement grant. Do not add PWA to ordinary
+website requests. The current deterministic router does not emit a PWA capability;
+invoke this specialist explicitly for the approved slice without inventing trusted
+workflow state. CRM billing integration and paid activation remain separate scope.
+
 ## Approvals And External Actions
 
 Explicit approval remains required for customer scope, combined
