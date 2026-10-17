@@ -17,6 +17,16 @@ classification, or automatic-inspection rules in prose.
 
 ## Workflow
 
+Choose the evidence consumer first. Signed `projectDeploymentBaseline` creation and reuse require the signed
+inspection flow below only when the project explicitly uses that service.
+Neither AWS deployment nor use of Builder alone implies this requirement.
+For a direct operator release of an existing project, use
+`aws-project-deployer/references/direct-release.md`: reconcile the structural
+resource record with live AWS/runtime evidence for this release without writing
+a baseline. Missing platform signing configuration alone is not a blocker for
+that route. Never downgrade a platform authority failure to direct release,
+alter signature validation, or call an unsigned audit record a confirmed baseline.
+
 1. Classify the request as `new_independent`, `existing_alias`, or
    `existing_migration` before selecting a route. Honor the user's explicit
    classification after identity-collision checks.

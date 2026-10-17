@@ -5,6 +5,14 @@ description: "Run Buyna.ai fast-release or explicitly requested full verificatio
 
 # Buyna.ai Testing Quality
 
+Signed inspection receipts and a trusted public key are not universal release
+prerequisites. Only projects explicitly using a signed inspection service follow
+the cached-baseline rules below. Otherwise use the current-release live checks in
+`aws-project-deployer/references/direct-release.md` with the registered resource
+record; do not fabricate a baseline. Preserve any actual runtime authorization
+and signature enforcement. Missing optional signing configuration alone must
+not block ordinary release or backend integration.
+
 Check the real system and report evidence, not assumptions.
 
 When invoked for release, return a `releaseCheckReceipt` containing the exact
