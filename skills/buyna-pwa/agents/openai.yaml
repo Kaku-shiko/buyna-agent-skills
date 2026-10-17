@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna PWA"
+  short_description: "Installable websites, safe updates and paid capabilities"
+  default_prompt: "Use $buyna-pwa to add the approved PWA capability to this existing website."

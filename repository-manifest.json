@@ -29,6 +29,7 @@
     "buyna-merchant-onboarding",
     "buyna-page-structure",
     "buyna-project-resource-registry",
+    "buyna-pwa",
     "buyna-s3-storage",
     "buyna-skill-operations",
     "buyna-testing-quality",
@@ -81,7 +82,8 @@
         "buyna-project-resource-registry",
         "buyna-merchant-onboarding",
         "buyna-s3-storage",
-        "buyai-commerce-section-design"
+        "buyai-commerce-section-design",
+        "buyna-pwa"
       ],
       "packages": [
         "buyna-auth-session-core",
