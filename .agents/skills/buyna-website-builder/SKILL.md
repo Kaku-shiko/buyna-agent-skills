@@ -5,6 +5,10 @@ description: "Use when starting, continuing, or repairing a Buyna.ai static, pro
 
 # Buyna.ai Website Builder
 
+For website creation, onboarding and delivery, follow
+[CRM project linkage](references/crm-project-linkage.md) and retain its verified
+association and delivery evidence alongside the existing workflow records.
+
 This is the single team entrypoint. `packages/buyna-workflow-state-core` owns
 workflow state and `scripts/route-builder.mjs` deterministically selects the
 minimum ready Skills and fixed modules. Project code owns Adapters,
