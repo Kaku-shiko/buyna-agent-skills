@@ -22,6 +22,17 @@ For frontend Banner content and its corresponding Dashboard menu, read
 [Banner management](references/banner-management.md). Include this content slice
 when the selected design contains a managed Banner.
 
+## Modern Web Guidance
+
+Before implementing or reviewing changes to HTML, CSS, or browser-side JavaScript, use [Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance). Use the installed skill when available. Otherwise, run the following commands from the development environment:
+
+```sh
+npx -y modern-web-guidance@1.0.1 search "responsive data table"
+npx -y modern-web-guidance@1.0.1 retrieve "<matching-guide-id>"
+```
+
+Search for the web capability being changed. Check the relevant guidance against the project's target browsers, existing design and component contracts, and keyboard and touch behavior. Preserve an accessible fallback when required. If the CLI is unavailable, consult the upstream documentation and relevant MDN compatibility data. Apply this workflow to browser-facing work, including generated storefronts and admin interfaces where applicable. Pure backend, infrastructure, and copy-only changes are outside its scope.
+
 ## Commerce Region Rendering
 
 For product storefronts, consume approved page-region configuration using
