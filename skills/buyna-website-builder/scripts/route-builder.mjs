@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { realpathSync, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const workflowCoreUrls = [
@@ -7,7 +6,7 @@ const workflowCoreUrls = [
   new URL("../../../../packages/buyna-workflow-state-core/src/index.mjs", import.meta.url),
 ];
 const workflowCoreUrl = workflowCoreUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
-if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED");
+if (!workflowCoreUrl) throw new Error("WORKFLOW_STATE_CORE_REQUIRED: run scripts/install.ps1 for a complete Builder installation.");
 const {
   isTrustedWorkflowState,
   normalizeWebsiteCapabilities,
@@ -21,7 +20,7 @@ const manifestUrls = [
   new URL("../../../../repository-manifest.json", import.meta.url),
 ];
 const manifestUrl = manifestUrls.find((candidate) => existsSync(fileURLToPath(candidate)));
-if (!manifestUrl) throw new Error("REPOSITORY_MANIFEST_REQUIRED");
+if (!manifestUrl) throw new Error("REPOSITORY_MANIFEST_REQUIRED: run scripts/install.ps1 for a complete Builder installation.");
 const repositoryManifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
 const websiteBuilderProfile = repositoryManifest.profiles?.["website-builder"];
 if (!websiteBuilderProfile) throw new Error("WEBSITE_BUILDER_PROFILE_REQUIRED");
@@ -555,7 +554,7 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
   return withManifestVerification({ action: "execute", ...base });
 }
 
-const isCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isCli = process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isCli) {
   try {
     const input = JSON.parse(readFileSync(0, "utf8"));

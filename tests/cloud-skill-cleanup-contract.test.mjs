@@ -99,7 +99,7 @@ test('cloud manifest can prune only declared obsolete Buyna Skills in Skills-onl
     const installedPackage = join(packageRoot, 'buyna-gmv-core', 'package.json');
     writeFileSync(installedPackage, '{"name":"@installed/gmv-core","version":"legacy-local"}');
     const installedPackageBefore = readFileSync(installedPackage, 'utf8');
-    const run = spawnSync('powershell', [
+    const run = spawnSync(process.platform === 'win32' ? 'powershell.exe' : 'pwsh', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
       fileURLToPath(new URL('../scripts/install.ps1', import.meta.url)),
       '-Scope', 'Project', '-ProjectPath', project, '-SkillsOnly', '-Force',

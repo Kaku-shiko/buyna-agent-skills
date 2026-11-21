@@ -20,7 +20,7 @@ product slice.
 For standalone invocation, inspect the approved frontend/API contract and
 resolve the fixed-module root once. In a repository/project installation it is
 `packages/`; in a user installation it is
-`$env:USERPROFILE/.codex/packages/`. Require only modules needed by the
+`~/.codex/packages/`. Require only modules needed by the
 requested product operation; payment-only modules are irrelevant until payment
 is in scope. Do not regenerate a missing fixed core.
 

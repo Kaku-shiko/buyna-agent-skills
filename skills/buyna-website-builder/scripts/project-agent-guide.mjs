@@ -148,7 +148,7 @@ export function writeProjectAgentGuide({ projectRoot, refreshSopPin = false, ...
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args.length !== 4 || args[0] !== '--project-root' || args[2] !== '--task') fail('USAGE: --project-root <directory> --task <task.json>');
   const task = JSON.parse(readFileSync(resolve(args[3]), 'utf8').replace(/^\uFEFF/, ''));

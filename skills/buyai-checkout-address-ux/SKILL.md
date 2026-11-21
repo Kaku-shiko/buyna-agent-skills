@@ -28,7 +28,7 @@ Read the saved workflow capabilities and payment architecture. Product commerce
 resolves `buyna-cart-core` and `buyna-order-core`; paid booking uses its booking
 Adapter and does not require cart. Resolve selected modules from the receipt,
 then the project
-`packages/` or `$env:USERPROFILE/.codex/packages/`. Return
+`packages/` or `~/.codex/packages/`. Return
 `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` when a selected core is missing.
 
 Read `references/checkout-address-rules.md` for labels, schemas, and postal-code behavior.

@@ -483,7 +483,7 @@ test("project installation carries the authoritative manifest used by the instal
     const sentinel = "project-owned-manifest";
     writeFileSync(rootManifest, sentinel);
     const installer = new URL("scripts/install.ps1", root);
-    const install = spawnSync("powershell", [
+    const install = spawnSync(process.platform === "win32" ? "powershell.exe" : "pwsh", [
       "-ExecutionPolicy", "Bypass",
       "-File", fileURLToPath(installer),
       "-Scope", "Project",
@@ -494,7 +494,7 @@ test("project installation carries the authoritative manifest used by the instal
     const installedManifest = join(target, ".agents", "buyna", "repository-manifest.json");
     assert.doesNotThrow(() => JSON.parse(readFileSync(installedManifest, "utf8")));
 
-    const collision = spawnSync("powershell", [
+    const collision = spawnSync(process.platform === "win32" ? "powershell.exe" : "pwsh", [
       "-ExecutionPolicy", "Bypass",
       "-File", fileURLToPath(installer),
       "-Scope", "Project",
@@ -503,7 +503,7 @@ test("project installation carries the authoritative manifest used by the instal
     assert.notEqual(collision.status, 0);
     assert.match(`${collision.stderr}${collision.stdout}`, /namespaced manifest already exists/i);
 
-    const forced = spawnSync("powershell", [
+    const forced = spawnSync(process.platform === "win32" ? "powershell.exe" : "pwsh", [
       "-ExecutionPolicy", "Bypass",
       "-File", fileURLToPath(installer),
       "-Scope", "Project",

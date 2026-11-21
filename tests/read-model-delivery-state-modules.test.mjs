@@ -101,7 +101,7 @@ function boundaryViolations(files, policy, sourceReader) {
 }
 
 function runProjectInstall({ installer, repositoryRoot, projectPath }) {
-  const result = spawnSync("powershell", [
+  const result = spawnSync(process.platform === "win32" ? "powershell.exe" : "pwsh", [
     "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", installer,
     "-Scope", "Project", "-ProjectPath", projectPath,
   ], { cwd: repositoryRoot, encoding: "utf8" });

@@ -30,7 +30,7 @@ For standalone invocation, perform the minimum applicable checks below once:
    registration.
 2. Inspect the real repository and environment once.
    Resolve fixed modules from project `packages/` or
-   `$env:USERPROFILE/.codex/packages/`; never regenerate a missing fixed core.
+   `~/.codex/packages/`; never regenerate a missing fixed core.
 3. Reuse persisted product, booking/service, or mixed scope, languages,
    currency, runtime, and existing-data choices. Standalone work asks once only
    for a missing choice that changes implementation.

@@ -130,28 +130,10 @@ CRM GMV；经营概览只能读取当前商户作用域内的可信事实，不�
 
 ## 5. 第一次安装
 
-### 方法 A：Skill-only安装
+从公开仓库克隆源码，并在仓库根目录按 [完整安装](../README.md#完整安装) 执行对应平台的命令。
+Builder 在静态站项目中也需要固定模块和安装清单。安装完成后，在目标项目新建 Codex 任务。
 
-```text
-请使用 $skill-installer，从 GitHub 公开仓库
-Kaku-shiko/buyna-agent-skills 安装 skills/ 下的全部 Skill。
-```
-
-公开仓库安装不需要邀请或 GitHub Token。
-
-此方式不包含根目录 `packages/`，不能用于完整商城代码调用。
-
-### 方法 B：克隆后完整安装（推荐）
-
-```powershell
-git clone https://github.com/Kaku-shiko/buyna-agent-skills.git
-cd buyna-agent-skills
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
-```
-
-完成后关闭当前 Codex 任务并新建任务。
-安装脚本同时安装 Skill 与固定模块。个人模块位于 `.codex/packages/`；
-项目安装模块位于项目 `packages/`。
+需要独立的单项指导时，可按 [单独安装 Skill](../README.md#单独安装-skill) 选择所需目录。
 
 ## 6. 日常调用
 
@@ -184,10 +166,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 ## 7. 更新已安装 Skill
 
-```powershell
-git pull
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Force
-```
+拉取仓库更新后，在原安装命令末尾添加 `-Force`。脚本会替换同名的已安装 Skill 和模块目录。
 
 更新后新建 Codex 任务。团队在交付记录中保存使用的 Git commit 或 Release版本。
 

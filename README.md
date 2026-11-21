@@ -153,88 +153,45 @@ GMV 只能在服务端配置的 Buyna.ai CRM 管理员界面查看；商家前�
 
 静态企业网站可以跳过商家、数据库、S3、结账和支付步骤；商品与服务分支不能同时自动执行，混合项目也要逐个完成并确认。
 
-## Skill-only安装方式
+## 完整安装
 
-在 Codex 中输入：
+公开仓库可直接克隆，安装需要 Node.js。完整安装按 `repository-manifest.json` 同步 Skills、
+固定模块、安装清单和 SOP。包括静态站在内，调用 `$buyna-website-builder` 前都需要完整安装。
 
-```text
-请使用 $skill-installer，从 GitHub 仓库 Kaku-shiko/buyna-agent-skills 安装以下 Skill：
-skills/buyna-skill-operations
-skills/buyna-website-builder
-skills/buyna-customer-intake
-skills/buyna-website-design
-skills/buyna-page-structure
-skills/buyai-merchant-builder
-skills/buyna-merchant-onboarding
-skills/buyai-dashboard-data-interaction
-skills/buyna-aws-data-layer
-skills/buyna-project-resource-registry
-skills/buyna-unified-merchant-architecture
-skills/buyna-s3-storage
-skills/buyai-product-merchant-backend
-skills/buyai-booking-service-backend
-skills/buyai-checkout-address-ux
-skills/buyai-globepay-payment
-skills/buyai-globepay-config
-skills/buyai-globepay-checkout
-skills/buyai-globepay-status-sync
-skills/buyna-gmv-commerce
-skills/buyai-globepay-recurring
-skills/buyna-frontend-builder
-skills/buyai-storefront-layout-ux
-skills/buyna-testing-quality
-skills/buyna-aws-release
-skills/aws-project-deployer
+从仓库根目录执行。macOS 使用 PowerShell 7，建议先安装到独立项目：
+
+```bash
+pwsh -NoProfile -File ./scripts/install.ps1 -Scope Project -ProjectPath "/path/to/project"
 ```
 
-当前仓库是 Public。任何人都可以查看、克隆和安装，不需要 GitHub邀请或 Token；向仓库提交修改仍需要授权，或通过 Fork和 Pull Request贡献。
-
-`$skill-installer` 只安装 Skill说明，不能安装仓库根目录的固定代码模块。
-商城开发请使用下面的完整安装方式。
-
-安装后重新打开 Codex 任务，再输入：
-
-```text
-请使用 $buyna-website-builder，从客户需求收集开始，一步一步引导我建立网站。
-```
-
-支付任务可以直接输入：
-
-```text
-请使用 $buyai-globepay-payment，判断本次 GlobePay 任务应该调用哪个支付 Skill。
-```
-
-## Windows完整安装（推荐）
-
-克隆或下载本仓库后，在仓库根目录执行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
-```
-
-默认安装到：
-
-```text
-C:\Users\<用户名>\.codex\skills\
-C:\Users\<用户名>\.codex\packages\
-```
-
-更新已安装版本：
-
-```powershell
-git pull
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Force
-```
-
-只给某个项目安装：
+Windows：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Scope Project -ProjectPath "C:\path\to\project"
 ```
 
-项目安装目标为 `.agents/skills/` 和项目 `packages/`；个人安装目标为
-`.codex/skills/` 和 `.codex/packages/`。安装脚本会同步 Skill 与固定代码，
-避免 AI 找不到模块后重新生成业务逻辑。
+项目安装写入目标项目的 `.agents/skills/`、`packages/` 和 `.agents/buyna/`。
+个人安装可省略 `-Scope Project -ProjectPath ...`，写入用户主目录下的
+`.codex/skills/`、`.codex/packages/` 和 `.codex/buyna/`。
+
+更新时先拉取仓库，再在同一条安装命令末尾加 `-Force`。更新会替换相应的已安装 Skill 和模块目录。
+
+安装后在目标项目打开新的 Codex 任务：
+
+```text
+请使用 $buyna-website-builder，从客户需求收集开始，一步一步引导我建立网站。
+```
+
+## 单独安装 Skill
+
+只需要单项指导时，可用 `$skill-installer` 安装所需的 Skill 目录。例如：
+
+```text
+请使用 $skill-installer，从 GitHub 仓库 Kaku-shiko/buyna-agent-skills 安装 skills/buyai-commerce-section-design。
+```
+
+可安装的目录以 [仓库清单](repository-manifest.json) 的 `skills` 为准。此方式只复制选定的
+Skill 目录。需要固定模块、安装清单或 SOP 的工作流使用完整安装。
 
 ## 仓库规则
 
@@ -253,6 +210,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Scope Project -P
 
 1. 公开来源固定为 `https://github.com/Kaku-shiko/buyna-agent-skills`。
 2. 默认分支使用 `main`，并保留 GitHub Actions校验。
-3. 团队成员通过 `$skill-installer` 或克隆仓库安装。
+3. 团队成员克隆仓库后按完整安装步骤同步。
 4. 外部贡献者使用 Fork和 Pull Request；授权成员使用短期分支和 Pull Request。
 5. 合并后通知成员重新安装或执行更新脚本。

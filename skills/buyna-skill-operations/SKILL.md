@@ -31,9 +31,9 @@ Operate the Buyna.ai Skill repository without mixing project implementation work
 
 - For the complete website workflow, clone
   `Kaku-shiko/buyna-agent-skills` and run `scripts/install.ps1`; this installs
-  both Skills and fixed code modules. Do not treat `$skill-installer` alone as
-  a complete commerce installation because it installs Skill folders but not
-  repository-level `packages/`.
+  Skills, fixed code modules, the installation manifest and SOPs. The Builder
+  requires this setup for static sites as well. Use `$skill-installer` for
+  standalone Skill folders.
 - Install personal Skills under `.codex/skills/`; install project-scoped Skills under `.agents/skills/`.
 - Preserve the complete Skill directory, including `SKILL.md`, `agents/`, `references/`, `scripts/`, and `assets/` when present.
 - After installation read `.agents/buyna/repository-manifest.json` for project

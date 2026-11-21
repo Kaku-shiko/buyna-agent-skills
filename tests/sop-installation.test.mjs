@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +20,10 @@ test('clean project installation distributes SOPs and installed generator reads 
   assert.equal(JSON.parse(readFileSync(join(root, 'repository-manifest.json'), 'utf8')).customerOwned, true);
   const taskPath = join(root, 'task.json');
   writeFileSync(taskPath, JSON.stringify({ projectId: 'installed', objective: 'repair', sopIds: ['change-and-maintenance'] }));
-  const script = join(root, '.agents/skills/buyna-website-builder/scripts/project-agent-guide.mjs');
+  const builder = join(root, '.agents', 'skills', 'buyna-website-builder');
+  const builderAlias = join(root, 'builder-alias');
+  symlinkSync(builder, builderAlias, process.platform === 'win32' ? 'junction' : 'dir');
+  const script = join(builderAlias, 'scripts', 'project-agent-guide.mjs');
   const generated = spawnSync(process.execPath, [script, '--project-root', root, '--task', taskPath], { encoding: 'utf8' });
   assert.equal(generated.status, 0, generated.stderr);
   assert.match(readFileSync(join(root, 'AGENTS.md'), 'utf8'), new RegExp(receipt.digest));
