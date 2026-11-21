@@ -12,7 +12,7 @@ const workPackageGates=Object.freeze(['frontend_code','dashboard_integration','c
 const paymentArchitectures=Object.freeze(['fixed-cores','legacy-globepay-service']);
 const dashboardSliceValues=Object.freeze([
   'dashboard','merchant_identity','products','categories','services','media','page_editor',
-  'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings',
+  'inventory','coupons','orders','bookings','customers','paid_customers','settings','payment_settings','subscription',
 ]);
 const notificationOperationValues=Object.freeze(['order_notification','booking_notification']);
 const notificationOperationSlices=Object.freeze({order_notification:'orders',booking_notification:'bookings'});

@@ -1,0 +1,9 @@
+{
+  "name": "@buyna/commerce-storefront",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24"},
+  "exports": {".": "./src/client.mjs", "./server": "./src/gateway.mjs", "./contract": "./src/contract.mjs"},
+  "files": ["src", "README.md"]
+}

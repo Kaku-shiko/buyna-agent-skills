@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resourceRoute } from './resource-route.mjs';
 
 const workflowCoreUrls = [
   new URL("../../../packages/buyna-workflow-state-core/src/index.mjs", import.meta.url),
@@ -185,6 +186,7 @@ function withManifestVerification(route) {
   }
   return {
     ...route,
+    ...(resourceRoute(route) ? { resourceRoute: resourceRoute(route) } : {}),
     dashboardSlice: route.dashboardSlice ?? null,
     dashboardSlices: Array.isArray(route.dashboardSlices) ? [...route.dashboardSlices] : [],
     notificationOperation: route.notificationOperation ?? null,
@@ -343,6 +345,10 @@ function routeForGate({ gate, capabilities, paymentArchitecture, mode, dashboard
     addUnique(fixedModules, ["buyna-auth-session-core", "buyna-merchant-context-core"]);
     if (dashboardSelection.dashboardSlices.some((slice) => fileCapableDashboardSlices.includes(slice))) {
       addUnique(fixedModules, ["buyna-merchant-file-core"]);
+    }
+    if (dashboardSelection.dashboardSlices.includes("subscription")) {
+      skills.push("buyna-service-subscription");
+      addUnique(fixedModules, ["buyna-service-subscription-core"]);
     }
     if (dashboardSelection.dashboardSlices.includes("orders")) addUnique(fixedModules, ["buyna-order-core"]);
     if (dashboardSelection.dashboardSlices.some((slice) => readModelDashboardSlices.includes(slice))) {
@@ -536,7 +542,18 @@ export function planWebsiteRoute({ capabilities: rawCapabilities, workflowState:
     });
   }
   const selected = routeForGate({ gate: targetGate, capabilities, paymentArchitecture, mode, dashboardSelection, notificationSelection });
+  const usesBackend = ["dashboard_integration", "checkout_payment"].includes(targetGate);
+  if (usesBackend) addUnique(selected.fixedModules, ["buyna-backend-foundation"]);
   const base = {
+    ...(usesBackend ? { backendFoundation: {
+      package: "buyna-backend-foundation",
+      installMode: "versioned-bundle",
+      databaseMode: "registered-schema-migrations",
+      runtimeRecipe: capabilities.requiresCart && capabilities.requiresInventory
+        && !capabilities.requiresCoupons && !capabilities.requiresBooking
+        && paymentArchitecture === "fixed-cores" ? "postgres-product-checkout" : "existing-adapter-composition",
+      reference: "references/backend-foundation.md",
+    }} : {}),
     targetGate,
     requestedSlice,
     skills: selected.skills,

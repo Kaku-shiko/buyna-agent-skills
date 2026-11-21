@@ -1,5 +1,12 @@
 {
-  "presentationStylesheetExtensions": ["css", "scss", "sass", "less", "styl", "stylus"],
+  "presentationStylesheetExtensions": [
+    "css",
+    "scss",
+    "sass",
+    "less",
+    "styl",
+    "stylus"
+  ],
   "uiExportPatterns": [
     "(?:^|\\s)\\.\\/(?:react|components?)(?=\\s|$)",
     "(?:^|\\s)\\.\\/(?:styles?|theme)(?:\\.[a-z]+)?(?=\\s|$)",
@@ -15,8 +22,23 @@
     "\\barn:(?:aws|aws-cn|aws-us-gov):"
   ],
   "sharedSourceExtensions": [
-    "mjs", "js", "cjs", "mts", "cts", "ts", "tsx", "jsx", "json",
-    "css", "scss", "sass", "less", "styl", "stylus", "vue", "svelte"
+    "mjs",
+    "js",
+    "cjs",
+    "mts",
+    "cts",
+    "ts",
+    "tsx",
+    "jsx",
+    "json",
+    "css",
+    "scss",
+    "sass",
+    "less",
+    "styl",
+    "stylus",
+    "vue",
+    "svelte"
   ],
   "sharedSourceProhibitedPatterns": {
     "merchantIdentifiers": [
@@ -57,14 +79,34 @@
     ]
   },
   "supportingInteractionSourceBoundary": {
-    "stylesheetExtensions": ["css", "scss", "sass", "less"],
-    "componentExtensions": ["jsx", "tsx", "vue", "svelte"],
-    "scannedSourceExtensions": ["mjs", "js", "cjs", "mts", "cts", "ts", "json"],
+    "stylesheetExtensions": [
+      "css",
+      "scss",
+      "sass",
+      "less"
+    ],
+    "componentExtensions": [
+      "jsx",
+      "tsx",
+      "vue",
+      "svelte"
+    ],
+    "scannedSourceExtensions": [
+      "mjs",
+      "js",
+      "cjs",
+      "mts",
+      "cts",
+      "ts",
+      "json"
+    ],
     "forbiddenModuleSpecifiers": {
       "uiFrameworkImport": [
         "^(?:react(?:-dom)?|react(?:-dom)?/.*|vue|vue/.*|svelte|svelte/.*|@angular/.*|lit)$"
       ],
-      "awsSdkImport": ["^@aws-sdk/"],
+      "awsSdkImport": [
+        "^@aws-sdk/"
+      ],
       "sqlOrOrmImport": [
         "^(?:pg|pg-promise|knex|prisma|@prisma/.*|drizzle-orm|sequelize|typeorm|mysql2|better-sqlite3)(?:/.*)?$"
       ],
@@ -74,7 +116,9 @@
       "cookieMiddlewareImport": [
         "^(?:cookie-parser|cookie-session|express-session|iron-session)(?:/.*)?$"
       ],
-      "projectRouteImport": ["(?:^|/)routes?(?:/|$)"],
+      "projectRouteImport": [
+        "(?:^|/)routes?(?:/|$)"
+      ],
       "providerTransportImport": [
         "^(?:axios|got|undici|node-fetch|node:https?|https?|stripe|@stripe/.*|globepay|worldpay)(?:/.*)?$"
       ]
@@ -99,25 +143,51 @@
     ]
   },
   "readModelDeliverySourceBoundary": {
-    "stylesheetExtensions": ["css", "scss", "sass", "less", "styl", "stylus"],
-    "componentExtensions": ["jsx", "tsx", "vue", "svelte"],
-    "scannedSourceExtensions": ["mjs", "js", "cjs", "mts", "cts", "ts", "json"],
+    "stylesheetExtensions": [
+      "css",
+      "scss",
+      "sass",
+      "less",
+      "styl",
+      "stylus"
+    ],
+    "componentExtensions": [
+      "jsx",
+      "tsx",
+      "vue",
+      "svelte"
+    ],
+    "scannedSourceExtensions": [
+      "mjs",
+      "js",
+      "cjs",
+      "mts",
+      "cts",
+      "ts",
+      "json"
+    ],
     "forbiddenModuleSpecifiers": {
       "uiOrChartImport": [
         "^(?:react(?:-dom)?|react(?:-dom)?/.*|preact|preact/.*|vue|vue/.*|svelte|svelte/.*|@angular/.*|lit|chart\\.js|apexcharts|highcharts|echarts|recharts|d3(?:/.*)?|@visx/.*)$"
       ],
-      "stylesheetImport": ["\\.(?:css|scss|sass|less|styl|stylus)(?:\\?.*)?$"],
+      "stylesheetImport": [
+        "\\.(?:css|scss|sass|less|styl|stylus)(?:\\?.*)?$"
+      ],
       "sqlOrOrmImport": [
         "^(?:pg|pg-promise|knex|prisma|@prisma/.*|drizzle-orm|sequelize|typeorm|mysql2|better-sqlite3)(?:/.*)?$"
       ],
-      "awsSdkImport": ["^(?:@aws-sdk/|aws-sdk(?:/.*)?$)"],
+      "awsSdkImport": [
+        "^(?:@aws-sdk/|aws-sdk(?:/.*)?$)"
+      ],
       "providerTransportImport": [
         "^(?:axios|got|undici|node-fetch|node:https?|https?|stripe|@stripe/.*|globepay|worldpay|sendgrid|@sendgrid/.*)(?:/.*)?$"
       ],
       "smtpOrSmsImport": [
         "^(?:nodemailer|smtp-client|emailjs|mailgun\\.js|twilio|@twilio/.*|vonage|@vonage/.*)(?:/.*)?$"
       ],
-      "projectRouteImport": ["(?:^|/)routes?(?:/|$)"]
+      "projectRouteImport": [
+        "(?:^|/)routes?(?:/|$)"
+      ]
     },
     "merchantIdentifierPatterns": [
       "\\bmerchant_live_fixture\\b",
@@ -136,10 +206,28 @@
       "\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}"
     ],
     "rawSecretAssignmentKeys": [
-      "password", "passwd", "apiKey", "api_key", "accessToken", "access_token",
-      "authToken", "auth_token", "secret", "secretKey", "secret_key", "credentialCode",
-      "credential_code", "privateKey", "private_key", "clientSecret", "client_secret",
-      "sessionToken", "session_token", "smtpPassword", "smtp_password", "databaseUrl",
+      "password",
+      "passwd",
+      "apiKey",
+      "api_key",
+      "accessToken",
+      "access_token",
+      "authToken",
+      "auth_token",
+      "secret",
+      "secretKey",
+      "secret_key",
+      "credentialCode",
+      "credential_code",
+      "privateKey",
+      "private_key",
+      "clientSecret",
+      "client_secret",
+      "sessionToken",
+      "session_token",
+      "smtpPassword",
+      "smtp_password",
+      "databaseUrl",
       "database_url"
     ],
     "forbiddenExecutablePatterns": [
@@ -152,7 +240,10 @@
       "(?:^|[^0-9])\\+?[0-9][0-9 ()-]{7,}[0-9](?:$|[^0-9])",
       "\\bhttps?:\\/\\/[^\\s\"']+",
       "\\b(?:process\\.env|credential(?:Code|_code)|secret(?:Name|Id)|getSecretValue)\\b",
-      "(?:<html\\b|<body\\b|\\bDear customer\\b|\\bThank you for your order\\b|お客様各位|ご注文ありがとうございます)"
+      "(?:<html\\b|<body\\b|\\bDear customer\\b|\\bThank you for your order\\b|\u304a\u5ba2\u69d8\u5404\u4f4d|\u3054\u6ce8\u6587\u3042\u308a\u304c\u3068\u3046\u3054\u3056\u3044\u307e\u3059)"
     ]
+  },
+  "presentationModuleExceptions": {
+    "buyna-service-subscription-core": "User-approved shared subscription panel; storefront cart and checkout presentation remain project-owned."
   }
 }

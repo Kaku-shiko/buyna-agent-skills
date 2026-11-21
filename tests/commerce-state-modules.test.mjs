@@ -60,7 +60,7 @@ test("every manifest fixed module obeys the authoritative presentation and produ
   for (const moduleName of manifest.packages) {
     const files = filesUnder(`packages/${moduleName}`);
     assert.ok(
-      !files.some((file) => policy.presentationStylesheetExtensions
+      Object.hasOwn(policy.presentationModuleExceptions, moduleName) || !files.some((file) => policy.presentationStylesheetExtensions
         .some((extension) => file.toLowerCase().endsWith(`.${extension}`))),
       `${moduleName} does not bundle a presentation stylesheet`,
     );
@@ -69,7 +69,7 @@ test("every manifest fixed module obeys the authoritative presentation and produ
     const exports = typeof pkg.exports === "string" ? [[".", pkg.exports]] : Object.entries(pkg.exports);
     for (const [exportName, target] of exports) {
       assert.ok(
-        !prohibitedUiExports.some((pattern) => pattern.test(`${exportName} ${target}`)),
+        Object.hasOwn(policy.presentationModuleExceptions, moduleName) || !prohibitedUiExports.some((pattern) => pattern.test(`${exportName} ${target}`)),
         `${moduleName} does not expose a UI component or style entrypoint`,
       );
     }

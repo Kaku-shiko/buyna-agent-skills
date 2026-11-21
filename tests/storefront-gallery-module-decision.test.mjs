@@ -35,6 +35,7 @@ const expectedRecord = {
     failedAssertions: [],
   },
   nonConsumers: [
+    {path: "packages/buyna-service-subscription-core/ui/SubscriptionReminder.jsx", reason: "subscription_dialog_focus_return"},
     {
       path: "packages/buyna-workflow-state-core/src/index.mjs",
       reason: "workflow_gate_index",

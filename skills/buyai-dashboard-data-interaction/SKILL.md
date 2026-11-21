@@ -144,3 +144,12 @@ the check; this receipt does not replace authenticated request authorization.
 ## Currency-specific sales overview
 
 Call the commerce read model separately for the explicit actual payment currency (JPY or CNY). Pass currency to every monetary source query, including recent orders. Store integer minor units; display CNY divided by 100 and JPY without decimals. Do not sum currencies, relabel historical JPY, or infer actual payment currency from storefront display preferences.
+
+## Component resource routing
+
+At the applicable design, structure, frontend, dashboard or testing stage, read
+[component resource routing](../buyna-website-builder/references/component-resource-routing.md). Reuse project components first,
+verify actual tool/build availability, and preserve the existing design for ordinary
+repairs. A route is not evidence of installation or external execution.
+
+When interpreting UI requests, apply [UI terminology](../buyna-website-builder/references/ui-terminology.md) before selecting components. Preserve user intent and natural customer-facing labels; resolve real component APIs for the existing framework.

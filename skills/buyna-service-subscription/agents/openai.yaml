@@ -1,0 +1,4 @@
+interface:
+  display_name: "Buyna Service Subscription"
+  short_description: "Official subscription API and guarded merchant integration"
+  default_prompt: "Use $buyna-service-subscription to connect the approved merchant subscription panel to the official API and verify the pilot before rollout."

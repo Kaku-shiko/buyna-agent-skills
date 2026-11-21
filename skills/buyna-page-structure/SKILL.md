@@ -66,3 +66,16 @@ Skill 3 is complete only when the customer approves:
 6. Template keep/remove/add/replace decisions when applicable.
 7. Privacy-policy placement, conditional policy pages, and the list of information still required.
 8. Merchant Dashboard page composition and mobile navigation when applicable.
+
+## Public website copy
+
+Public website copy must describe the merchant, products and services. Do not add AI feature descriptions, AI-generated/AI-powered claims, AI assistant promotions, model/provider names, or AI-building credits in pages, navigation, banners, footers, metadata or image text. Do not invent AI features. This is a copy rule: preserve requested functionality and required truthful privacy/legal disclosures. Change this default only when the user explicitly requests specific AI-related public copy.
+
+## Component resource routing
+
+At the applicable design, structure, frontend, dashboard or testing stage, read
+[component resource routing](../buyna-website-builder/references/component-resource-routing.md). Reuse project components first,
+verify actual tool/build availability, and preserve the existing design for ordinary
+repairs. A route is not evidence of installation or external execution.
+
+When interpreting UI requests, apply [UI terminology](../buyna-website-builder/references/ui-terminology.md) before selecting components. Preserve user intent and natural customer-facing labels; resolve real component APIs for the existing framework.

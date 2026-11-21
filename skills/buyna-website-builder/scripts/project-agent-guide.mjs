@@ -90,6 +90,15 @@ ${sopLinks}
 ## 最近路由快照（仅提示，下次执行前必须重新计算）
 
 ${snapshot ? `\`\`\`json\n${json(snapshot)}\n\`\`\`` : '尚未建立已验证的路由。先从 Builder 的新建／接续流程取得真实状态，不预填完成记录或后续模块清单。'}
+## Component resource handoff
+
+When the verified route has resourceRoute and action=execute, read the website-builder
+reference component-resource-routing.md and follow only its current-stage steps.
+Record exact component versions, theme and asset references with the current page
+revision. Resolve actual tools before execution; discovery is not installation.
+Preserve existing design on ordinary repairs. Do not automatically redesign,
+replace business cores or publish because a component was selected.
+
 ${end}`;
 }
 

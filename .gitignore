@@ -14,3 +14,7 @@ db.sqlite3
 !**/.env.production.example
 .idea/
 .vscode/
+
+node_modules/
+
+/shared-modules/registry.json

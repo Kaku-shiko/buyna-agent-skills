@@ -3,3 +3,8 @@ const index={chunks:[{skill:'storage',source:'skills/storage/references/image.md
 test('Chinese requests retrieve the relevant rule',()=>assert.equal(searchRepository(index,'图片保存不了')[0].skill,'storage'));
 test('scope applied before ranking',()=>assert.equal(searchRepository(index,'图片保存',{skills:['pay']}).length,0));
 test('budget and empty query',()=>{assert.equal(searchRepository(index,'Basic',{maxChars:1}).length,0);assert.deepEqual(searchRepository(index,''),[]);});
+test('explicit metadata filters cannot leak an incompatible stack',()=>{
+ const tagged={chunks:index.chunks.map((c,i)=>({...c,metadata:{stack:[i?'flutter':'react']}}))};
+ assert.equal(searchRepository(tagged,'图片',{filters:{stack:'flutter'}}).length,0);
+ assert.equal(searchRepository(tagged,'图片',{filters:{stack:'react'}})[0].skill,'storage');
+});

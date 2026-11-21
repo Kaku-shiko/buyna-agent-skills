@@ -60,6 +60,7 @@ function assertProductsRouteContract(route) {
     'buyna-auth-session-core',
     'buyna-merchant-context-core',
     'buyna-merchant-file-core',
+    'buyna-backend-foundation',
   ];
   assert.equal(route.action, 'execute');
   assert.equal(route.targetGate, 'dashboard_integration');

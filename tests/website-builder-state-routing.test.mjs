@@ -30,6 +30,20 @@ const normalizeRouteResult = (route) => {
   delete route.dashboardSlices;
   // Batch 4 validates notification routing in its focused routing suite.
   delete route.notificationOperation;
+  if (route.resourceRoute) {
+    assert.equal(route.resourceRoute.grantsExternalActions, false);
+    assert.equal(route.resourceRoute.executionReadiness, 'verify-at-runtime');
+    delete route.resourceRoute;
+  }
+  if (route.backendFoundation) {
+    assert.ok(['dashboard_integration', 'checkout_payment'].includes(route.targetGate));
+    assert.equal(route.backendFoundation.package, 'buyna-backend-foundation');
+    assert.equal(route.backendFoundation.databaseMode, 'registered-schema-migrations');
+    assert.equal(route.fixedModules.filter(x=>x==='buyna-backend-foundation').length, 1);
+    route.fixedModules=route.fixedModules.filter(x=>x!=='buyna-backend-foundation');
+    delete route.backendFoundation;
+  }
+
   return route;
 };
 
