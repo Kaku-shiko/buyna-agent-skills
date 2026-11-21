@@ -1,0 +1,16 @@
+.buyna-feedback{--normal-bg:#fff;--normal-text:var(--buyna-ink,#0b1533);--normal-border:#dbe3f0;font-family:inherit}
+.buyna-feedback .buyna-toast{border-radius:12px;padding:16px;gap:12px;font-size:14px;line-height:1.55;box-shadow:0 6px 24px #0b153318}
+.buyna-feedback [data-content]{min-width:0;overflow-wrap:anywhere}
+.buyna-feedback [data-description]{color:#445978;font-size:14px}
+.buyna-feedback [data-type=success] [data-icon]{color:#13765e}
+.buyna-feedback [data-type=error] [data-icon]{color:#b42335}
+.buyna-feedback [data-type=info] [data-icon],.buyna-feedback [data-type=loading] [data-icon]{color:var(--buyna-blue,#2563eb)}
+.buyna-feedback [data-close-button]{width:28px;height:28px;padding:5px;min-height:0;min-width:0}
+.feedback-spinner{animation:feedback-spin .9s linear infinite}
+@keyframes feedback-spin{to{transform:rotate(360deg)}}
+.connection-notice{position:fixed;inset:0 0 auto;z-index:10000;background:#fff4db;color:#654500;padding:10px 20px;text-align:center;font-size:14px}
+button:not(:disabled),a.button{transition:background-color .12s ease-out,box-shadow .12s ease-out,filter .12s ease-out}
+button:not(:disabled):active,a.button:active{filter:brightness(.94)}
+button:disabled{cursor:not-allowed}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--buyna-blue,#2563eb);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.feedback-spinner{animation:none}.buyna-feedback *{animation:none!important;transition:none!important}button:not(:disabled),a.button{transition:none}}

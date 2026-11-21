@@ -244,6 +244,7 @@
     ]
   },
   "presentationModuleExceptions": {
-    "buyna-service-subscription-core": "User-approved shared subscription panel; storefront cart and checkout presentation remain project-owned."
+    "commerce-storefront": "Shared customer checkout UI for same-origin Commerce stores.",
+    "buyna-service-subscription-core": "User-approved shared subscription panel; storefront cart presentation remains project-owned."
   }
 }

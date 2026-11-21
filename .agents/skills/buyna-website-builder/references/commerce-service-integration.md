@@ -2,7 +2,7 @@
 
 Read this at intake and before checkout implementation when the registered store uses the shared Commerce platform. Preserve existing `fixed-cores` and `legacy-globepay-service` projects; installing this update does not migrate them.
 
-Use `packages/commerce-storefront` version 0.1.0 (`@buyna/commerce-storefront`). Resolve tenant, store and site binding from the authenticated Commerce control plane, never from a copied example store or browser-supplied identity. Keep secrets and provider adapters in the existing Commerce service.
+Use `packages/commerce-storefront` version 0.2.0 (`@buyna/commerce-storefront`). Resolve tenant, store and site binding from the authenticated Commerce control plane, never from a copied example store or browser-supplied identity. Keep secrets and provider adapters in the existing Commerce service.
 
 | Deployment | Delivered interface | Required boundary |
 | --- | --- | --- |
@@ -12,6 +12,6 @@ Use `packages/commerce-storefront` version 0.1.0 (`@buyna/commerce-storefront`).
 
 For an independent frontend, the existing store link does not transfer its cart. Report this limitation before offering that architecture. The workflow currently accepts only its two registered legacy payment architecture values; do not force a shared service through either value. Shared-Commerce workflow support needs its own verified interface and schema/route tests before becoming a default.
 
-The SDK contains no separately packaged checkout UI. Reuse the existing Commerce checkout where available. A future UI extraction must carry its actual dependencies, URL validation and tests; do not label this SDK as that extraction.
+For new same-origin Commerce storefronts, install the registered commerce-storefront package and automatically mount CatalogCheckout from @buyna/commerce-storefront/react on checkout. Pass the bound slug, current quoted total, line IDs and fulfillment requirements. Mount FeedbackHost once and PaymentReturn on the configured Commerce return route. Use project theme styling around the shared checkout. Verify the full order, retry, payment-method selection, hosted redirect, verified result and voucher path before release.
 
 Payment completion requires server verification of provider status, signature, ownership, amount, currency and idempotency. A successful redirect is not payment evidence. BUYNA service subscriptions use `buyna-service-subscription` and the official subscription authority, not storefront credentials.
