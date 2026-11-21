@@ -176,6 +176,7 @@ test("manifest and complete installer expose and install both fixed modules exac
     mkdirSync(join(mutantRepository, "packages"), { recursive: true });
     // Keep distribution prerequisites intact; this mutant isolates a missing module.
     cpSync(fileURLToPath(new URL('sop', root)), join(mutantRepository, 'sop'), { recursive: true });
+    cpSync(fileURLToPath(new URL('shared-modules', root)), join(mutantRepository, 'shared-modules'), { recursive: true });
     mkdirSync(join(mutantRepository, 'skills/buyna-website-builder/scripts'), { recursive: true });
     cpSync(fileURLToPath(new URL('skills/buyna-website-builder/scripts/sop-context.mjs', root)),
       join(mutantRepository, 'skills/buyna-website-builder/scripts/sop-context.mjs'));

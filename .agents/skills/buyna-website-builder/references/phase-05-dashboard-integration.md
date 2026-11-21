@@ -1,5 +1,7 @@
 # Phase 5: Dashboard Functional Integration
 
+For backend installation and database/order/payment wiring, read [backend foundation](backend-foundation.md). Use its fixed package and installation checks; do not regenerate these rules per site.
+
 Require the approved Phase 4 code record and API contract. Use `buyai-dashboard-data-interaction` to complete one page or related slice at a time: executable API foundation, merchant identity, `buyna-project-resource-registry`, the matching existing-resource gate, database/S3 when needed, domain endpoint/service, mock-adapter replacement, and persistence/error/public-site verification.
 
 Before backend integration, require existing-resource evidence matching the project architecture:

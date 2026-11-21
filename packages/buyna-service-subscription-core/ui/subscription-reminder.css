@@ -1,0 +1,17 @@
+.buyna-renewal-reminder{box-sizing:border-box;width:min(420px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;overflow:auto;border:1px solid #dce5f1;border-radius:8px;padding:28px;background:#fff;color:#172033;font:14px/1.6 system-ui,-apple-system,"Segoe UI","Microsoft YaHei","Meiryo",sans-serif;letter-spacing:0;box-shadow:0 16px 48px #17203326}
+.buyna-renewal-reminder::backdrop{background:#14213680}
+.buyna-renewal-reminder .buyna-renewal-close{position:absolute;right:8px;top:8px;width:44px;height:44px;border:0;background:transparent;color:#526078;font-family:inherit;font-size:24px;cursor:pointer}
+.buyna-renewal-reminder h2{font:600 22px/1.4 system-ui,"Microsoft YaHei","Meiryo",sans-serif;margin:0 20px 10px 0;letter-spacing:0}
+.buyna-renewal-reminder .buyna-renewal-plan{display:inline-block;background:#edf1f7;border-radius:4px;padding:2px 10px;font-weight:600}
+.buyna-renewal-reminder .buyna-renewal-details{background:#f3f6fa;border-radius:6px;padding:14px 16px;margin:20px 0 12px}
+.buyna-renewal-reminder .buyna-renewal-details>div{display:flex;justify-content:space-between;gap:16px;align-items:baseline;margin:6px 0}
+.buyna-renewal-reminder dt{color:#526078;min-width:0}
+.buyna-renewal-reminder dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0}
+.buyna-renewal-reminder p{color:#526078;font-size:13px;line-height:1.6}
+.buyna-renewal-reminder .buyna-renewal-actions{display:grid;gap:10px;margin-top:20px}
+.buyna-renewal-reminder .buyna-renewal-actions>*{box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;padding:10px 16px;border:1px solid #cad5e5;border-radius:6px;background:#fff;color:#172033;text-decoration:none;font:600 14px/1.5 system-ui,"Microsoft YaHei","Meiryo",sans-serif;cursor:pointer}
+.buyna-renewal-reminder .buyna-renewal-actions>.buyna-renewal-primary{background:#245bea;border-color:#245bea;color:#fff}
+.buyna-renewal-reminder .buyna-renewal-manage{display:flex;justify-content:center;align-items:center;min-height:44px;margin-top:8px;color:#245bea;font-size:13px;text-decoration:underline}
+.buyna-renewal-reminder :focus-visible{outline:3px solid #78a5ff;outline-offset:3px}
+.buyna-renewal-reminder button.buyna-renewal-manage{width:100%;padding:0;border:0;background:transparent;font-family:inherit;cursor:pointer}
+@media(max-width:480px){.buyna-renewal-reminder{padding:24px 20px}.buyna-renewal-reminder h2{font-size:20px}}

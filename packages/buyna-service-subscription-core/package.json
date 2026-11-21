@@ -1,0 +1,21 @@
+{
+  "name": "@buyna/service-subscription-core",
+  "version": "0.5.11",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/model.mjs",
+    "./client": "./src/client.mjs",
+    "./snapshot-server": "./src/snapshot.server.mjs",
+    "./server-proxy": "./src/server-proxy.ts",
+    "./integration": "./src/integration.mjs",
+    "./react": "./ui/SubscriptionPanel.jsx",
+    "./reminder": "./ui/SubscriptionReminder.jsx"
+  },
+  "peerDependencies": {
+    "react": ">=18 <20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

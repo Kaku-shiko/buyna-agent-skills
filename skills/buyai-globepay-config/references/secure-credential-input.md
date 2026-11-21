@@ -77,3 +77,14 @@ edu 项目位置由当前项目登记或用户提供的源码确定；不要依�
 - 创建冲突和版本冲突清晰反馈；保存失败不显示已配置，重复提交不产生错误启用。
 - 更换凭据后不能复用旧验证结果；过期验证不能启用收款。
 - 本地配置验证、渠道验证、真实付款/退款各自记录证据，不互相替代。
+
+## Automatic website generation
+
+The edu example's disabled-on-save switch is historical, not a default for new sites.
+Do not generate a second collectionEnabled=false switch or interpret a missing flag
+as explicit suspension. Reuse verified current-merchant/current-version connection
+evidence. New or rotated credentials still need server connection validation;
+never mark an order paid from credential presence. Use paymentAvailability in
+buyna-backend-foundation: unknown, unconfigured, needs_validation, disabled (only
+when explicitly recorded), or ready. Unknown/read errors must not be rendered as
+"收款尚未启用". Keep BUYNA subscription billing separate from storefront collection.

@@ -1,0 +1,16 @@
+{
+  "name": "@buyna/backend-foundation",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./postgres": "./src/postgres.mjs",
+    "./install": "./src/install.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.10"
+  }
+}

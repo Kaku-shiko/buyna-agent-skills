@@ -91,3 +91,12 @@ health, rollback, payment verification ownership, and `DEFERRED` items. For
 Create or update automated test files for applicable behavior and report their
 paths. Run the tests and record results. When a check can only be manual,
 record why; a checklist without executed evidence is not delivery.
+
+## Component resource routing
+
+At the applicable design, structure, frontend, dashboard or testing stage, read
+[component resource routing](../buyna-website-builder/references/component-resource-routing.md). Reuse project components first,
+verify actual tool/build availability, and preserve the existing design for ordinary
+repairs. A route is not evidence of installation or external execution.
+
+When interpreting UI requests, apply [UI terminology](../buyna-website-builder/references/ui-terminology.md) before selecting components. Preserve user intent and natural customer-facing labels; resolve real component APIs for the existing framework.

@@ -1,0 +1,83 @@
+.bs-root label.bs-profile-field, .bs-dialog label.bs-profile-field { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 6px; margin: 12px 0; font-size: 13px; }
+/* Embedded backends often give every input full width. Keep consent controls
+   separate from text-field sizing, including dialogs rendered in the top layer. */
+.bs-root label.bs-checkbox,
+.bs-dialog label.bs-checkbox {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 0;
+  margin: 16px 0;
+  text-align: left;
+  white-space: normal;
+}
+.bs-root label.bs-checkbox > input[type="checkbox"],
+.bs-dialog label.bs-checkbox > input[type="checkbox"] {
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  padding: 0;
+  margin: 3px 0 0;
+  justify-self: start;
+  align-self: start;
+}
+.bs-root label.bs-checkbox > span,
+.bs-dialog label.bs-checkbox > span {
+  display: block;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  writing-mode: horizontal-tb;
+  line-height: 1.7;
+}
+.bs-root.bs-modal-host { display: contents; }
+.bs-root,.bs-dialog,.bs-root *,.bs-dialog * { box-sizing: border-box; }
+.bs-root { width: 100%; max-width: 1200px; margin-inline: auto; }
+.bs-root .bs-overview-actions { width: 100%; }
+.bs-plan-dialog { width: min(960px,calc(100% - 48px)); }
+.bs-plan-dialog .bs-cards { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+@media(max-width:600px){.bs-plan-dialog{width:calc(100% - 24px)}.bs-plan-dialog .bs-cards{grid-template-columns:minmax(0,1fr);gap:12px}}
+.bs-dialog input:not([type=checkbox]):not([type=radio]),.bs-dialog select { width: 100%; min-width: 0; min-height: 44px; }
+.bs-dialog .bs-primary,.bs-dialog .bs-secondary { min-height: 44px; }
+.bs-dialog .bs-checkbox { min-height: 44px; }
+.bs-modal-back { margin-bottom: 16px; }
+.bs-profile-field input { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; border: 1px solid #cbd7eb; border-radius: 4px; font: inherit; }
+.bs-dialog-body section[aria-label] { overflow-wrap: anywhere; }
+.bs-root .bs-summary { padding: 22px 24px; }
+.bs-root .bs-summary h3 { margin: 0; font-size: 22px; }
+.bs-renewal-line { margin: 8px 0 0; font-size: 14px; color: #526078; overflow-wrap: anywhere; }
+.bs-root .bs-management { display: grid; grid-template-columns: minmax(0,1fr); gap: 20px; }
+.bs-root .bs-change-result { text-align:center; }
+.bs-root .bs-change-result .bs-costs { text-align:left; }
+.bs-root .bs-change-check { display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#e4f6ed;color:#087d48;font:600 30px/1 system-ui; }
+.bs-root .bs-change-result h4 { margin:16px 0 8px; }
+.bs-root .bs-management .bs-panel { border: 1px solid #dce5f1; border-radius: 8px; box-shadow: none; padding: 24px; background: #fff; }
+.bs-root .bs-overview-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(140px,180px); gap: 24px; align-items: center; }
+.bs-overview-amount { border-left: 1px solid #e3e8ef; padding-left: 24px; min-width: 0; }
+.bs-overview-amount span { color: #526078; font-size: 14px; display: block; }
+.bs-overview-amount strong { font-size: 28px; display: block; margin: 10px 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bs-overview-amount small { color: #245bea; font-size: 12px; }
+@media (max-width: 900px) { .bs-root .bs-overview-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .bs-overview-amount { border-left: 0; padding-left: 0; } }
+@media (max-width: 600px) { .bs-root .bs-management { grid-template-columns: 1fr; } .bs-root .bs-overview-grid { grid-template-columns: 1fr; } .bs-root .bs-overview-grid > button { width: 100%; } }
+@media (max-width: 600px) { .bs-root .bs-summary { padding: 18px; } .bs-root .bs-summary .bs-between { align-items: flex-start; flex-wrap: wrap; gap: 16px; } }
+.bs-plan-actions{display:flex;flex-direction:column;gap:10px;min-width:0}.bs-plan-actions button{width:100%;white-space:normal}
+.bs-root,.bs-dialog{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;font-size:14px;line-height:1.6;letter-spacing:0}
+.bs-root button,.bs-dialog button,.bs-dialog input,.bs-dialog select{font-family:inherit;letter-spacing:0}
+.bs-dialog .bs-costs>div{align-items:baseline;font-size:14px;line-height:1.6;gap:16px}
+.bs-dialog .bs-costs dt{color:#526078;min-width:0}
+.bs-dialog .bs-costs dd{text-align:right;color:#172033;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0}
+.bs-dialog .bs-cost-total dt{color:#172033;font-weight:600}
+.bs-dialog .bs-cost-total dd{font-size:26px;font-weight:700}
+.bs-dialog .bs-renewal-heading{font-size:16px;font-weight:600;margin:28px 0 12px}
+.bs-dialog .bs-renewal-costs{margin-top:0}
+@media(max-width:600px){.bs-dialog input,.bs-dialog select{font-size:16px}.bs-dialog .bs-costs>div{gap:12px}.bs-dialog .bs-costs dt,.bs-dialog .bs-costs dd{max-width:60%}}

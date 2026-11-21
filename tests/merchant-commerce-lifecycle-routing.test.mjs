@@ -172,6 +172,7 @@ test("stock and SKU Dashboard selects catalog, inventory, and operation state ex
     "buyna-auth-session-core",
     "buyna-merchant-context-core",
     "buyna-order-core",
+    "buyna-backend-foundation",
   ]);
   assert.equal(new Set(route.skills).size, route.skills.length);
   assert.equal(new Set(route.fixedModules).size, route.fixedModules.length);
@@ -451,6 +452,7 @@ test("user installation prefers the current namespaced manifest over a stale leg
     mkdirSync(workflowRoot, { recursive: true });
     mkdirSync(manifestRoot, { recursive: true });
     copyFileSync(new URL("skills/buyna-website-builder/scripts/route-builder.mjs", root), join(routerRoot, "route-builder.mjs"));
+    copyFileSync(new URL("skills/buyna-website-builder/scripts/resource-route.mjs", root), join(routerRoot, "resource-route.mjs"));
     copyFileSync(new URL("packages/buyna-workflow-state-core/src/index.mjs", root), join(workflowRoot, "index.mjs"));
     copyFileSync(new URL("packages/buyna-workflow-state-core/src/workflow-provenance.mjs", root), join(workflowRoot, "workflow-provenance.mjs"));
     copyFileSync(new URL("repository-manifest.json", root), join(manifestRoot, "repository-manifest.json"));
@@ -529,3 +531,17 @@ test("project installation carries the authoritative manifest used by the instal
     rmSync(target, { recursive: true, force: true });
   }
 });
+
+ test('subscription routes only an approved dashboard slice to its separate billing module',()=>{
+  const capabilities=productCapabilities();
+  let state=workflowAtGate('frontend_code',capabilities);
+  state=setApprovedDashboardSlices({state,slices:['subscription'],approvedBy:'user'}).state;
+  state=approveCurrentGate(state,'frontend_code',deliveryFor('frontend_code',capabilities));
+  const route=planWebsiteRoute({capabilities,workflowState:state,requestedSlice:'dashboard_integration',dashboardSlice:'subscription'});
+  assert.equal(route.action,'execute');
+  assert.ok(route.skills.includes('buyna-service-subscription'));
+  assert.ok(route.fixedModules.includes('buyna-service-subscription-core'));
+  assert.ok(!route.skills.includes('buyai-globepay-payment'));
+  const denied=planWebsiteRoute({capabilities,workflowState:workflowAtGate('dashboard_integration',capabilities),requestedSlice:'dashboard_integration',dashboardSlice:'subscription'});
+  assert.notEqual(denied.action,'execute');
+ });

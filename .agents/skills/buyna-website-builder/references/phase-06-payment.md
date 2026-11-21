@@ -1,5 +1,7 @@
 # Phase 6: Checkout And Payment
 
+For backend installation and database/order/payment wiring, read [backend foundation](backend-foundation.md). Use its fixed package and installation checks; do not regenerate these rules per site.
+
 Use `NOT_APPLICABLE` when `requiresCheckout=false`. Select the checkout sequence
 from persisted workflow state:
 

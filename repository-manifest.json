@@ -30,6 +30,7 @@
     "buyna-page-structure",
     "buyna-project-resource-registry",
     "buyna-s3-storage",
+    "buyna-service-subscription",
     "buyna-skill-operations",
     "buyna-testing-quality",
     "buyna-unified-merchant-architecture",
@@ -38,6 +39,7 @@
   ],
   "packages": [
     "buyna-auth-session-core",
+    "buyna-backend-foundation",
     "buyna-cart-core",
     "buyna-checkout-flow-core",
     "buyna-commerce-read-model-core",
@@ -47,6 +49,7 @@
     "buyna-gmv-core",
     "buyna-integration-receipt-core",
     "buyna-inventory-core",
+    "buyna-merchant-access-core",
     "buyna-merchant-catalog-core",
     "buyna-merchant-context-core",
     "buyna-merchant-dashboard-core",
@@ -55,44 +58,49 @@
     "buyna-merchant-provisioning-core",
     "buyna-order-core",
     "buyna-postgres-merchant-core",
+    "buyna-repository-retrieval-core",
     "buyna-resource-evidence-core",
     "buyna-runtime-slot-core",
+    "buyna-service-subscription-core",
     "buyna-workflow-state-core",
-    "buyna-merchant-access-core",
-    "buyna-repository-retrieval-core"
+    "commerce-storefront"
   ],
   "profiles": {
     "website-builder": {
       "skills": [
-        "buyna-customer-intake",
-        "buyna-website-design",
-        "buyna-page-structure",
-        "buyna-frontend-builder",
-        "buyai-product-merchant-backend",
         "buyai-booking-service-backend",
+        "buyai-checkout-address-ux",
+        "buyai-commerce-section-design",
         "buyai-coupon-commerce",
         "buyai-dashboard-data-interaction",
-        "buyai-checkout-address-ux",
         "buyai-globepay-payment",
         "buyai-globepay-status-sync",
-        "buyna-gmv-commerce",
-        "buyna-testing-quality",
+        "buyai-product-merchant-backend",
         "buyna-aws-release",
-        "buyna-project-resource-registry",
+        "buyna-customer-intake",
+        "buyna-frontend-builder",
+        "buyna-gmv-commerce",
         "buyna-merchant-onboarding",
+        "buyna-page-structure",
+        "buyna-project-resource-registry",
         "buyna-s3-storage",
-        "buyai-commerce-section-design"
+        "buyna-service-subscription",
+        "buyna-testing-quality",
+        "buyna-website-design"
       ],
       "packages": [
         "buyna-auth-session-core",
+        "buyna-backend-foundation",
         "buyna-cart-core",
         "buyna-checkout-flow-core",
         "buyna-commerce-read-model-core",
         "buyna-commerce-settlement-core",
         "buyna-coupon-core",
         "buyna-delivery-state-core",
+        "buyna-gmv-core",
         "buyna-integration-receipt-core",
         "buyna-inventory-core",
+        "buyna-merchant-access-core",
         "buyna-merchant-catalog-core",
         "buyna-merchant-context-core",
         "buyna-merchant-dashboard-core",
@@ -100,10 +108,10 @@
         "buyna-merchant-file-core",
         "buyna-order-core",
         "buyna-postgres-merchant-core",
-        "buyna-workflow-state-core",
-        "buyna-merchant-access-core",
         "buyna-repository-retrieval-core",
-        "buyna-gmv-core"
+        "buyna-service-subscription-core",
+        "buyna-workflow-state-core",
+        "commerce-storefront"
       ]
     }
   },
@@ -115,5 +123,15 @@
     "checkout_payment",
     "testing_upload_gate",
     "aws_release"
-  ]
+  ],
+  "builderRoutes": {
+    "add_payment": {
+      "skills": [
+        "buyna-website-builder"
+      ],
+      "packages": [
+        "commerce-storefront"
+      ]
+    }
+  }
 }

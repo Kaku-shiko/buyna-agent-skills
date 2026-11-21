@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "bucket": "buyna-s3",
+  "modules": {
+    "service-subscription": {
+      "package": "@buyna/service-subscription-core",
+      "versions": {}
+    }
+  }
+}

@@ -6,6 +6,7 @@ on:
       - "skills/**"
       - ".agents/skills/**"
       - "packages/**"
+      - "shared-modules/**"
       - "tests/**"
       - "repository-manifest.json"
       - "scripts/install.ps1"
@@ -17,6 +18,7 @@ on:
       - "skills/**"
       - ".agents/skills/**"
       - "packages/**"
+      - "shared-modules/**"
       - "tests/**"
       - "repository-manifest.json"
       - "scripts/install.ps1"
@@ -31,6 +33,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install fixed module test dependencies
+        shell: pwsh
+        run: npm ci --prefix packages/buyna-backend-foundation --ignore-scripts --no-audit --no-fund
       - name: Validate repository Skills
         shell: pwsh
         run: ./scripts/validate.ps1
@@ -71,3 +79,7 @@ jobs:
           if ($skillTests.Count -eq 0) { throw 'No Skill script tests found' }
           node --test $skillTests
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test private module distribution policy
+        shell: pwsh
+        run: node --test shared-modules/cli.test.mjs

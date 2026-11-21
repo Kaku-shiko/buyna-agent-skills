@@ -45,9 +45,15 @@ if ($Scope -eq 'User') {
     $manifestDestinationRoot = Join-Path $installationRoot '.agents\buyna'
 }
 
+$distributionDestination = Join-Path $installationRoot 'shared-modules'
+
 $manifestDestinationPath = Join-Path $manifestDestinationRoot 'repository-manifest.json'
 if ((Test-Path -LiteralPath $manifestDestinationPath) -and -not $Force) {
     throw "Namespaced manifest already exists: $manifestDestinationPath. Use -Force to update the installed manifest."
+}
+
+if ((Test-Path -LiteralPath $distributionDestination) -and -not $Force) {
+    throw 'Shared module distribution already exists; review it before using -Force.'
 }
 
 New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
@@ -129,6 +135,10 @@ $sopArguments = @($sopInstaller, $sopSourceRoot, $manifestDestinationRoot)
 if ($sopRevision) { $sopArguments += $sopRevision }
 & $nodeCommand.Source @sopArguments
 if ($LASTEXITCODE -ne 0) { throw 'SOP installation failed; installation is incomplete.' }
+New-Item -ItemType Directory -Path $distributionDestination -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $repositoryRoot 'shared-modules') -File | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $distributionDestination $_.Name) -Force
+}
 Copy-Item -LiteralPath $manifestSourcePath -Destination $manifestDestinationPath -Force
 
 Write-Host ""

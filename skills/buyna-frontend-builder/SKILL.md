@@ -22,6 +22,17 @@ For frontend Banner content and its corresponding Dashboard menu, read
 [Banner management](references/banner-management.md). Include this content slice
 when the selected design contains a managed Banner.
 
+## Modern Web Guidance
+
+Before implementing or reviewing changes to HTML, CSS, or browser-side JavaScript, use [Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance). Use the installed skill when available. Otherwise, run the following commands from the development environment:
+
+```sh
+npx -y modern-web-guidance@1.0.1 search "responsive data table"
+npx -y modern-web-guidance@1.0.1 retrieve "<matching-guide-id>"
+```
+
+Search for the web capability being changed. Check the relevant guidance against the project's target browsers, existing design and component contracts, and keyboard and touch behavior. Preserve an accessible fallback when required. If the CLI is unavailable, consult the upstream documentation and relevant MDN compatibility data. Apply this workflow to browser-facing work, including generated storefronts and admin interfaces where applicable. Pure backend, infrastructure, and copy-only changes are outside its scope.
+
 ## Commerce Region Rendering
 
 For product storefronts, consume approved page-region configuration using
@@ -136,3 +147,22 @@ For browser image saving import `createImageUploadClient` from
 `buyna-s3-storage/references/merchant-file-adapter-contract.md`. Keep the
 original File separate from serialized queue state. Never import the Node-only
 `src/file-core.mjs` into frontend components.
+
+## Public website copy
+
+Public website copy must describe the merchant, products and services. Do not add AI feature descriptions, AI-generated/AI-powered claims, AI assistant promotions, model/provider names, or AI-building credits in pages, navigation, banners, footers, metadata or image text. Do not invent AI features. This is a copy rule: preserve requested functionality and required truthful privacy/legal disclosures. Change this default only when the user explicitly requests specific AI-related public copy.
+
+## Shared visual authoring draft
+
+In hosted Builder, the server-provided current draft and revision are the authoritative page input, including edits made outside chat. Preserve stable, unique `data-buyna-section` IDs on editable sections. Do not nest section markers. Mark required navigation and footer with `data-buyna-required="true"`. Keep unsupported or script-owned content explicit; never claim every arbitrary HTML element is editable.
+
+Visual changes and AI output use the same draft store. AI output is a candidate until the server commits it against the captured base revision. On a revision conflict, retain both the existing draft and task output; reread the latest draft before a fresh task. Do not overwrite or auto-publish a conflicting candidate. Skill/SOP/module inputs are snapshotted per task; a new task reads the installed release, while an in-flight task retains its snapshot. Snapshot loading does not establish backend integration or release completion.
+
+## Component resource routing
+
+At the applicable design, structure, frontend, dashboard or testing stage, read
+[component resource routing](../buyna-website-builder/references/component-resource-routing.md). Reuse project components first,
+verify actual tool/build availability, and preserve the existing design for ordinary
+repairs. A route is not evidence of installation or external execution.
+
+When interpreting UI requests, apply [UI terminology](../buyna-website-builder/references/ui-terminology.md) before selecting components. Preserve user intent and natural customer-facing labels; resolve real component APIs for the existing framework.
