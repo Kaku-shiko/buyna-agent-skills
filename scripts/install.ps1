@@ -7,6 +7,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Test-InstallationChildPath {
+    param([string]$Root, [string]$Path)
+
+    $separator = [IO.Path]::DirectorySeparatorChar
+    $rootPrefix = [IO.Path]::GetFullPath($Root).TrimEnd($separator) + $separator
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $comparison = [StringComparison]::Ordinal
+    if ($separator -eq '\') {
+        $comparison = [StringComparison]::OrdinalIgnoreCase
+    }
+
+    return $fullPath.Length -gt $rootPrefix.Length -and $fullPath.StartsWith($rootPrefix, $comparison)
+}
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $sourceRoot = Join-Path $repositoryRoot 'skills'
 $moduleSourceRoot = Join-Path $repositoryRoot 'packages'
@@ -33,7 +47,11 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 }
 
 if ($Scope -eq 'User') {
-    $installationRoot = Join-Path $env:USERPROFILE '.codex'
+    $profileHome = $env:USERPROFILE
+    if ([string]::IsNullOrWhiteSpace($profileHome)) {
+        $profileHome = $HOME
+    }
+    $installationRoot = Join-Path $profileHome '.codex'
     $destinationRoot = Join-Path $installationRoot 'skills'
     $moduleDestinationRoot = Join-Path $installationRoot 'packages'
     $manifestDestinationRoot = Join-Path $installationRoot 'buyna'
@@ -62,13 +80,11 @@ if (-not $SkillsOnly) {
 }
 New-Item -ItemType Directory -Path $manifestDestinationRoot -Force | Out-Null
 
-$obsoleteSkills = @($manifest.obsoleteSkills)
-foreach ($obsoleteSkill in $obsoleteSkills) {
+foreach ($obsoleteSkill in $manifest.obsoleteSkills) {
     $obsoletePath = Join-Path $destinationRoot $obsoleteSkill
     if (Test-Path -LiteralPath $obsoletePath) {
-        $resolvedRoot = [IO.Path]::GetFullPath($destinationRoot).TrimEnd('\') + '\'
         $resolvedObsolete = [IO.Path]::GetFullPath($obsoletePath)
-        if (-not $resolvedObsolete.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        if (-not (Test-InstallationChildPath -Root $destinationRoot -Path $resolvedObsolete)) {
             throw "Refusing to remove an obsolete Skill outside the installation root: $resolvedObsolete"
         }
         Remove-Item -LiteralPath $resolvedObsolete -Recurse -Force
@@ -92,9 +108,8 @@ foreach ($obsoleteSkill in $obsoleteSkills) {
     }
 
     if ((Test-Path -LiteralPath $destination) -and $Force) {
-        $resolvedRoot = [IO.Path]::GetFullPath($destinationRoot).TrimEnd('\') + '\'
         $resolvedDestination = [IO.Path]::GetFullPath($destination)
-        if (-not $resolvedDestination.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        if (-not (Test-InstallationChildPath -Root $destinationRoot -Path $resolvedDestination)) {
             throw "Refusing to replace a Skill outside the installation root: $resolvedDestination"
         }
         Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
@@ -117,9 +132,8 @@ if (-not $SkillsOnly) {
             throw "Fixed module already exists: $destination. Use -Force to update installed modules."
         }
         if ((Test-Path -LiteralPath $destination) -and $Force) {
-            $resolvedRoot = [IO.Path]::GetFullPath($moduleDestinationRoot).TrimEnd('\') + '\'
             $resolvedDestination = [IO.Path]::GetFullPath($destination)
-            if (-not $resolvedDestination.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            if (-not (Test-InstallationChildPath -Root $moduleDestinationRoot -Path $resolvedDestination)) {
                 throw "Refusing to replace a fixed module outside the module root: $resolvedDestination"
             }
             Remove-Item -LiteralPath $resolvedDestination -Recurse -Force

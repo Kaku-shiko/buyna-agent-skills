@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, lstatSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { realpathSync, existsSync, readFileSync, readdirSync, lstatSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
@@ -71,7 +71,7 @@ export function localSopSource() {
   if (existsSync(join(mirroredSource, 'manifest.json'))) return { ...loadSopBundle(mirroredSource), sourceRevision: null };
   fail('SOP_INSTALLATION_REQUIRED');
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [sourceRoot, destinationRoot, sourceRevision] = process.argv.slice(2);
   if (!sourceRoot || !destinationRoot) fail('USAGE: <source-sop-root> <installation-namespace> [source-revision]');
   console.log(JSON.stringify(installSopBundle({ sourceRoot, destinationRoot, sourceRevision: sourceRevision || null })));

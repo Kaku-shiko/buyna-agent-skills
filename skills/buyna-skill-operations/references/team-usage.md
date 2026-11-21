@@ -1,38 +1,35 @@
 # Team installation and usage
 
-## Skill-only installation
-
-Ask Codex:
-
-```text
-Use $skill-installer to install all Skills under skills/ from the public
-GitHub repository Kaku-shiko/buyna-agent-skills.
-```
-
-The repository is public, so installation does not require an invitation or GitHub token. Never paste a GitHub token into a prompt or repository file.
-
-This method installs instructions only. It is insufficient for the fixed
-Dashboard, catalog, cart, order, PostgreSQL, file, and GMV modules.
-
 ## Install from a cloned repository
 
-From the repository root on Windows:
+The public repository requires no GitHub token. Install Node.js, clone the
+repository, and run the installer from its root. The Builder, including static
+site projects, requires the full install.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
+On macOS with PowerShell 7:
+
+```bash
+pwsh -NoProfile -File ./scripts/install.ps1 -Scope Project -ProjectPath "/path/to/project"
 ```
 
-Use `-Force` only when intentionally updating existing installed Skills.
-
-The script installs both `skills/` and `packages/`. User scope uses
-`.codex/skills/` plus `.codex/packages/`; project scope uses `.agents/skills/`
-plus the project's `packages/`.
-
-For one project:
+On Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Scope Project -ProjectPath "C:\path\to\project"
 ```
+
+Project scope installs Skills, packages and the installation manifest and SOPs
+under `.agents/skills/`, `packages/` and `.agents/buyna/`. Omit the scope and
+project path options for user scope, which writes to the user home directory
+under `.codex/`. Append `-Force` to the same command to replace installed
+directories during an update.
+
+## Install a standalone Skill
+
+Use `$skill-installer` with an individual Skill path from
+`repository-manifest.json` when you only need that Skill. This copies the
+selected Skill directory. Workflows that need shared modules, the installation
+manifest or SOPs require the full install.
 
 ## Start the website workflow
 

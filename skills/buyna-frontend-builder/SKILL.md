@@ -13,7 +13,7 @@ interaction mode, and bounded work package. Use only the returned Skills and
 fixed modules; do not independently expand or reinvoke sibling work.
 
 Resolve fixed modules from the current project `packages/` first, then the user
-installation at `$env:USERPROFILE/.codex/packages/`. For a product merchant,
+installation at `~/.codex/packages/`. For a product merchant,
 stop with `BLOCKED: FIXED_COMMERCE_MODULES_NOT_INSTALLED` instead of
 regenerating a missing Dashboard, catalog, cart, order, PostgreSQL, or file
 core.

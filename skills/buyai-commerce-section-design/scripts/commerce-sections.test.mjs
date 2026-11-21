@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, cpSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,8 +102,14 @@ test('three example combinations differ in composition and all retain essentials
 test('installed Skill has a self-contained executable module and asset catalog', t => {
   const dir = mkdtempSync(join(tmpdir(), 'buyna-sections-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  cpSync(fileURLToPath(new URL('../', import.meta.url)), join(dir, 'skill'), { recursive: true });
-  const result = spawnSync(process.execPath, [join(dir, 'skill/scripts/commerce-sections.mjs'), '--input', join(dir, 'skill/assets/commerce-home.example.json')], { encoding: 'utf8' });
+  const installedSkill = join(dir, 'skill');
+  cpSync(fileURLToPath(new URL('../', import.meta.url)), installedSkill, { recursive: true });
+  const alias = join(dir, 'skill-alias');
+  symlinkSync(installedSkill, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const result = spawnSync(process.execPath, [
+    join(alias, 'scripts', 'commerce-sections.mjs'),
+    '--input', join(alias, 'assets', 'commerce-home.example.json'),
+  ], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).sections.find(s => s.id === 'new-products').count, 8);
 });
