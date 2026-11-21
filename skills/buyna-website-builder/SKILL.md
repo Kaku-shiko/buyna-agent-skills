@@ -251,6 +251,6 @@ When interpreting UI requests, apply [UI terminology](references/ui-terminology.
 
 ## Shared Commerce and service subscriptions
 
-At intake and before payment integration read [Commerce service integration](references/commerce-service-integration.md). Preserve the registered architecture; the external SDK has no cart handoff or independently packaged checkout UI.
+At intake and before payment integration read [Commerce service integration](references/commerce-service-integration.md). Preserve the registered architecture; new same-origin Commerce stores use the packaged React checkout, while external gateways still lack cart handoff.
 
 For the approved subscription dashboard slice use `buyna-service-subscription` and `buyna-service-subscription-core`. BUYNA service billing is separate from storefront payments. Pin source and cloud artifact versions; installation never enables enforcement, billing or merchant channels.
